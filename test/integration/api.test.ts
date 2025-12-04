@@ -24,6 +24,11 @@ import type {
   AnthropicTool,
 } from '../types.js';
 
+const buildMessagesUrl = (baseUrl: string): string => {
+  const trimmed = baseUrl.replace(/\/{2,}/g, '/').replace(/\/+$/, '');
+  return `${trimmed}/v1/messages`;
+};
+
 // Real AnthropicClient implementation for integration testing
 class IntegrationAnthropicClient {
   constructor(private readonly config: ProviderConfig) {}
@@ -74,7 +79,8 @@ class IntegrationAnthropicClient {
           : {}),
       };
 
-      const response = await fetch(this.config.baseUrl, {
+      const endpoint = buildMessagesUrl(this.config.baseUrl);
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: this.buildHeaders(),
         body: JSON.stringify(requestBody),

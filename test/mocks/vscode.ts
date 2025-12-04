@@ -139,7 +139,7 @@ export class LanguageModelChatMessage {
 export interface LanguageModelChatTool {
   name: string;
   description: string;
-  inputSchema: {
+  inputSchema?: {
     type: 'object';
     properties: Record<string, unknown>;
     required?: string[];

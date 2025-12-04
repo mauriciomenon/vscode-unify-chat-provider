@@ -22,6 +22,11 @@ import {
 } from '../utils/test-helpers.js';
 import type { ProviderConfig, AnthropicMessage, AnthropicTool } from '../types.js';
 
+const buildMessagesUrl = (baseUrl: string): string => {
+  const trimmed = baseUrl.replace(/\/{2,}/g, '/').replace(/\/+$/, '');
+  return `${trimmed}/v1/messages`;
+};
+
 // Create a testable version of AnthropicClient using our mocks
 class TestableAnthropicClient {
   constructor(private readonly config: ProviderConfig) {}
@@ -107,12 +112,21 @@ class TestableAnthropicClient {
     return result;
   }
 
-  convertTools(tools: readonly { name: string; description: string; inputSchema: unknown }[]): AnthropicTool[] {
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.inputSchema as AnthropicTool['input_schema'],
-    }));
+  convertTools(tools: readonly { name: string; description: string; inputSchema?: unknown }[]): AnthropicTool[] {
+    return tools.map((tool) => {
+      const inputSchema =
+        (tool.inputSchema as AnthropicTool['input_schema'] | undefined) ?? {
+          type: 'object',
+          properties: {},
+          required: [],
+        };
+
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: inputSchema,
+      };
+    });
   }
 
   async *streamChat(
@@ -141,7 +155,8 @@ class TestableAnthropicClient {
         ...(options.tools && options.tools.length > 0 ? { tools: options.tools } : {}),
       };
 
-      const response = await fetchFn(this.config.baseUrl, {
+      const endpoint = buildMessagesUrl(this.config.baseUrl);
+      const response = await fetchFn(endpoint, {
         method: 'POST',
         headers: this.buildHeaders(),
         body: JSON.stringify(requestBody),
@@ -453,6 +468,23 @@ describe('AnthropicClient', () => {
       assert.strictEqual(result.length, 2);
       assert.strictEqual(result[0].name, 'tool1');
       assert.strictEqual(result[1].name, 'tool2');
+    });
+
+    it('should fill in an empty schema when missing', () => {
+      const tools = [
+        {
+          name: 'no-schema',
+          description: 'Tool without schema',
+        },
+      ];
+
+      const result = client.convertTools(tools);
+
+      assert.deepStrictEqual(result[0].input_schema, {
+        type: 'object',
+        properties: {},
+        required: [],
+      });
     });
 
     it('should handle empty tools array', () => {

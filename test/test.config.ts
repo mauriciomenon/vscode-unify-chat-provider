@@ -8,7 +8,7 @@
  * 3. Run tests with: npm test
  *
  * Environment variables:
- * - TEST_API_BASE_URL: API endpoint URL
+ * - TEST_API_BASE_URL: API base URL
  * - TEST_API_KEY: API key for authentication
  * - TEST_API_MODEL: Model ID to use for testing
  */

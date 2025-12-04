@@ -11,7 +11,7 @@ export interface ProviderConfig {
   type: ProviderType;
   /** Unique name for this provider */
   name: string;
-  /** Base URL for the API (e.g., https://api.anthropic.com/v1/messages) */
+  /** Base URL for the API (e.g., https://api.anthropic.com) */
   baseUrl: string;
   /** API key for authentication */
   apiKey?: string;
@@ -38,6 +38,7 @@ export interface ModelConfig {
  */
 export interface ExtensionConfiguration {
   endpoints: ProviderConfig[];
+  verbose: boolean;
 }
 
 /**

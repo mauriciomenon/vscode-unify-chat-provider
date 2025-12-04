@@ -5,6 +5,7 @@ import {
   ModelConfig,
   ProviderType,
 } from '../types';
+import { normalizeBaseUrlInput } from '../utils/url';
 
 /**
  * Valid provider types
@@ -43,11 +44,21 @@ export class ConfigStore {
   }
 
   /**
+   * Whether verbose logging is enabled
+   */
+  get verbose(): boolean {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const rawVerbose = config.get<unknown>('verbose', false);
+    return typeof rawVerbose === 'boolean' ? rawVerbose : false;
+  }
+
+  /**
    * Get the full extension configuration
    */
   get configuration(): ExtensionConfiguration {
     return {
       endpoints: this.endpoints,
+      verbose: this.verbose,
     };
   }
 
@@ -69,17 +80,17 @@ export class ConfigStore {
       return null;
     }
 
-    if (!Array.isArray(obj.models) || obj.models.length === 0) {
+    let baseUrl: string;
+    try {
+      baseUrl = normalizeBaseUrlInput(obj.baseUrl);
+    } catch {
       return null;
     }
 
-    const models: ModelConfig[] = obj.models
+    const rawModels = Array.isArray(obj.models) ? obj.models : [];
+    const models: ModelConfig[] = rawModels
       .map((m: unknown) => this.normalizeModelConfig(m))
       .filter((m): m is ModelConfig => m !== null);
-
-    if (models.length === 0) {
-      return null;
-    }
 
     // Parse and validate type
     if (
@@ -93,7 +104,7 @@ export class ConfigStore {
     return {
       type: type as ProviderType,
       name: obj.name,
-      baseUrl: obj.baseUrl,
+      baseUrl,
       apiKey: typeof obj.apiKey === 'string' ? obj.apiKey : undefined,
       models,
     };

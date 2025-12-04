@@ -22,6 +22,7 @@ export interface ModelConfig {
 
 export interface ExtensionConfiguration {
   endpoints: ProviderConfig[];
+  verbose: boolean;
 }
 
 export interface AnthropicMessage {

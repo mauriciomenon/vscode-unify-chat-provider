@@ -30,18 +30,28 @@ Add providers to your workspace settings (`.vscode/settings.json`) using the `un
     {
       "type": "anthropic",
       "name": "Anthropic",
-      "baseUrl": "https://api.anthropic.com/v1/messages",
+      "baseUrl": "https://api.anthropic.com",
       "apiKey": "your-api-key",
       "models": ["claude-sonnet-4-20250514", "claude-opus-4-20250514"]
     },
     {
       "type": "anthropic",
       "name": "OpenRouter",
-      "baseUrl": "https://openrouter.ai/api/v1/messages",
+      "baseUrl": "https://openrouter.ai/api",
       "apiKey": "your-openrouter-key",
       "models": ["anthropic/claude-sonnet-4", "anthropic/claude-opus-4"]
     }
   ]
+}
+```
+
+### Verbose Logging
+
+By default only errors and failed requests are logged. Set `unifyChatProvider.verbose` to `true` to log full request and response details:
+
+```json
+{
+  "unifyChatProvider.verbose": true
 }
 ```
 
@@ -55,7 +65,7 @@ Models can be specified as simple strings or as objects with additional configur
     {
       "type": "anthropic",
       "name": "Custom Provider",
-      "baseUrl": "https://api.example.com/v1/messages",
+      "baseUrl": "https://api.example.com",
       "apiKey": "your-api-key",
       "models": [
         {
@@ -71,15 +81,15 @@ Models can be specified as simple strings or as objects with additional configur
 }
 ```
 
-### Configuration Properties
+### Provider Configuration Properties
 
-| Property  | Required | Description                                      |
-| --------- | -------- | ------------------------------------------------ |
-| `type`    | Yes      | API format type                                  |
-| `name`    | Yes      | Display name for the provider                    |
-| `baseUrl` | Yes      | API endpoint URL                                 |
-| `apiKey`  | No       | API key for authentication                       |
-| `models`  | Yes      | List of available models (at least one required) |
+| Property  | Required | Description                   |
+| --------- | -------- | ----------------------------- |
+| `type`    | Yes      | API format type               |
+| `name`    | Yes      | Display name for the provider |
+| `baseUrl` | Yes      | API base URL                  |
+| `apiKey`  | No       | API key for authentication    |
+| `models`  | No       | List of available models      |
 
 ## Commands
 
@@ -125,7 +135,7 @@ Adding support for a new API format involves:
 
 Compatible with APIs that follow the Anthropic Messages API format:
 
-- **Endpoint**: POST to the configured `baseUrl`
+- **Endpoint**: POST to `<baseUrl>/v1/messages`
 - **Authentication**: `x-api-key` header
 - **API Version**: `anthropic-version: 2023-06-01`
 - **Request format**: Anthropic Messages API

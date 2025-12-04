@@ -12,7 +12,7 @@ export function createTestProviderConfig(overrides?: Partial<ProviderConfig>): P
   return {
     type: 'anthropic',
     name: 'test-provider',
-    baseUrl: 'https://api.example.com/v1/messages',
+    baseUrl: 'https://api.example.com',
     apiKey: 'test-api-key',
     models: [
       { id: 'test-model-1', name: 'Test Model 1', maxInputTokens: 100000, maxOutputTokens: 4096 },

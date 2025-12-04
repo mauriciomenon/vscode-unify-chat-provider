@@ -9,6 +9,14 @@ import {
   AnthropicTool,
   ApiClient,
 } from '../types';
+import { buildAnthropicMessagesUrl } from '../utils/url';
+import {
+  logResponseChunk,
+  logResponseComplete,
+  logResponseError,
+  logResponseMetadata,
+  startRequestLog,
+} from '../utils/logger';
 
 /**
  * Client for Anthropic-compatible APIs
@@ -116,11 +124,20 @@ export class AnthropicClient implements ApiClient {
    * Convert VS Code tools to Anthropic format
    */
   convertTools(tools: readonly vscode.LanguageModelChatTool[]): AnthropicTool[] {
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.inputSchema as AnthropicTool['input_schema'],
-    }));
+    return tools.map((tool) => {
+      const inputSchema =
+        (tool.inputSchema as AnthropicTool['input_schema'] | undefined) ?? {
+          type: 'object',
+          properties: {},
+          required: [],
+        };
+
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: inputSchema,
+      };
+    });
   }
 
   /**
@@ -141,6 +158,10 @@ export class AnthropicClient implements ApiClient {
       abortController.abort();
     });
 
+    const headers = this.buildHeaders();
+    const endpoint = buildAnthropicMessagesUrl(this.config.baseUrl);
+    let requestId = 'req-unknown';
+
     try {
       const requestBody: AnthropicRequest = {
         model: modelId,
@@ -157,25 +178,38 @@ export class AnthropicClient implements ApiClient {
         requestBody.tools = options.tools;
       }
 
-      const response = await fetch(this.config.baseUrl, {
+      requestId = startRequestLog({
+        provider: this.config.name,
+        modelId,
+        endpoint,
+        headers,
+        body: requestBody,
+      });
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: this.buildHeaders(),
+        headers,
         body: JSON.stringify(requestBody),
         signal: abortController.signal,
       });
 
+      logResponseMetadata(requestId, response);
+
       if (!response.ok) {
         const errorText = await response.text();
+        logResponseError(requestId, `HTTP ${response.status}: ${errorText}`);
         throw new Error(`API request failed (${response.status}): ${errorText}`);
       }
 
       const contentType = response.headers.get('content-type') ?? '';
 
       if (contentType.includes('text/event-stream')) {
-        yield* this.parseSSEStream(response, token);
+        yield* this.parseSSEStream(response, token, requestId);
       } else {
         // Non-streaming response fallback
-        const result = await response.json();
+        const rawText = await response.text();
+        logResponseChunk(requestId, rawText);
+        const result = JSON.parse(rawText);
         for (const block of result.content ?? []) {
           if (block.type === 'text') {
             yield new vscode.LanguageModelTextPart(block.text);
@@ -184,6 +218,12 @@ export class AnthropicClient implements ApiClient {
           }
         }
       }
+
+      logResponseComplete(requestId);
+    } catch (error) {
+      // Errors are logged before being rethrown so the UI still handles them.
+      logResponseError(requestId, error);
+      throw error;
     } finally {
       cancellationListener.dispose();
     }
@@ -194,7 +234,8 @@ export class AnthropicClient implements ApiClient {
    */
   private async *parseSSEStream(
     response: Response,
-    token: vscode.CancellationToken
+    token: vscode.CancellationToken,
+    requestId: string
   ): AsyncGenerator<vscode.LanguageModelTextPart | vscode.LanguageModelToolCallPart> {
     const reader = response.body?.getReader();
     if (!reader) {
@@ -225,6 +266,7 @@ export class AnthropicClient implements ApiClient {
           }
 
           const data = trimmed.slice(5).trim();
+          logResponseChunk(requestId, data);
           if (data === '[DONE]') {
             return;
           }

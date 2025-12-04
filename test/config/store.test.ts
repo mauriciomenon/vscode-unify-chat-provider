@@ -12,6 +12,7 @@ import {
   MockWorkspace,
   ConfigurationChangeEvent,
 } from '../mocks/vscode.js';
+import { normalizeBaseUrlInput } from '../../src/utils/url.js';
 
 // Mock vscode module before importing ConfigStore
 const mockWorkspace = new MockWorkspace();
@@ -46,8 +47,14 @@ class TestableConfigStore {
       .filter((p): p is NonNullable<typeof p> => p !== null);
   }
 
+  get verbose(): boolean {
+    const config = mockWorkspace.getConfiguration('unifyChatProvider');
+    const rawVerbose = config.get<unknown>('verbose', false);
+    return typeof rawVerbose === 'boolean' ? rawVerbose : false;
+  }
+
   get configuration() {
-    return { endpoints: this.endpoints };
+    return { endpoints: this.endpoints, verbose: this.verbose };
   }
 
   private normalizeProviderConfig(raw: unknown) {
@@ -65,17 +72,17 @@ class TestableConfigStore {
       return null;
     }
 
-    if (!Array.isArray(obj.models) || obj.models.length === 0) {
+    let baseUrl: string;
+    try {
+      baseUrl = normalizeBaseUrlInput(obj.baseUrl);
+    } catch {
       return null;
     }
 
-    const models = obj.models
+    const rawModels = Array.isArray(obj.models) ? obj.models : [];
+    const models = rawModels
       .map((m: unknown) => this.normalizeModelConfig(m))
       .filter((m): m is NonNullable<typeof m> => m !== null);
-
-    if (models.length === 0) {
-      return null;
-    }
 
     // Parse and validate type (required field)
     if (typeof obj.type !== 'string' || !['anthropic'].includes(obj.type)) {
@@ -86,7 +93,7 @@ class TestableConfigStore {
     return {
       type: type as 'anthropic',
       name: obj.name,
-      baseUrl: obj.baseUrl,
+      baseUrl,
       apiKey: typeof obj.apiKey === 'string' ? obj.apiKey : undefined,
       models,
     };
@@ -194,6 +201,44 @@ describe('ConfigStore', () => {
       assert.strictEqual(endpoints[0].models.length, 2);
     });
 
+    it('should normalize baseUrl input', () => {
+      mockWorkspace.setConfigurationData('unifyChatProvider', {
+        endpoints: [
+          {
+            type: 'anthropic',
+            name: 'needs-normalization',
+            baseUrl: 'https://api.example.com/path///?foo=1#bar',
+            models: ['model-1'],
+          },
+        ],
+      });
+
+      const endpoint = store.endpoints[0];
+      assert.strictEqual(endpoint.baseUrl, 'https://api.example.com/path');
+    });
+
+    it('should filter out endpoints that already include /v1/messages', () => {
+      mockWorkspace.setConfigurationData('unifyChatProvider', {
+        endpoints: [
+          {
+            type: 'anthropic',
+            name: 'invalid',
+            baseUrl: 'https://api.example.com/v1/messages',
+            models: ['model-1'],
+          },
+          {
+            type: 'anthropic',
+            name: 'valid',
+            baseUrl: 'https://api.example.com',
+            models: ['model-1'],
+          },
+        ],
+      });
+
+      assert.strictEqual(store.endpoints.length, 1);
+      assert.strictEqual(store.endpoints[0].name, 'valid');
+    });
+
     it('should filter out endpoints with missing type', () => {
       mockWorkspace.setConfigurationData('unifyChatProvider', {
         endpoints: [
@@ -251,7 +296,7 @@ describe('ConfigStore', () => {
       assert.strictEqual(store.endpoints[0].name, 'valid');
     });
 
-    it('should filter out invalid endpoints with missing or empty models', () => {
+    it('should keep endpoints even when models are empty', () => {
       mockWorkspace.setConfigurationData('unifyChatProvider', {
         endpoints: [
           { type: 'anthropic', name: 'no-models', baseUrl: 'https://api.example.com' },
@@ -263,15 +308,21 @@ describe('ConfigStore', () => {
           },
           {
             type: 'anthropic',
-            name: 'valid',
+            name: 'with-model',
             baseUrl: 'https://api.example.com',
             models: ['model-1'],
           },
         ],
       });
 
-      assert.strictEqual(store.endpoints.length, 1);
-      assert.strictEqual(store.endpoints[0].name, 'valid');
+      assert.strictEqual(store.endpoints.length, 3);
+      assert.deepStrictEqual(
+        store.endpoints.map((p) => p.name),
+        ['no-models', 'empty-models', 'with-model'],
+      );
+      assert.deepStrictEqual(store.endpoints[0].models, []);
+      assert.deepStrictEqual(store.endpoints[1].models, []);
+      assert.deepStrictEqual(store.endpoints[2].models, [{ id: 'model-1' }]);
     });
 
     it('should filter out endpoints with invalid provider type', () => {
@@ -464,6 +515,34 @@ describe('ConfigStore', () => {
 
   });
 
+  describe('verbose flag', () => {
+    it('should default to false when not set', () => {
+      mockWorkspace.setConfigurationData('unifyChatProvider', {
+        endpoints: [],
+      });
+
+      assert.strictEqual(store.verbose, false);
+    });
+
+    it('should read boolean value when set', () => {
+      mockWorkspace.setConfigurationData('unifyChatProvider', {
+        endpoints: [],
+        verbose: true,
+      });
+
+      assert.strictEqual(store.verbose, true);
+    });
+
+    it('should coerce non-boolean values to false', () => {
+      mockWorkspace.setConfigurationData('unifyChatProvider', {
+        endpoints: [],
+        verbose: 'yes',
+      });
+
+      assert.strictEqual(store.verbose, false);
+    });
+  });
+
   describe('getProvider', () => {
     beforeEach(() => {
       mockWorkspace.setConfigurationData('unifyChatProvider', {
@@ -639,6 +718,7 @@ describe('ConfigStore', () => {
       const config = store.configuration;
       assert.ok(config.endpoints);
       assert.strictEqual(config.endpoints.length, 1);
+      assert.strictEqual(config.verbose, false);
     });
   });
 

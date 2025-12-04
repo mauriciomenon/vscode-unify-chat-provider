@@ -45,6 +45,11 @@
     "configuration": {
       "title": "Unify Chat Provider",
       "properties": {
+        "unifyChatProvider.verbose": {
+          "type": "boolean",
+          "description": "Enable verbose logging of requests and responses.",
+          "default": false
+        },
         "unifyChatProvider.endpoints": {
           "type": "array",
           "description": "List of LLM API provider endpoints.",
@@ -73,7 +78,7 @@
               },
               "baseUrl": {
                 "type": "string",
-                "description": "API endpoint URL (e.g., https://api.anthropic.com/v1/messages)."
+                "description": "API base URL (e.g., https://api.anthropic.com)."
               },
               "apiKey": {
                 "type": "string",
@@ -116,7 +121,7 @@
                     }
                   ]
                 },
-                "minItems": 1
+                "minItems": 0
               }
             }
           },
