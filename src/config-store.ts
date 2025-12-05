@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { normalizeBaseUrlInput } from './utils';
-import { ProviderConfig, ModelConfig } from './client/interface';
+import {
+  ProviderConfig,
+  ModelConfig,
+  ModelCapabilities,
+} from './client/interface';
 import { PROVIDER_TYPES, ProviderType } from './client';
 
 const CONFIG_NAMESPACE = 'unifyChatProvider';
@@ -120,6 +124,22 @@ export class ConfigStore {
     if (raw && typeof raw === 'object') {
       const obj = raw as Record<string, unknown>;
       if (typeof obj.id === 'string' && obj.id) {
+        let capabilities: ModelCapabilities | undefined;
+        if (obj.capabilities && typeof obj.capabilities === 'object') {
+          const caps = obj.capabilities as Record<string, unknown>;
+          capabilities = {
+            toolCalling:
+              typeof caps.toolCalling === 'boolean' ||
+              typeof caps.toolCalling === 'number'
+                ? caps.toolCalling
+                : undefined,
+            imageInput:
+              typeof caps.imageInput === 'boolean'
+                ? caps.imageInput
+                : undefined,
+          };
+        }
+
         return {
           id: obj.id,
           name: typeof obj.name === 'string' ? obj.name : undefined,
@@ -131,6 +151,7 @@ export class ConfigStore {
             typeof obj.maxOutputTokens === 'number'
               ? obj.maxOutputTokens
               : undefined,
+          capabilities,
         };
       }
     }

@@ -116,6 +116,28 @@
                           "type": "number",
                           "description": "Maximum output tokens.",
                           "default": 8192
+                        },
+                        "capabilities": {
+                          "type": "object",
+                          "description": "Model capabilities.",
+                          "properties": {
+                            "toolCalling": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean",
+                                  "description": "Whether the model supports tool/function calling."
+                                },
+                                {
+                                  "type": "integer",
+                                  "description": "Maximum number of tools supported."
+                                }
+                              ]
+                            },
+                            "imageInput": {
+                              "type": "boolean",
+                              "description": "Whether the model supports image input."
+                            }
+                          }
                         }
                       }
                     }

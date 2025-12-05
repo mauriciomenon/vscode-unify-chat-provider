@@ -17,6 +17,7 @@ import {
 } from '../../logger';
 import { ApiProvider, ProviderConfig, ModelConfig } from '../interface';
 import { normalizeBaseUrlInput } from '../../utils';
+import { DEFAULT_MAX_OUTPUT_TOKENS } from '../../defaults';
 
 /**
  * Client for Anthropic-compatible APIs
@@ -180,7 +181,7 @@ export class AnthropicProvider implements ApiProvider {
       const requestBody: AnthropicRequest = {
         model: modelId,
         messages,
-        max_tokens: options.maxTokens ?? 4096,
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
         stream: true,
       };
 

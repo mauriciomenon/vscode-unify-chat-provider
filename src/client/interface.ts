@@ -43,8 +43,8 @@ export interface ModelConfig {
  * Model capabilities configuration
  */
 export interface ModelCapabilities {
-  /** Whether the model supports tool/function calling */
-  toolCalling?: boolean;
+  /** Whether the model supports tool/function calling. If a number is provided, it is the maximum number of tools. */
+  toolCalling?: boolean | number;
   /** Whether the model supports image input */
   imageInput?: boolean;
 }

@@ -52,8 +52,8 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       maxInputTokens: model.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
       maxOutputTokens: model.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       capabilities: {
-        toolCalling: true,
-        imageInput: true,
+        toolCalling: model.capabilities?.toolCalling ?? false,
+        imageInput: model.capabilities?.imageInput ?? false,
       },
     };
   }
@@ -156,7 +156,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       providerMessages,
       modelConfig.id,
       {
-        maxTokens: modelConfig.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+        maxTokens: modelConfig.maxOutputTokens,
         system,
         tools,
       },

@@ -14,7 +14,11 @@ import {
 } from './validation';
 import { normalizeBaseUrlInput } from '../utils';
 import { createProvider, PROVIDERS, ProviderType } from '../client';
-import { ModelConfig, ProviderConfig } from '../client/interface';
+import {
+  ModelCapabilities,
+  ModelConfig,
+  ProviderConfig,
+} from '../client/interface';
 import { WELL_KNOWN_MODELS } from '../well-known-models';
 
 type ProviderFormDraft = {
@@ -40,9 +44,11 @@ type ModelListItem = vscode.QuickPickItem & {
   model?: ModelConfig;
 };
 
+type ModelFormField = keyof ModelConfig | keyof ModelCapabilities;
+
 type ModelFormItem = vscode.QuickPickItem & {
   action?: 'confirm' | 'cancel' | 'delete';
-  field?: keyof ModelConfig;
+  field?: ModelFormField;
 };
 
 type ModelFormResult =
@@ -455,7 +461,7 @@ async function runModelForm(
 
 async function editModelField(
   draft: ModelConfig,
-  field: keyof ModelConfig,
+  field: ModelFormField,
   models: ModelConfig[],
   originalId?: string,
 ): Promise<void> {
@@ -497,6 +503,87 @@ async function editModelField(
       });
       if (val !== undefined)
         draft.maxOutputTokens = val ? Number(val) : undefined;
+      break;
+    }
+    case 'toolCalling': {
+      const picked = await pickQuickItem<
+        vscode.QuickPickItem & { value: boolean | 'limit' }
+      >({
+        title: 'Tool Calling Support',
+        placeholder: 'Select tool calling support',
+        items: [
+          {
+            label: 'Enabled',
+            description: 'Model supports tool calling',
+            value: true,
+          },
+          {
+            label: 'Disabled',
+            description: 'Model does not support tool calling',
+            value: false,
+          },
+          {
+            label: 'Limited...',
+            description: 'Set a maximum number of tools',
+            value: 'limit',
+          },
+        ],
+      });
+
+      if (!picked) return;
+
+      if (picked.value === 'limit') {
+        const limitStr = await showInput({
+          prompt: 'Enter maximum number of tools',
+          placeHolder: 'e.g., 10',
+          value:
+            typeof draft.capabilities?.toolCalling === 'number'
+              ? draft.capabilities.toolCalling.toString()
+              : '',
+          validateInput: validatePositiveIntegerOrEmpty,
+        });
+        if (limitStr !== undefined) {
+          const limit = limitStr ? Number(limitStr) : undefined;
+          if (limit !== undefined) {
+            draft.capabilities = {
+              ...draft.capabilities,
+              toolCalling: limit,
+            };
+          }
+        }
+      } else {
+        draft.capabilities = {
+          ...draft.capabilities,
+          toolCalling: picked.value,
+        };
+      }
+      break;
+    }
+    case 'imageInput': {
+      const picked = await pickQuickItem<
+        vscode.QuickPickItem & { value: boolean }
+      >({
+        title: 'Image Input Support',
+        placeholder: 'Enable or disable image input',
+        items: [
+          {
+            label: 'Enabled',
+            description: 'Model supports image input',
+            value: true,
+          },
+          {
+            label: 'Disabled',
+            description: 'Model does not support image input',
+            value: false,
+          },
+        ],
+      });
+      if (picked) {
+        draft.capabilities = {
+          ...draft.capabilities,
+          imageInput: picked.value,
+        };
+      }
       break;
     }
   }
@@ -675,6 +762,26 @@ function buildModelFormItems(
         draft.maxOutputTokens?.toLocaleString() || defaultMaxOutputDescription,
       field: 'maxOutputTokens',
     },
+    {
+      label: '',
+      kind: vscode.QuickPickItemKind.Separator,
+      description: 'Capabilities',
+    },
+    {
+      label: '$(tools) Tool Calling',
+      description:
+        typeof draft.capabilities?.toolCalling === 'number'
+          ? `Enabled (max ${draft.capabilities.toolCalling})`
+          : draft.capabilities?.toolCalling
+          ? 'Enabled'
+          : 'Disabled',
+      field: 'toolCalling',
+    },
+    {
+      label: '$(file-media) Image Input',
+      description: draft.capabilities?.imageInput ? 'Enabled' : 'Disabled',
+      field: 'imageInput',
+    },
     { label: '', kind: vscode.QuickPickItemKind.Separator },
     {
       label: '$(check) Save',
@@ -697,6 +804,16 @@ function formatModelDetail(model: ModelConfig): string | undefined {
   if (model.maxOutputTokens) {
     parts.push(`Max output: ${model.maxOutputTokens.toLocaleString()}`);
   }
+  if (model.capabilities?.toolCalling) {
+    if (typeof model.capabilities.toolCalling === 'number') {
+      parts.push(`Tools (max ${model.capabilities.toolCalling})`);
+    } else {
+      parts.push('Tools');
+    }
+  }
+  if (model.capabilities?.imageInput) {
+    parts.push('Images');
+  }
   return parts.length > 0 ? parts.join(' | ') : undefined;
 }
 
@@ -716,6 +833,7 @@ function normalizeModelDraft(draft: ModelConfig): ModelConfig {
     name: draft.name?.trim() || undefined,
     maxInputTokens: draft.maxInputTokens,
     maxOutputTokens: draft.maxOutputTokens,
+    capabilities: draft.capabilities ? { ...draft.capabilities } : undefined,
   };
 }
 
@@ -725,6 +843,7 @@ function cloneModels(models: ModelConfig[]): ModelConfig[] {
     name: m.name,
     maxInputTokens: m.maxInputTokens,
     maxOutputTokens: m.maxOutputTokens,
+    capabilities: m.capabilities ? { ...m.capabilities } : undefined,
   }));
 }
 
@@ -804,13 +923,17 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
   const trimmedName = draft.name?.trim() ?? '';
   const inputTokens = draft.maxInputTokens ?? null;
   const outputTokens = draft.maxOutputTokens ?? null;
+  const toolCalling = draft.capabilities?.toolCalling ?? false;
+  const imageInput = draft.capabilities?.imageInput ?? false;
 
   if (!original) {
     return (
       !!trimmedId ||
       !!trimmedName ||
       inputTokens !== null ||
-      outputTokens !== null
+      outputTokens !== null ||
+      !!toolCalling ||
+      imageInput
     );
   }
 
@@ -818,7 +941,9 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
     trimmedId !== original.id ||
     trimmedName !== (original.name ?? '') ||
     inputTokens !== (original.maxInputTokens ?? null) ||
-    outputTokens !== (original.maxOutputTokens ?? null)
+    outputTokens !== (original.maxOutputTokens ?? null) ||
+    toolCalling !== (original.capabilities?.toolCalling ?? false) ||
+    imageInput !== (original.capabilities?.imageInput ?? false)
   );
 }
 
@@ -832,7 +957,11 @@ function modelsEqual(a: ModelConfig, b: ModelConfig): boolean {
     a.id === b.id &&
     (a.name ?? '') === (b.name ?? '') &&
     (a.maxInputTokens ?? null) === (b.maxInputTokens ?? null) &&
-    (a.maxOutputTokens ?? null) === (b.maxOutputTokens ?? null)
+    (a.maxOutputTokens ?? null) === (b.maxOutputTokens ?? null) &&
+    (a.capabilities?.toolCalling ?? false) ===
+      (b.capabilities?.toolCalling ?? false) &&
+    (a.capabilities?.imageInput ?? false) ===
+      (b.capabilities?.imageInput ?? false)
   );
 }
 
