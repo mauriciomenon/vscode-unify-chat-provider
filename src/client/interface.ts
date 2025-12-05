@@ -37,6 +37,24 @@ export interface ModelConfig {
   maxOutputTokens?: number;
   /** Model capabilities */
   capabilities?: ModelCapabilities;
+  /** Whether to stream the response */
+  stream?: boolean;
+  /** Sampling temperature */
+  temperature?: number;
+  /** Top-k sampling */
+  topK?: number;
+  /** Top-p sampling */
+  topP?: number;
+  /** Thinking configuration */
+  thinking?: {
+    type: 'enabled' | 'disabled';
+    budgetTokens?: number;
+  };
+  /** Tool choice configuration */
+  toolChoice?: {
+    type: 'auto' | 'any' | 'tool' | 'none';
+    name?: string;
+  };
 }
 
 /**

@@ -7,6 +7,8 @@ import {
   AnthropicToolUseBlock,
   AnthropicTool,
   AnthropicListModelsResponse,
+  AnthropicContentBlock,
+  AnthropicImageBlock,
 } from './types';
 import {
   logResponseChunk,
@@ -74,8 +76,8 @@ export class AnthropicProvider implements ApiProvider {
    */
   private extractContent(
     msg: vscode.LanguageModelChatMessage,
-  ): (AnthropicTextBlock | AnthropicToolUseBlock)[] {
-    const blocks: (AnthropicTextBlock | AnthropicToolUseBlock)[] = [];
+  ): AnthropicContentBlock[] {
+    const blocks: AnthropicContentBlock[] = [];
 
     for (const part of msg.content) {
       if (part instanceof vscode.LanguageModelTextPart) {
@@ -89,7 +91,77 @@ export class AnthropicProvider implements ApiProvider {
           name: part.name,
           input: part.input as Record<string, unknown>,
         });
+      } else if (part instanceof vscode.LanguageModelToolResultPart) {
+        const content = this.extractToolResultContent(part.content);
+        blocks.push({
+          type: 'tool_result',
+          tool_use_id: part.callId,
+          content,
+        });
+      } else if (part instanceof vscode.LanguageModelDataPart) {
+        if (part.mimeType.startsWith('image/')) {
+          const base64 = Buffer.from(part.data).toString('base64');
+          blocks.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: part.mimeType,
+              data: base64,
+            },
+          });
+        } else if (part.mimeType.startsWith('text/')) {
+          const text = Buffer.from(part.data).toString('utf-8');
+          blocks.push({ type: 'text', text });
+        } else {
+          throw new Error(
+            `Unsupported mime type in LanguageModelDataPart: ${part.mimeType}`,
+          );
+        }
+      } else {
+        throw new Error('Unsupported message part type encountered');
       }
+    }
+
+    return blocks;
+  }
+
+  /**
+   * Extract content for tool result
+   */
+  private extractToolResultContent(
+    content: unknown[],
+  ): string | (AnthropicTextBlock | AnthropicImageBlock)[] {
+    const blocks: (AnthropicTextBlock | AnthropicImageBlock)[] = [];
+
+    for (const part of content) {
+      if (part instanceof vscode.LanguageModelTextPart) {
+        blocks.push({ type: 'text', text: part.value });
+      } else if (part instanceof vscode.LanguageModelDataPart) {
+        if (part.mimeType.startsWith('image/')) {
+          const base64 = Buffer.from(part.data).toString('base64');
+          blocks.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: part.mimeType,
+              data: base64,
+            },
+          });
+        } else if (part.mimeType.startsWith('text/')) {
+          const text = Buffer.from(part.data).toString('utf-8');
+          blocks.push({ type: 'text', text });
+        } else {
+          throw new Error(
+            `Unsupported mime type in LanguageModelDataPart: ${part.mimeType}`,
+          );
+        }
+      } else {
+        throw new Error('Unsupported tool result part type encountered');
+      }
+    }
+
+    if (blocks.length === 0) {
+      return '';
     }
 
     return blocks;
@@ -177,6 +249,9 @@ export class AnthropicProvider implements ApiProvider {
     const endpoint = toMessagesUrl(this.config.baseUrl);
     let requestId = 'req-unknown';
 
+    // Find model config
+    const modelConfig = this.config.models.find((m) => m.id === modelId);
+
     try {
       const requestBody: AnthropicRequest = {
         model: modelId,
@@ -191,6 +266,40 @@ export class AnthropicProvider implements ApiProvider {
 
       if (options.tools && options.tools.length > 0) {
         requestBody.tools = options.tools;
+      }
+
+      // Apply model configuration overrides
+      if (modelConfig) {
+        if (modelConfig.stream !== undefined) {
+          requestBody.stream = modelConfig.stream;
+        }
+        if (modelConfig.temperature !== undefined) {
+          requestBody.temperature = modelConfig.temperature;
+        }
+        if (modelConfig.topK !== undefined) {
+          requestBody.top_k = modelConfig.topK;
+        }
+        if (modelConfig.topP !== undefined) {
+          requestBody.top_p = modelConfig.topP;
+        }
+        if (modelConfig.thinking) {
+          if (modelConfig.thinking.type === 'enabled') {
+            requestBody.thinking = {
+              type: 'enabled',
+              budget_tokens: modelConfig.thinking.budgetTokens!,
+            };
+          } else if (modelConfig.thinking.type === 'disabled') {
+            requestBody.thinking = {
+              type: 'disabled',
+            };
+          }
+        }
+        if (modelConfig.toolChoice) {
+          requestBody.tool_choice = {
+            type: modelConfig.toolChoice.type,
+            name: modelConfig.toolChoice.name,
+          };
+        }
       }
 
       requestId = startRequestLog({

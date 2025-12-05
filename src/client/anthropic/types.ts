@@ -43,7 +43,8 @@ export interface AnthropicToolUseBlock {
 export interface AnthropicToolResultBlock {
   type: 'tool_result';
   tool_use_id: string;
-  content: string;
+  content: string | (AnthropicTextBlock | AnthropicImageBlock)[];
+  is_error?: boolean;
 }
 
 /**
@@ -56,6 +57,21 @@ export interface AnthropicRequest {
   stream: boolean;
   system?: string;
   tools?: AnthropicTool[];
+  temperature?: number;
+  top_k?: number;
+  top_p?: number;
+  thinking?:
+    | {
+        type: 'enabled';
+        budget_tokens: number;
+      }
+    | {
+        type: 'disabled';
+      };
+  tool_choice?: {
+    type: 'auto' | 'any' | 'tool' | 'none';
+    name?: string;
+  };
 }
 
 /**

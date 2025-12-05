@@ -152,6 +152,25 @@ export class ConfigStore {
               ? obj.maxOutputTokens
               : undefined,
           capabilities,
+          stream: typeof obj.stream === 'boolean' ? obj.stream : undefined,
+          temperature:
+            typeof obj.temperature === 'number' ? obj.temperature : undefined,
+          topK: typeof obj.topK === 'number' ? obj.topK : undefined,
+          topP: typeof obj.topP === 'number' ? obj.topP : undefined,
+          thinking:
+            obj.thinking && typeof obj.thinking === 'object'
+              ? (obj.thinking as {
+                  type: 'enabled' | 'disabled';
+                  budgetTokens?: number;
+                })
+              : undefined,
+          toolChoice:
+            obj.toolChoice && typeof obj.toolChoice === 'object'
+              ? (obj.toolChoice as {
+                  type: 'auto' | 'any' | 'tool' | 'none';
+                  name?: string;
+                })
+              : undefined,
         };
       }
     }

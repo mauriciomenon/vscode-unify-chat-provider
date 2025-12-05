@@ -590,6 +590,160 @@ async function editModelField(
       }
       break;
     }
+    case 'stream': {
+      const picked = await pickQuickItem<
+        vscode.QuickPickItem & { value: boolean | undefined }
+      >({
+        title: 'Stream Response',
+        placeholder: 'Select stream setting',
+        items: [
+          {
+            label: 'Default',
+            description: 'Use provider default',
+            value: undefined,
+          },
+          { label: 'True', description: 'Enable streaming', value: true },
+          { label: 'False', description: 'Disable streaming', value: false },
+        ],
+      });
+      if (picked) draft.stream = picked.value;
+      break;
+    }
+    case 'temperature': {
+      const val = await showInput({
+        prompt: 'Enter temperature',
+        placeHolder: 'Leave blank for default',
+        value: draft.temperature?.toString() || '',
+        validateInput: (v) => {
+          if (!v) return null;
+          const n = Number(v);
+          if (isNaN(n)) return 'Must be a number';
+          return null;
+        },
+      });
+      if (val !== undefined) draft.temperature = val ? Number(val) : undefined;
+      break;
+    }
+    case 'topK': {
+      const val = await showInput({
+        prompt: 'Enter Top K',
+        placeHolder: 'Leave blank for default',
+        value: draft.topK?.toString() || '',
+        validateInput: validatePositiveIntegerOrEmpty,
+      });
+      if (val !== undefined) draft.topK = val ? Number(val) : undefined;
+      break;
+    }
+    case 'topP': {
+      const val = await showInput({
+        prompt: 'Enter Top P',
+        placeHolder: 'Leave blank for default',
+        value: draft.topP?.toString() || '',
+        validateInput: (v) => {
+          if (!v) return null;
+          const n = Number(v);
+          if (isNaN(n)) return 'Must be a number';
+          return null;
+        },
+      });
+      if (val !== undefined) draft.topP = val ? Number(val) : undefined;
+      break;
+    }
+    case 'thinking': {
+      const picked = await pickQuickItem<
+        vscode.QuickPickItem & { value: 'enabled' | 'disabled' | undefined }
+      >({
+        title: 'Thinking Capability',
+        placeholder: 'Select thinking setting',
+        items: [
+          {
+            label: 'Default',
+            description: 'Use provider default',
+            value: undefined,
+          },
+          {
+            label: 'Enabled',
+            description: 'Enable thinking',
+            value: 'enabled',
+          },
+          {
+            label: 'Disabled',
+            description: 'Disable thinking',
+            value: 'disabled',
+          },
+        ],
+      });
+
+      if (!picked) return;
+
+      if (picked.value === undefined) {
+        draft.thinking = undefined;
+      } else if (picked.value === 'disabled') {
+        draft.thinking = { type: 'disabled' };
+      } else {
+        const budgetStr = await showInput({
+          prompt: 'Enter budget tokens for thinking',
+          placeHolder: 'e.g., 1024',
+          value: draft.thinking?.budgetTokens?.toString() || '1024',
+          validateInput: validatePositiveIntegerOrEmpty,
+        });
+        if (budgetStr !== undefined) {
+          draft.thinking = { type: 'enabled', budgetTokens: Number(budgetStr) };
+        }
+      }
+      break;
+    }
+    case 'toolChoice': {
+      const picked = await pickQuickItem<
+        vscode.QuickPickItem & {
+          value: 'auto' | 'any' | 'tool' | 'none' | undefined;
+        }
+      >({
+        title: 'Tool Choice',
+        placeholder: 'Select tool choice strategy',
+        items: [
+          {
+            label: 'Default',
+            description: 'Use provider default',
+            value: undefined,
+          },
+          {
+            label: 'Auto',
+            description: 'Model decides whether to use tools',
+            value: 'auto',
+          },
+          { label: 'Any', description: 'Model must use a tool', value: 'any' },
+          {
+            label: 'Specific Tool',
+            description: 'Force model to use a specific tool',
+            value: 'tool',
+          },
+          {
+            label: 'None',
+            description: 'Prevent model from using tools',
+            value: 'none',
+          },
+        ],
+      });
+
+      if (!picked) return;
+
+      if (picked.value === undefined) {
+        draft.toolChoice = undefined;
+      } else if (picked.value === 'tool') {
+        const toolName = await showInput({
+          prompt: 'Enter tool name',
+          placeHolder: 'e.g., my_tool',
+          value: draft.toolChoice?.name || '',
+        });
+        if (toolName !== undefined) {
+          draft.toolChoice = { type: 'tool', name: toolName };
+        }
+      } else {
+        draft.toolChoice = { type: picked.value };
+      }
+      break;
+    }
   }
 }
 
@@ -786,6 +940,59 @@ function buildModelFormItems(
       description: draft.capabilities?.imageInput ? 'Enabled' : 'Disabled',
       field: 'imageInput',
     },
+    {
+      label: '',
+      kind: vscode.QuickPickItemKind.Separator,
+      description: 'Parameters',
+    },
+    {
+      label: '$(pulse) Stream',
+      description:
+        draft.stream === undefined
+          ? 'default'
+          : draft.stream
+          ? 'true'
+          : 'false',
+      field: 'stream',
+    },
+    {
+      label: '$(thermometer) Temperature',
+      description:
+        draft.temperature === undefined
+          ? 'default'
+          : draft.temperature.toString(),
+      field: 'temperature',
+    },
+    {
+      label: '$(list-ordered) Top K',
+      description: draft.topK === undefined ? 'default' : draft.topK.toString(),
+      field: 'topK',
+    },
+    {
+      label: '$(graph) Top P',
+      description: draft.topP === undefined ? 'default' : draft.topP.toString(),
+      field: 'topP',
+    },
+    {
+      label: '$(lightbulb) Thinking',
+      description: draft.thinking
+        ? `${draft.thinking.type}${
+            draft.thinking.type === 'enabled'
+              ? ` (${draft.thinking.budgetTokens} tokens)`
+              : ''
+          }`
+        : 'default',
+      field: 'thinking',
+    },
+    {
+      label: '$(tools) Tool Choice',
+      description: draft.toolChoice
+        ? `${draft.toolChoice.type}${
+            draft.toolChoice.name ? ` (${draft.toolChoice.name})` : ''
+          }`
+        : 'default',
+      field: 'toolChoice',
+    },
     { label: '', kind: vscode.QuickPickItemKind.Separator },
     {
       label: '$(check) Save',
@@ -803,20 +1010,20 @@ function buildModelFormItems(
 function formatModelDetail(model: ModelConfig): string | undefined {
   const parts: string[] = [];
   if (model.maxInputTokens) {
-    parts.push(`Max input: ${model.maxInputTokens.toLocaleString()}`);
+    parts.push(`Input: ${model.maxInputTokens.toLocaleString()}`);
   }
   if (model.maxOutputTokens) {
-    parts.push(`Max output: ${model.maxOutputTokens.toLocaleString()}`);
+    parts.push(`Output: ${model.maxOutputTokens.toLocaleString()}`);
   }
   if (model.capabilities?.toolCalling) {
     if (typeof model.capabilities.toolCalling === 'number') {
-      parts.push(`Tools (max ${model.capabilities.toolCalling})`);
+      parts.push(`Tool (max ${model.capabilities.toolCalling})`);
     } else {
-      parts.push('Tools');
+      parts.push('Tool');
     }
   }
   if (model.capabilities?.imageInput) {
-    parts.push('Images');
+    parts.push('Image');
   }
   return parts.length > 0 ? parts.join(' | ') : undefined;
 }
@@ -838,6 +1045,12 @@ function normalizeModelDraft(draft: ModelConfig): ModelConfig {
     maxInputTokens: draft.maxInputTokens,
     maxOutputTokens: draft.maxOutputTokens,
     capabilities: draft.capabilities ? { ...draft.capabilities } : undefined,
+    stream: draft.stream,
+    temperature: draft.temperature,
+    topK: draft.topK,
+    topP: draft.topP,
+    thinking: draft.thinking ? { ...draft.thinking } : undefined,
+    toolChoice: draft.toolChoice ? { ...draft.toolChoice } : undefined,
   };
 }
 
@@ -848,6 +1061,12 @@ function cloneModels(models: ModelConfig[]): ModelConfig[] {
     maxInputTokens: m.maxInputTokens,
     maxOutputTokens: m.maxOutputTokens,
     capabilities: m.capabilities ? { ...m.capabilities } : undefined,
+    stream: m.stream,
+    temperature: m.temperature,
+    topK: m.topK,
+    topP: m.topP,
+    thinking: m.thinking ? { ...m.thinking } : undefined,
+    toolChoice: m.toolChoice ? { ...m.toolChoice } : undefined,
   }));
 }
 
@@ -922,6 +1141,24 @@ function hasProviderChanges(
   return modelsChanged(draft.models, original.models);
 }
 
+function thinkingEqual(
+  a?: ModelConfig['thinking'],
+  b?: ModelConfig['thinking'],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.type === b.type && a.budgetTokens === b.budgetTokens;
+}
+
+function toolChoiceEqual(
+  a?: ModelConfig['toolChoice'],
+  b?: ModelConfig['toolChoice'],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.type === b.type && a.name === b.name;
+}
+
 function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
   const trimmedId = draft.id.trim();
   const trimmedName = draft.name?.trim() ?? '';
@@ -930,6 +1167,13 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
   const toolCalling = draft.capabilities?.toolCalling ?? false;
   const imageInput = draft.capabilities?.imageInput ?? false;
 
+  const stream = draft.stream;
+  const temperature = draft.temperature;
+  const topK = draft.topK;
+  const topP = draft.topP;
+  const thinking = draft.thinking;
+  const toolChoice = draft.toolChoice;
+
   if (!original) {
     return (
       !!trimmedId ||
@@ -937,7 +1181,13 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
       inputTokens !== null ||
       outputTokens !== null ||
       !!toolCalling ||
-      imageInput
+      imageInput ||
+      stream !== undefined ||
+      temperature !== undefined ||
+      topK !== undefined ||
+      topP !== undefined ||
+      thinking !== undefined ||
+      toolChoice !== undefined
     );
   }
 
@@ -947,7 +1197,13 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
     inputTokens !== (original.maxInputTokens ?? null) ||
     outputTokens !== (original.maxOutputTokens ?? null) ||
     toolCalling !== (original.capabilities?.toolCalling ?? false) ||
-    imageInput !== (original.capabilities?.imageInput ?? false)
+    imageInput !== (original.capabilities?.imageInput ?? false) ||
+    stream !== original.stream ||
+    temperature !== original.temperature ||
+    topK !== original.topK ||
+    topP !== original.topP ||
+    !thinkingEqual(thinking, original.thinking) ||
+    !toolChoiceEqual(toolChoice, original.toolChoice)
   );
 }
 
@@ -965,7 +1221,13 @@ function modelsEqual(a: ModelConfig, b: ModelConfig): boolean {
     (a.capabilities?.toolCalling ?? false) ===
       (b.capabilities?.toolCalling ?? false) &&
     (a.capabilities?.imageInput ?? false) ===
-      (b.capabilities?.imageInput ?? false)
+      (b.capabilities?.imageInput ?? false) &&
+    a.stream === b.stream &&
+    a.temperature === b.temperature &&
+    a.topK === b.topK &&
+    a.topP === b.topP &&
+    thinkingEqual(a.thinking, b.thinking) &&
+    toolChoiceEqual(a.toolChoice, b.toolChoice)
   );
 }
 
