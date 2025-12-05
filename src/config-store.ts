@@ -1,18 +1,17 @@
 import * as vscode from 'vscode';
-import {
-  ExtensionConfiguration,
-  ProviderConfig,
-  ModelConfig,
-  ProviderType,
-} from '../types';
-import { normalizeBaseUrlInput } from '../utils/url';
-
-/**
- * Valid provider types
- */
-const VALID_PROVIDER_TYPES: ProviderType[] = ['anthropic'];
+import { normalizeBaseUrlInput } from './utils';
+import { ProviderConfig, ModelConfig } from './client/interface';
+import { PROVIDER_TYPES, ProviderType } from './client';
 
 const CONFIG_NAMESPACE = 'unifyChatProvider';
+
+/**
+ * Extension configuration stored in workspace settings
+ */
+export interface ExtensionConfiguration {
+  endpoints: ProviderConfig[];
+  verbose: boolean;
+}
 
 /**
  * Manages extension configuration stored in VS Code workspace settings
@@ -95,7 +94,7 @@ export class ConfigStore {
     // Parse and validate type
     if (
       typeof obj.type !== 'string' ||
-      !VALID_PROVIDER_TYPES.includes(obj.type as ProviderType)
+      !PROVIDER_TYPES.includes(obj.type as ProviderType)
     ) {
       return null;
     }

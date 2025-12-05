@@ -1,29 +1,14 @@
 import * as vscode from 'vscode';
-import { ConfigStore } from '../config/store';
-import { AnthropicClient } from '../client/anthropic';
-import { ProviderConfig, ModelConfig, ApiClient } from '../types';
+import { ConfigStore } from './config-store';
+import { createProvider } from './client';
 import {
   DEFAULT_MAX_INPUT_TOKENS,
   DEFAULT_MAX_OUTPUT_TOKENS,
-} from '../config/defaults';
+} from './defaults';
+import { ApiProvider, ProviderConfig, ModelConfig } from './client/interface';
 
-/**
- * Create an API client based on provider type
- */
-function createClient(provider: ProviderConfig): ApiClient {
-  switch (provider.type) {
-    case 'anthropic':
-      return new AnthropicClient(provider);
-    default:
-      throw new Error(`Unsupported provider type: ${provider.type}`);
-  }
-}
-
-/**
- * LanguageModelChatProvider implementation for multiple API formats
- */
-export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
-  private readonly clients = new Map<string, ApiClient>();
+export class UnifyChatService implements vscode.LanguageModelChatProvider {
+  private readonly clients = new Map<string, ApiProvider>();
 
   constructor(private readonly configStore: ConfigStore) {}
 
@@ -32,7 +17,7 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
    */
   provideLanguageModelChatInformation(
     options: { silent: boolean },
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): vscode.ProviderResult<vscode.LanguageModelChatInformation[]> {
     const models: vscode.LanguageModelChatInformation[] = [];
 
@@ -53,7 +38,10 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
   /**
    * Create model information object
    */
-  private createModelInfo(provider: ProviderConfig, model: ModelConfig): vscode.LanguageModelChatInformation {
+  private createModelInfo(
+    provider: ProviderConfig,
+    model: ModelConfig,
+  ): vscode.LanguageModelChatInformation {
     const modelId = this.createModelId(provider.name, model.id);
 
     return {
@@ -80,7 +68,9 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
   /**
    * Parse model ID to extract provider and model names
    */
-  private parseModelId(modelId: string): { providerName: string; modelName: string } | null {
+  private parseModelId(
+    modelId: string,
+  ): { providerName: string; modelName: string } | null {
     const slashIndex = modelId.indexOf('/');
     if (slashIndex === -1) {
       return null;
@@ -101,7 +91,9 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
   /**
    * Find provider and model configuration by model ID
    */
-  private findProviderAndModel(modelId: string): { provider: ProviderConfig; model: ModelConfig } | null {
+  private findProviderAndModel(
+    modelId: string,
+  ): { provider: ProviderConfig; model: ModelConfig } | null {
     const parsed = this.parseModelId(modelId);
     if (!parsed) {
       return null;
@@ -123,10 +115,10 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
   /**
    * Get or create client for a provider
    */
-  private getClient(provider: ProviderConfig): ApiClient {
+  private getClient(provider: ProviderConfig): ApiProvider {
     let client = this.clients.get(provider.name);
     if (!client) {
-      client = createClient(provider);
+      client = createProvider(provider);
       this.clients.set(provider.name, client);
     }
     return client;
@@ -140,7 +132,7 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
     messages: readonly vscode.LanguageModelChatMessage[],
     options: vscode.ProvideLanguageModelChatResponseOptions,
     progress: vscode.Progress<vscode.LanguageModelResponsePart>,
-    token: vscode.CancellationToken
+    token: vscode.CancellationToken,
   ): Promise<void> {
     const found = this.findProviderAndModel(model.id);
     if (!found) {
@@ -150,22 +142,25 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
     const { provider, model: modelConfig } = found;
     const client = this.getClient(provider);
 
-    // Convert messages to Anthropic format
-    const { system, messages: anthropicMessages } = client.convertMessages(messages);
+    // Convert messages to provider-specific format
+    const { system, messages: providerMessages } =
+      client.convertMessages(messages);
 
     // Convert tools if provided
-    const tools = options.tools ? client.convertTools(options.tools) : undefined;
+    const tools = options.tools
+      ? client.convertTools(options.tools)
+      : undefined;
 
     // Stream the response
     const stream = client.streamChat(
-      anthropicMessages,
+      providerMessages,
       modelConfig.id,
       {
         maxTokens: modelConfig.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
         system,
         tools,
       },
-      token
+      token,
     );
 
     for await (const part of stream) {
@@ -182,7 +177,7 @@ export class UnifyChatProvider implements vscode.LanguageModelChatProvider {
   async provideTokenCount(
     model: vscode.LanguageModelChatInformation,
     text: string | vscode.LanguageModelChatMessage,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): Promise<number> {
     const found = this.findProviderAndModel(model.id);
 

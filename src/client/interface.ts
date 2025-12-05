@@ -1,7 +1,11 @@
-/**
- * Supported provider types
- */
-export type ProviderType = 'anthropic';
+import type {
+  CancellationToken,
+  LanguageModelChatMessage,
+  LanguageModelChatTool,
+  LanguageModelTextPart,
+  LanguageModelToolCallPart,
+} from 'vscode';
+import type { ProviderType } from '.';
 
 /**
  * Configuration for a single provider endpoint
@@ -17,16 +21,6 @@ export interface ProviderConfig {
   apiKey?: string;
   /** List of available model IDs */
   models: ModelConfig[];
-}
-
-/**
- * Model capabilities configuration
- */
-export interface ModelCapabilities {
-  /** Whether the model supports tool/function calling */
-  toolCalling?: boolean;
-  /** Whether the model supports image input */
-  imageInput?: boolean;
 }
 
 /**
@@ -46,17 +40,26 @@ export interface ModelConfig {
 }
 
 /**
- * Extension configuration stored in workspace settings
+ * Model capabilities configuration
  */
-export interface ExtensionConfiguration {
-  endpoints: ProviderConfig[];
-  verbose: boolean;
+export interface ModelCapabilities {
+  /** Whether the model supports tool/function calling */
+  toolCalling?: boolean;
+  /** Whether the model supports image input */
+  imageInput?: boolean;
+}
+
+export interface ProviderDefinition {
+  type: ProviderType;
+  label: string;
+  description: string;
+  class: new (config: ProviderConfig) => ApiProvider;
 }
 
 /**
- * Common interface for all API clients
+ * Common interface for all API providers
  */
-export interface ApiClient {
+export interface ApiProvider {
   /**
    * Stream a chat response
    */
@@ -68,25 +71,21 @@ export interface ApiClient {
       system?: string;
       tools?: unknown[];
     },
-    token: import('vscode').CancellationToken,
-  ): AsyncGenerator<
-    | import('vscode').LanguageModelTextPart
-    | import('vscode').LanguageModelToolCallPart
-  >;
+    token: CancellationToken,
+  ): AsyncGenerator<LanguageModelTextPart | LanguageModelToolCallPart>;
 
   /**
    * Convert VS Code messages to the client's format
    */
-  convertMessages(
-    messages: readonly import('vscode').LanguageModelChatMessage[],
-  ): { system?: string; messages: unknown[] };
+  convertMessages(messages: readonly LanguageModelChatMessage[]): {
+    system?: string;
+    messages: unknown[];
+  };
 
   /**
    * Convert VS Code tools to the client's format
    */
-  convertTools(
-    tools: readonly import('vscode').LanguageModelChatTool[],
-  ): unknown[];
+  convertTools(tools: readonly LanguageModelChatTool[]): unknown[];
 
   /**
    * Estimate token count for text

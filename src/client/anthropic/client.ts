@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { ProviderConfig, ApiClient, ModelConfig } from '../../types';
 import {
   AnthropicMessage,
   AnthropicRequest,
@@ -10,21 +9,19 @@ import {
   AnthropicListModelsResponse,
 } from './types';
 import {
-  buildAnthropicMessagesUrl,
-  buildAnthropicModelsUrl,
-} from '../../utils/url';
-import {
   logResponseChunk,
   logResponseComplete,
   logResponseError,
   logResponseMetadata,
   startRequestLog,
-} from '../../utils/logger';
+} from '../../logger';
+import { ApiProvider, ProviderConfig, ModelConfig } from '../interface';
+import { normalizeBaseUrlInput } from '../../utils';
 
 /**
  * Client for Anthropic-compatible APIs
  */
-export class AnthropicClient implements ApiClient {
+export class AnthropicProvider implements ApiProvider {
   constructor(private readonly config: ProviderConfig) {}
 
   /**
@@ -176,7 +173,7 @@ export class AnthropicClient implements ApiClient {
     });
 
     const headers = this.buildHeaders();
-    const endpoint = buildAnthropicMessagesUrl(this.config.baseUrl);
+    const endpoint = toMessagesUrl(this.config.baseUrl);
     let requestId = 'req-unknown';
 
     try {
@@ -373,7 +370,7 @@ export class AnthropicClient implements ApiClient {
 
     try {
       do {
-        const endpoint = buildAnthropicModelsUrl(this.config.baseUrl, afterId);
+        const endpoint = toModelsUrl(this.config.baseUrl, afterId);
         const response = await fetch(endpoint, {
           method: 'GET',
           headers,
@@ -413,4 +410,18 @@ export class AnthropicClient implements ApiClient {
       throw error;
     }
   }
+}
+
+function toMessagesUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrlInput(baseUrl);
+  return `${normalized}/v1/messages`;
+}
+
+function toModelsUrl(baseUrl: string, afterId?: string): string {
+  const normalized = normalizeBaseUrlInput(baseUrl);
+  const url = new URL(`${normalized}/v1/models`);
+  if (afterId) {
+    url.searchParams.set('after_id', afterId);
+  }
+  return url.toString();
 }

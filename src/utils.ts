@@ -26,20 +26,3 @@ export function normalizeBaseUrlInput(raw: string): string {
   const normalized = parsed.toString().replace(/\/+$/, '');
   return normalized;
 }
-
-export function buildAnthropicMessagesUrl(baseUrl: string): string {
-  const normalized = normalizeBaseUrlInput(baseUrl);
-  return `${normalized}/v1/messages`;
-}
-
-export function buildAnthropicModelsUrl(
-  baseUrl: string,
-  afterId?: string,
-): string {
-  const normalized = normalizeBaseUrlInput(baseUrl);
-  const url = new URL(`${normalized}/v1/models`);
-  if (afterId) {
-    url.searchParams.set('after_id', afterId);
-  }
-  return url.toString();
-}

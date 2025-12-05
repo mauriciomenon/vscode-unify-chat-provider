@@ -1,6 +1,7 @@
-import { ConfigStore } from '../config/store';
-import { ModelConfig, ProviderType } from '../types';
-import { normalizeBaseUrlInput } from '../utils/url';
+import { ProviderType } from '../client';
+import { ModelConfig } from '../client/interface';
+import { ConfigStore } from '../config-store';
+import { normalizeBaseUrlInput } from '../utils';
 
 export function validateBaseUrl(url: string): string | null {
   if (!url.trim()) return 'API base URL is required';

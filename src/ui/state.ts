@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
-import { ConfigStore } from '../config/store';
+import { ConfigStore } from '../config-store';
 import {
   DEFAULT_MAX_INPUT_TOKENS,
   DEFAULT_MAX_OUTPUT_TOKENS,
-} from '../config/defaults';
-import { ModelConfig, ProviderConfig, ProviderType } from '../types';
-import { PROVIDER_TYPE_OPTIONS } from './providerTypes';
-import { pickQuickItem, showInput, showValidationErrors } from './ui';
+} from '../defaults';
+import { pickQuickItem, showInput, showValidationErrors } from './component';
 import {
   validateModelIdUnique,
   validatePositiveIntegerOrEmpty,
@@ -14,9 +12,10 @@ import {
   validateProviderNameUnique,
   validateBaseUrl,
 } from './validation';
-import { normalizeBaseUrlInput } from '../utils/url';
-import { ANTHROPIC_WELL_KNOWN_MODELS } from '../client/anthropic/wellKnownModels';
-import { AnthropicClient } from '../client/anthropic/client';
+import { normalizeBaseUrlInput } from '../utils';
+import { createProvider, PROVIDERS, ProviderType } from '../client';
+import { ModelConfig, ProviderConfig } from '../client/interface';
+import { WELL_KNOWN_MODELS } from '../well-known-models';
 
 type ProviderFormDraft = {
   type?: ProviderType;
@@ -226,11 +225,11 @@ async function editProviderField(
       >({
         title: 'API Format',
         placeholder: 'Select the API format',
-        items: PROVIDER_TYPE_OPTIONS.map((opt) => ({
+        items: Object.values(PROVIDERS).map((opt) => ({
           label: opt.label,
           description: opt.description,
-          picked: opt.value === draft.type,
-          typeValue: opt.value,
+          picked: opt.type === draft.type,
+          typeValue: opt.type,
         })),
       });
       if (picked) draft.type = picked.typeValue;
@@ -239,7 +238,7 @@ async function editProviderField(
     case 'name': {
       const val = await showInput({
         prompt: 'Enter a name for this provider',
-        placeHolder: 'e.g., Anthropic, OpenRouter, Custom',
+        placeHolder: 'e.g., My Provider, OpenRouter, Custom',
         value: draft.name ?? '',
         validateInput: (v) =>
           validateProviderNameUnique(v, store, originalName),
@@ -250,7 +249,7 @@ async function editProviderField(
     case 'baseUrl': {
       const val = await showInput({
         prompt: 'Enter the API base URL',
-        placeHolder: 'e.g., https://api.anthropic.com',
+        placeHolder: 'e.g., https://api.example.com',
         value: draft.baseUrl ?? '',
         validateInput: validateBaseUrl,
       });
@@ -337,19 +336,24 @@ async function manageModelList(
         );
         continue;
       }
+      const draft = options.draft;
+      const client = createProvider({
+        type: draft.type!,
+        name: draft.name ?? 'temp',
+        baseUrl: draft.baseUrl!,
+        apiKey: draft.apiKey,
+        models: [],
+      });
+      if (!client.getAvailableModels) {
+        vscode.window.showErrorMessage(
+          'Fetching official models is not supported for this provider.',
+        );
+        continue;
+      }
       const addedModels = await showModelSelectionPicker({
         title: 'Add From Official Model List',
         existingModels: models,
-        fetchModels: async () => {
-          const client = new AnthropicClient({
-            type: options.draft!.type!,
-            name: options.draft!.name ?? 'temp',
-            baseUrl: options.draft!.baseUrl!,
-            apiKey: options.draft!.apiKey,
-            models: [],
-          });
-          return await client.getAvailableModels();
-        },
+        fetchModels: async () => client.getAvailableModels!(),
       });
       if (addedModels) {
         models.push(...addedModels);
@@ -358,10 +362,16 @@ async function manageModelList(
     }
 
     if (selection.action === 'add-from-wellknown') {
+      if (!options.draft?.type) {
+        vscode.window.showErrorMessage(
+          'Please select an API format before using the well-known model list.',
+        );
+        continue;
+      }
       const addedModels = await showModelSelectionPicker({
         title: 'Add From Well-Known Model List',
         existingModels: models,
-        fetchModels: async () => ANTHROPIC_WELL_KNOWN_MODELS,
+        fetchModels: async () => WELL_KNOWN_MODELS,
       });
       if (addedModels) {
         models.push(...addedModels);
@@ -539,10 +549,11 @@ function buildProviderFormItems(
     {
       label: '$(symbol-enum) API Format',
       description:
-        PROVIDER_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label ||
+        Object.values(PROVIDERS).find((o) => o.type === draft.type)?.label ||
         '(required)',
       detail: draft.type
-        ? PROVIDER_TYPE_OPTIONS.find((o) => o.value === draft.type)?.description
+        ? Object.values(PROVIDERS).find((o) => o.type === draft.type)
+            ?.description
         : undefined,
       field: 'type',
     },

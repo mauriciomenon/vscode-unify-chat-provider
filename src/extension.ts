@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { ConfigStore } from './config/store';
-import { UnifyChatProvider } from './provider/chatProvider';
-import { registerCommands } from './commands/registry';
+import { ConfigStore } from './config-store';
+import { UnifyChatService } from './service';
+import { addProvider, removeProvider, manageProviders } from './ui/state';
 
 const VENDOR_ID = 'unify-chat-provider';
 
@@ -10,7 +10,7 @@ const VENDOR_ID = 'unify-chat-provider';
  */
 export function activate(context: vscode.ExtensionContext): void {
   const configStore = new ConfigStore();
-  const chatProvider = new UnifyChatProvider(configStore);
+  const chatProvider = new UnifyChatService(configStore);
 
   // Register the language model chat provider
   const providerRegistration = vscode.lm.registerLanguageModelChatProvider(
@@ -31,6 +31,23 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Clean up config store on deactivation
   context.subscriptions.push(configStore);
+}
+
+export function registerCommands(
+  context: vscode.ExtensionContext,
+  configStore: ConfigStore,
+): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('unifyChatProvider.addProvider', () =>
+      addProvider(configStore),
+    ),
+    vscode.commands.registerCommand('unifyChatProvider.removeProvider', () =>
+      removeProvider(configStore),
+    ),
+    vscode.commands.registerCommand('unifyChatProvider.manageProviders', () =>
+      manageProviders(configStore),
+    ),
+  );
 }
 
 /**
