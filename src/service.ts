@@ -6,6 +6,7 @@ import {
   DEFAULT_MAX_OUTPUT_TOKENS,
 } from './defaults';
 import { ApiProvider, ProviderConfig, ModelConfig } from './client/interface';
+import { logInfo } from './logger';
 
 export class UnifyChatService implements vscode.LanguageModelChatProvider {
   private readonly clients = new Map<string, ApiProvider>();
@@ -129,11 +130,17 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
    */
   async provideLanguageModelChatResponse(
     model: vscode.LanguageModelChatInformation,
-    messages: readonly vscode.LanguageModelChatMessage[],
+    messages: readonly vscode.LanguageModelChatRequestMessage[],
     options: vscode.ProvideLanguageModelChatResponseOptions,
-    progress: vscode.Progress<vscode.LanguageModelResponsePart>,
+    progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
     token: vscode.CancellationToken,
   ): Promise<void> {
+    logInfo(`[Chat Request] Model: ${model.id}`);
+    logInfo(
+      `[Chat Request] Raw Messages: ${JSON.stringify(messages, null, 2)}`,
+    );
+    logInfo(`[Chat Request] Raw Options: ${JSON.stringify(options, null, 2)}`);
+
     const found = this.findProviderAndModel(model.id);
     if (!found) {
       throw new Error(`Model not found: ${model.id}`);
@@ -167,6 +174,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       if (token.isCancellationRequested) {
         break;
       }
+      logInfo(`[Chat Response] Chunk: ${JSON.stringify(part)}`);
       progress.report(part);
     }
   }

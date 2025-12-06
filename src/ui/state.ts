@@ -693,57 +693,6 @@ async function editModelField(
       }
       break;
     }
-    case 'toolChoice': {
-      const picked = await pickQuickItem<
-        vscode.QuickPickItem & {
-          value: 'auto' | 'any' | 'tool' | 'none' | undefined;
-        }
-      >({
-        title: 'Tool Choice',
-        placeholder: 'Select tool choice strategy',
-        items: [
-          {
-            label: 'Default',
-            description: 'Use provider default',
-            value: undefined,
-          },
-          {
-            label: 'Auto',
-            description: 'Model decides whether to use tools',
-            value: 'auto',
-          },
-          { label: 'Any', description: 'Model must use a tool', value: 'any' },
-          {
-            label: 'Specific Tool',
-            description: 'Force model to use a specific tool',
-            value: 'tool',
-          },
-          {
-            label: 'None',
-            description: 'Prevent model from using tools',
-            value: 'none',
-          },
-        ],
-      });
-
-      if (!picked) return;
-
-      if (picked.value === undefined) {
-        draft.toolChoice = undefined;
-      } else if (picked.value === 'tool') {
-        const toolName = await showInput({
-          prompt: 'Enter tool name',
-          placeHolder: 'e.g., my_tool',
-          value: draft.toolChoice?.name || '',
-        });
-        if (toolName !== undefined) {
-          draft.toolChoice = { type: 'tool', name: toolName };
-        }
-      } else {
-        draft.toolChoice = { type: picked.value };
-      }
-      break;
-    }
   }
 }
 
@@ -936,17 +885,12 @@ function buildModelFormItems(
       field: 'toolCalling',
     },
     {
-      label: '$(file-media) Image Input',
+      label: '$(file-media) Image Input Support',
       description: draft.capabilities?.imageInput ? 'Enabled' : 'Disabled',
       field: 'imageInput',
     },
     {
-      label: '',
-      kind: vscode.QuickPickItemKind.Separator,
-      description: 'Parameters',
-    },
-    {
-      label: '$(pulse) Stream',
+      label: '$(fold-down) Stream',
       description:
         draft.stream === undefined
           ? 'default'
@@ -954,24 +898,6 @@ function buildModelFormItems(
           ? 'true'
           : 'false',
       field: 'stream',
-    },
-    {
-      label: '$(thermometer) Temperature',
-      description:
-        draft.temperature === undefined
-          ? 'default'
-          : draft.temperature.toString(),
-      field: 'temperature',
-    },
-    {
-      label: '$(list-ordered) Top K',
-      description: draft.topK === undefined ? 'default' : draft.topK.toString(),
-      field: 'topK',
-    },
-    {
-      label: '$(graph) Top P',
-      description: draft.topP === undefined ? 'default' : draft.topP.toString(),
-      field: 'topP',
     },
     {
       label: '$(lightbulb) Thinking',
@@ -985,13 +911,27 @@ function buildModelFormItems(
       field: 'thinking',
     },
     {
-      label: '$(tools) Tool Choice',
-      description: draft.toolChoice
-        ? `${draft.toolChoice.type}${
-            draft.toolChoice.name ? ` (${draft.toolChoice.name})` : ''
-          }`
-        : 'default',
-      field: 'toolChoice',
+      label: '',
+      kind: vscode.QuickPickItemKind.Separator,
+      description: 'Parameters',
+    },
+    {
+      label: '$(circle) Temperature',
+      description:
+        draft.temperature === undefined
+          ? 'default'
+          : draft.temperature.toString(),
+      field: 'temperature',
+    },
+    {
+      label: '$(circle) Top K',
+      description: draft.topK === undefined ? 'default' : draft.topK.toString(),
+      field: 'topK',
+    },
+    {
+      label: '$(circle) Top P',
+      description: draft.topP === undefined ? 'default' : draft.topP.toString(),
+      field: 'topP',
     },
     { label: '', kind: vscode.QuickPickItemKind.Separator },
     {
@@ -1050,7 +990,6 @@ function normalizeModelDraft(draft: ModelConfig): ModelConfig {
     topK: draft.topK,
     topP: draft.topP,
     thinking: draft.thinking ? { ...draft.thinking } : undefined,
-    toolChoice: draft.toolChoice ? { ...draft.toolChoice } : undefined,
   };
 }
 
@@ -1066,7 +1005,6 @@ function cloneModels(models: ModelConfig[]): ModelConfig[] {
     topK: m.topK,
     topP: m.topP,
     thinking: m.thinking ? { ...m.thinking } : undefined,
-    toolChoice: m.toolChoice ? { ...m.toolChoice } : undefined,
   }));
 }
 
@@ -1150,15 +1088,6 @@ function thinkingEqual(
   return a.type === b.type && a.budgetTokens === b.budgetTokens;
 }
 
-function toolChoiceEqual(
-  a?: ModelConfig['toolChoice'],
-  b?: ModelConfig['toolChoice'],
-): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return a.type === b.type && a.name === b.name;
-}
-
 function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
   const trimmedId = draft.id.trim();
   const trimmedName = draft.name?.trim() ?? '';
@@ -1172,7 +1101,6 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
   const topK = draft.topK;
   const topP = draft.topP;
   const thinking = draft.thinking;
-  const toolChoice = draft.toolChoice;
 
   if (!original) {
     return (
@@ -1186,8 +1114,7 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
       temperature !== undefined ||
       topK !== undefined ||
       topP !== undefined ||
-      thinking !== undefined ||
-      toolChoice !== undefined
+      thinking !== undefined
     );
   }
 
@@ -1202,8 +1129,7 @@ function hasModelChanges(draft: ModelConfig, original?: ModelConfig): boolean {
     temperature !== original.temperature ||
     topK !== original.topK ||
     topP !== original.topP ||
-    !thinkingEqual(thinking, original.thinking) ||
-    !toolChoiceEqual(toolChoice, original.toolChoice)
+    !thinkingEqual(thinking, original.thinking)
   );
 }
 
@@ -1226,8 +1152,7 @@ function modelsEqual(a: ModelConfig, b: ModelConfig): boolean {
     a.temperature === b.temperature &&
     a.topK === b.topK &&
     a.topP === b.topP &&
-    thinkingEqual(a.thinking, b.thinking) &&
-    toolChoiceEqual(a.toolChoice, b.toolChoice)
+    thinkingEqual(a.thinking, b.thinking)
   );
 }
 

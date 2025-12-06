@@ -7,7 +7,13 @@ let nextRequestId = 1;
 let hasShownChannel = false;
 const requestContexts = new Map<
   string,
-  { label: string; endpoint: string; headers: Record<string, string>; body: unknown; logged: boolean }
+  {
+    label: string;
+    endpoint: string;
+    headers: Record<string, string>;
+    body: unknown;
+    logged: boolean;
+  }
 >();
 
 /**
@@ -33,18 +39,24 @@ function isVerboseEnabled(): boolean {
   return typeof verbose === 'boolean' ? verbose : false;
 }
 
-function logInfo(message: string): void {
+export function logInfo(message: string): void {
   if (!isVerboseEnabled()) {
     return;
   }
   getChannel().info(message);
 }
 
-function maskSensitiveHeaders(headers: Record<string, string>): Record<string, string> {
+function maskSensitiveHeaders(
+  headers: Record<string, string>,
+): Record<string, string> {
   const masked: Record<string, string> = { ...headers };
   for (const key of Object.keys(masked)) {
     const lower = key.toLowerCase();
-    if (lower === 'x-api-key' || lower === 'authorization' || lower.includes('token')) {
+    if (
+      lower === 'x-api-key' ||
+      lower === 'authorization' ||
+      lower.includes('token')
+    ) {
       masked[key] = maskValue(masked[key]);
     }
   }
@@ -74,7 +86,9 @@ export function startRequestLog(details: {
   const id = `req-${nextRequestId++}`;
 
   const maskedHeaders = maskSensitiveHeaders(details.headers);
-  const label = `${details.provider}${details.modelId ? ` (${details.modelId})` : ''}`;
+  const label = `${details.provider}${
+    details.modelId ? ` (${details.modelId})` : ''
+  }`;
   requestContexts.set(id, {
     label,
     endpoint: details.endpoint,
@@ -88,7 +102,13 @@ export function startRequestLog(details: {
     ch.info(`[${id}] → ${label} ${details.endpoint}`);
     ch.info(`[${id}] Headers: ${JSON.stringify(maskedHeaders)}`);
     ch.info(`[${id}] Body: ${JSON.stringify(details.body, null, 2)}`);
-    requestContexts.set(id, { label, endpoint: details.endpoint, headers: maskedHeaders, body: details.body, logged: true });
+    requestContexts.set(id, {
+      label,
+      endpoint: details.endpoint,
+      headers: maskedHeaders,
+      body: details.body,
+      logged: true,
+    });
   }
 
   return id;
@@ -111,9 +131,14 @@ function logRequestContext(requestId: string): void {
 /**
  * Log HTTP status and content type metadata.
  */
-export function logResponseMetadata(requestId: string, response: Response): void {
+export function logResponseMetadata(
+  requestId: string,
+  response: Response,
+): void {
   const contentType = response.headers.get('content-type') ?? 'unknown';
-  const message = `[${requestId}] ← Status ${response.status} ${response.statusText || ''} (${contentType})`.trim();
+  const message = `[${requestId}] ← Status ${response.status} ${
+    response.statusText || ''
+  } (${contentType})`.trim();
 
   if (!response.ok) {
     logRequestContext(requestId);

@@ -164,13 +164,6 @@ export class ConfigStore {
                   budgetTokens?: number;
                 })
               : undefined,
-          toolChoice:
-            obj.toolChoice && typeof obj.toolChoice === 'object'
-              ? (obj.toolChoice as {
-                  type: 'auto' | 'any' | 'tool' | 'none';
-                  name?: string;
-                })
-              : undefined,
         };
       }
     }

@@ -1,6 +1,7 @@
 import type {
   CancellationToken,
   LanguageModelChatMessage,
+  LanguageModelChatRequestMessage,
   LanguageModelChatTool,
   LanguageModelTextPart,
   LanguageModelToolCallPart,
@@ -50,11 +51,6 @@ export interface ModelConfig {
     type: 'enabled' | 'disabled';
     budgetTokens?: number;
   };
-  /** Tool choice configuration */
-  toolChoice?: {
-    type: 'auto' | 'any' | 'tool' | 'none';
-    name?: string;
-  };
 }
 
 /**
@@ -95,7 +91,7 @@ export interface ApiProvider {
   /**
    * Convert VS Code messages to the client's format
    */
-  convertMessages(messages: readonly LanguageModelChatMessage[]): {
+  convertMessages(messages: readonly LanguageModelChatRequestMessage[]): {
     system?: string;
     messages: unknown[];
   };

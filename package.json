@@ -16,6 +16,59 @@
   "engines": {
     "vscode": "^1.104.0"
   },
+  "extensionDependencies": [
+    "GitHub.copilot-chat"
+  ],
+  "enabledApiProposals": [
+    "extensionsAny",
+    "newSymbolNamesProvider",
+    "interactive",
+    "codeActionAI",
+    "activeComment",
+    "commentReveal",
+    "contribCommentThreadAdditionalMenu",
+    "contribCommentsViewThreadMenus",
+    "documentFiltersExclusive",
+    "embeddings",
+    "findTextInFiles",
+    "findTextInFiles2",
+    "findFiles2",
+    "textSearchProvider",
+    "terminalDataWriteEvent",
+    "terminalExecuteCommandEvent",
+    "terminalSelection",
+    "terminalQuickFixProvider",
+    "mappedEditsProvider",
+    "aiRelatedInformation",
+    "aiSettingsSearch",
+    "chatParticipantAdditions",
+    "chatEditing",
+    "defaultChatParticipant",
+    "contribSourceControlInputBoxMenu",
+    "authLearnMore",
+    "testObserver",
+    "aiTextSearchProvider",
+    "chatParticipantPrivate",
+    "chatProvider",
+    "contribDebugCreateConfiguration",
+    "chatReferenceDiagnostic",
+    "textSearchProvider2",
+    "chatReferenceBinaryData",
+    "languageModelSystem",
+    "languageModelCapabilities",
+    "inlineCompletionsAdditions",
+    "chatStatusItem",
+    "taskProblemMatcherStatus",
+    "contribLanguageModelToolSets",
+    "textDocumentChangeReason",
+    "resolvers",
+    "taskExecutionTerminal",
+    "dataChannels",
+    "languageModelThinkingPart",
+    "chatSessionsProvider",
+    "devDeviceId",
+    "contribEditorContentMenu"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -184,43 +237,6 @@
                               },
                               "required": [
                                 "type"
-                              ]
-                            }
-                          ]
-                        },
-                        "toolChoice": {
-                          "type": "object",
-                          "description": "Tool choice configuration.",
-                          "oneOf": [
-                            {
-                              "properties": {
-                                "type": {
-                                  "enum": [
-                                    "auto",
-                                    "any",
-                                    "none"
-                                  ],
-                                  "description": "Tool choice strategy."
-                                }
-                              },
-                              "required": [
-                                "type"
-                              ]
-                            },
-                            {
-                              "properties": {
-                                "type": {
-                                  "const": "tool",
-                                  "description": "Force use of a specific tool."
-                                },
-                                "name": {
-                                  "type": "string",
-                                  "description": "Name of the tool to use."
-                                }
-                              },
-                              "required": [
-                                "type",
-                                "name"
                               ]
                             }
                           ]
