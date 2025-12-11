@@ -728,8 +728,8 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     const client = this.createClient();
     const page = await client.models.list();
     for await (const model of page) {
-      const wellKnwonConfig = WELL_KNOWN_MODELS.find((v) => v.id === model.id);
-      result.push(Object.assign(wellKnwonConfig ?? {}, { id: model.id }));
+      const wellKnowns = WELL_KNOWN_MODELS.find((v) => v.id === model.id);
+      result.push(Object.assign(wellKnowns ?? {}, { id: model.id }));
     }
     return result;
   }

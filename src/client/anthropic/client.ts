@@ -1206,11 +1206,9 @@ export class AnthropicProvider implements ApiProvider {
 
         // Convert API response to ModelConfig format
         for (const model of data.data) {
-          const wellKnwonConfig = WELL_KNOWN_MODELS.find(
-            (v) => v.id === model.id,
-          );
+          const wellKnowns = WELL_KNOWN_MODELS.find((v) => v.id === model.id);
           allModels.push(
-            Object.assign(wellKnwonConfig ?? {}, {
+            Object.assign(wellKnowns ?? {}, {
               id: model.id,
               name: model.display_name,
             }),
