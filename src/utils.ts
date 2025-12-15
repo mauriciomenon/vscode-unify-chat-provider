@@ -2,13 +2,12 @@ import type { RequestLogger } from './logger';
 
 /**
  * HTTP status codes that should trigger a retry.
+ * - 408: Request Timeout
+ * - 409: Request Lock
  * - 429: Too Many Requests (rate limiting)
- * - 500: Internal Server Error
- * - 502: Bad Gateway
- * - 503: Service Unavailable
- * - 504: Gateway Timeout
+ * - >=500: Internal Server Errors
  */
-export const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504] as const;
+export const RETRYABLE_STATUS_CODES = [408, 409, 429] as const;
 
 /**
  * Default retry configuration following industry standards.
@@ -44,7 +43,10 @@ export interface FetchWithRetryOptions extends RequestInit {
  * Check if an HTTP status code is retryable.
  */
 export function isRetryableStatusCode(status: number): boolean {
-  return (RETRYABLE_STATUS_CODES as readonly number[]).includes(status);
+  return (
+    (RETRYABLE_STATUS_CODES as readonly number[]).includes(status) ||
+    status >= 500
+  );
 }
 
 /**
@@ -156,7 +158,6 @@ export async function fetchWithRetry(
  * - trims whitespace
  * - removes query/hash
  * - collapses extra slashes
- * - rejects URLs that already include /v1/messages
  * - removes trailing slash
  */
 export function normalizeBaseUrlInput(raw: string): string {
@@ -169,9 +170,6 @@ export function normalizeBaseUrlInput(raw: string): string {
   parsed.hash = '';
 
   const collapsed = parsed.pathname.replace(/\/{2,}/g, '/');
-  if (/\/v1\/messages\/?$/i.test(collapsed)) {
-    throw new Error('Base URL should not include /v1/messages');
-  }
   const pathname = collapsed.replace(/\/+$/, '');
   parsed.pathname = pathname;
 

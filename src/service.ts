@@ -70,7 +70,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
    * Create a unique model ID combining provider and model names
    */
   private createModelId(providerName: string, modelId: string): string {
-    return `${this.sanitizeName(providerName)}/${modelId}`;
+    return `${this.encodeProviderName(providerName)}/${modelId}`;
   }
 
   /**
@@ -90,10 +90,18 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
   }
 
   /**
-   * Sanitize provider name for use in model ID
+   * Encode provider name for use in model ID (reversible via decodeURIComponent)
    */
-  private sanitizeName(name: string): string {
-    return name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  private encodeProviderName(name: string): string {
+    return encodeURIComponent(name);
+  }
+
+  private decodeProviderName(encodedName: string): string | null {
+    try {
+      return decodeURIComponent(encodedName);
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -107,13 +115,18 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       return null;
     }
 
-    for (const provider of this.configStore.endpoints) {
-      const sanitizedName = this.sanitizeName(provider.name);
-      if (sanitizedName === parsed.providerName) {
-        const model = provider.models.find((m) => m.id === parsed.modelName);
-        if (model) {
-          return { provider, model };
-        }
+    const decodedProviderName = this.decodeProviderName(parsed.providerName);
+    if (!decodedProviderName) {
+      return null;
+    }
+
+    const provider = this.configStore.endpoints.find(
+      (p) => p.name === decodedProviderName,
+    );
+    if (provider) {
+      const model = provider.models.find((m) => m.id === parsed.modelName);
+      if (model) {
+        return { provider, model };
       }
     }
 
@@ -172,13 +185,20 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       logger,
     );
 
-    for await (const part of stream) {
-      if (token.isCancellationRequested) {
-        break;
+    try {
+      for await (const part of stream) {
+        if (token.isCancellationRequested) {
+          break;
+        }
+        // Log VSCode output (verbose only)
+        logger.vscodeOutput(part);
+        progress.report(part);
       }
-      // Log VSCode output (verbose only)
-      logger.vscodeOutput(part);
-      progress.report(part);
+    } catch (error) {
+      // sometimes, the chat panel in VSCode does not display the specific error,
+      // but instead shows the output from `stackTrace.format`.
+      logger.error(error);
+      throw error;
     }
 
     performanceTrace.tl = Date.now() - performanceTrace.tts;

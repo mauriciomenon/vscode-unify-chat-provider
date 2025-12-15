@@ -1,59 +1,102 @@
 import * as vscode from 'vscode';
-import {
-  AnthropicMessage,
-  AnthropicRequest,
-  AnthropicStreamEvent,
-  AnthropicTextBlock,
-  AnthropicToolUseBlock,
-  AnthropicToolResultBlock,
-  AnthropicTool,
-  AnthropicListModelsResponse,
-  AnthropicContentBlock,
-  AnthropicImageBlock,
-  AnthropicSystemContentBlock,
-  AnthropicToolUnion,
-  AnthropicWebSearchTool,
-  AnthropicMemoryTool,
-  AnthropicServerToolUseBlock,
-  AnthropicWebSearchToolResultBlock,
-  AnthropicTextBlockWithCitations,
-  AnthropicUsage,
-} from './types';
+import Anthropic from '@anthropic-ai/sdk';
+import type {
+  BetaContentBlock,
+  BetaContentBlockParam,
+  BetaImageBlockParam,
+  BetaMessage,
+  BetaMessageParam,
+  BetaRawMessageStreamEvent,
+  BetaRedactedThinkingBlockParam,
+  BetaTextBlockParam,
+  BetaThinkingBlockParam,
+  BetaToolChoice,
+  BetaToolUnion,
+  BetaUsage,
+  MessageCreateParamsStreaming,
+} from '@anthropic-ai/sdk/resources/beta/messages';
 import type { RequestLogger } from '../../logger';
 import { ApiProvider, ProviderConfig, ModelConfig } from '../interface';
-import { normalizeBaseUrlInput, fetchWithRetry } from '../../utils';
+import {
+  normalizeBaseUrlInput,
+  fetchWithRetry,
+  DEFAULT_RETRY_CONFIG,
+} from '../../utils';
 import { getBaseModelId } from '../../model-id-utils';
 import { DEFAULT_MAX_OUTPUT_TOKENS } from '../../defaults';
 import {
-  CustomDataPartMimeTypes,
-  CacheType,
+  DataPartMimeTypes,
   PerformanceTrace,
+  StatefulMarkerData,
+  ThinkingBlockMetadata,
 } from '../../types';
 import { FeatureId, isFeatureSupported } from '../../features';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { WELL_KNOWN_MODELS } from '../../well-known-models';
+import { TracksToolInput } from '@anthropic-ai/sdk/lib/BetaMessageStream';
 
 /**
  * Client for Anthropic-compatible APIs
  */
+// TODO Citations support
+// TODO Context editing support
 export class AnthropicProvider implements ApiProvider {
-  constructor(private readonly config: ProviderConfig) {}
+  private readonly baseUrl: string;
+  private readonly messagesEndpoint: string;
+
+  constructor(private readonly config: ProviderConfig) {
+    this.baseUrl = this.buildBaseUrl(config.baseUrl);
+    this.messagesEndpoint = `${this.baseUrl}/v1/messages`;
+  }
+
+  /**
+   * Anthropic SDK expects a base URL without a trailing /v1 segment.
+   */
+  private buildBaseUrl(baseUrl: string): string {
+    const normalized = normalizeBaseUrlInput(baseUrl);
+    return /\/v\d+$/i.test(normalized)
+      ? normalized.replace(/\/v\d+$/i, '')
+      : normalized;
+  }
+
+  /**
+   * Create an Anthropic client with custom fetch for retry support.
+   * A new client is created per request to enable per-request logging.
+   */
+  private createClient(logger?: RequestLogger): Anthropic {
+    const customFetch = (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === 'string' ? input : input.toString();
+      return fetchWithRetry(url, {
+        ...init,
+        logger,
+        retryConfig: DEFAULT_RETRY_CONFIG,
+      });
+    };
+
+    return new Anthropic({
+      apiKey: this.config.apiKey,
+      baseURL: this.baseUrl,
+      maxRetries: 0, // disable SDK retry; we use fetchWithRetry
+      fetch: customFetch,
+    });
+  }
 
   /**
    * Build request headers
-   * @param betaFeatures Optional array of beta feature strings to include in anthropic-beta header
    */
-  private buildHeaders(betaFeatures?: string[]): Record<string, string> {
+  private buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
     };
 
     if (this.config.mimic === 'claude-code') {
-      headers['Accept'] = 'application/json';
       headers['User-Agent'] = 'claude-cli/2.0.55 (external, cli)';
       headers['x-app'] = 'cli';
+      // these headers already set by the SDK, but we set them here for fixed values
       headers['x-stainless-arch'] = 'arm64';
       headers['x-stainless-lang'] = 'js';
       headers['x-stainless-os'] = 'MacOS';
@@ -62,24 +105,12 @@ export class AnthropicProvider implements ApiProvider {
       headers['x-stainless-runtime'] = 'node';
       headers['x-stainless-runtime-version'] = 'v20.19.6';
       headers['x-stainless-timeout'] = '600';
+      headers['anthropic-version'] = '2023-06-01';
     }
 
     if (this.config.apiKey) {
       headers['x-api-key'] = this.config.apiKey;
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
-    }
-
-    // Add beta features header if any beta features are requested
-    const features = new Set(betaFeatures);
-
-    // Ensure anthropic-beta is always present for Claude Code validation
-    if (this.config.mimic === 'claude-code') {
-      features.add('claude-code-20250219');
-      features.add('interleaved-thinking-2025-05-14');
-    }
-
-    if (features.size > 0) {
-      headers['anthropic-beta'] = Array.from(features).join(',');
     }
 
     return headers;
@@ -91,68 +122,238 @@ export class AnthropicProvider implements ApiProvider {
   private convertMessages(
     messages: readonly vscode.LanguageModelChatRequestMessage[],
   ): {
-    system?: string | AnthropicSystemContentBlock[];
-    messages: AnthropicMessage[];
+    system?: string | BetaTextBlockParam[];
+    messages: BetaMessageParam[];
   } {
-    const systemBlocks: AnthropicSystemContentBlock[] = [];
-    let hasSystemCacheControl = false;
-    let system: string | AnthropicSystemContentBlock[] | undefined;
-    const converted: AnthropicMessage[] = [];
+    const outMessages: BetaMessageParam[] = [];
+    const system: BetaTextBlockParam[] = [];
+    let rawAnthropics = new Map<BetaMessageParam, BetaMessage>();
 
     for (const msg of messages) {
-      if (msg.role === vscode.LanguageModelChatMessageRole.User) {
-        const content = this.extractContent(msg);
-        if (content.length > 0) {
-          converted.push({ role: 'user', content });
-        }
-      } else if (msg.role === vscode.LanguageModelChatMessageRole.Assistant) {
-        const content = this.extractContent(msg);
-        if (content.length > 0) {
-          converted.push({ role: 'assistant', content });
-        }
-      } else if (msg.role === vscode.LanguageModelChatMessageRole.System) {
-        const { blocks, hasCacheControl } = this.extractSystemContent(msg);
-        if (blocks.length > 0) {
-          systemBlocks.push(...blocks);
-          hasSystemCacheControl = hasSystemCacheControl || hasCacheControl;
-        }
+      switch (msg.role) {
+        case vscode.LanguageModelChatMessageRole.System:
+          for (const part of msg.content) {
+            const blocks = this.convertPart(msg.role, part) as
+              | BetaTextBlockParam[]
+              | undefined;
+            if (blocks) system.push(...blocks);
+          }
+          break;
+
+        case vscode.LanguageModelChatMessageRole.User:
+          for (const part of msg.content) {
+            const blocks = this.convertPart(msg.role, part);
+            if (blocks) outMessages.push({ role: 'user', content: blocks });
+          }
+          break;
+
+        case vscode.LanguageModelChatMessageRole.Assistant:
+          const message: BetaMessageParam = {
+            role: 'assistant',
+            content: '',
+          };
+
+          const rawPart = msg.content.find(
+            (v) => v instanceof vscode.LanguageModelDataPart,
+          ) as vscode.LanguageModelDataPart | undefined;
+          if (rawPart) {
+            try {
+              const raw = rawPart
+                ? this.decodeStatefulMarkerPart(rawPart)
+                : undefined;
+              if (raw) {
+                rawAnthropics.set(message, raw);
+                outMessages.push(message);
+              }
+            } catch (error) {}
+          } else {
+            for (const part of msg.content) {
+              const blocks = this.convertPart(msg.role, part);
+              if (blocks)
+                outMessages.push({ role: 'assistant', content: blocks });
+            }
+          }
+          break;
+
+        default:
+          throw new Error(
+            `Unsupported message role for Anthropic provider: ${msg.role}`,
+          );
       }
     }
 
-    if (systemBlocks.length > 0) {
-      if (!hasSystemCacheControl) {
-        // When no cache control is present, collapse to a single string
-        system = systemBlocks.map((b) => b.text).join('\n');
+    // add a cache breakpoint at the end.
+    const lastSystem = system.at(-1);
+    if (lastSystem) {
+      lastSystem.cache_control = { type: 'ephemeral' };
+    }
+    const lastUser = outMessages.filter((m) => m.role === 'user').at(-1);
+    if (lastUser) {
+      const newContents =
+        typeof lastUser.content === 'string'
+          ? [
+              {
+                type: 'text',
+                text: lastUser.content,
+              } satisfies BetaTextBlockParam,
+            ]
+          : lastUser.content;
+      const lastContent = newContents.at(-1);
+      if (lastContent && this.isCacheControlApplicableBlock(lastContent)) {
+        lastContent.cache_control = { type: 'ephemeral' };
       } else {
-        system = systemBlocks;
+        newContents.push({
+          type: 'text',
+          // Anthropic does not accept empty string text blocks
+          text: ' ',
+          cache_control: { type: 'ephemeral' },
+        } satisfies BetaTextBlockParam);
       }
+    }
+
+    // use raw messages, for details, see parseMessage's NOTE comments.
+    for (const [param, raw] of rawAnthropics) {
+      const index = outMessages.indexOf(param);
+      outMessages[index].content = raw.content;
     }
 
     return {
-      system,
-      messages: this.ensureAlternatingRoles(converted),
+      messages: this.ensureAlternatingRoles(outMessages),
+      system: system.length > 0 ? system : undefined,
     };
+  }
+
+  convertPart(
+    role: vscode.LanguageModelChatMessageRole | 'tool_result',
+    part: vscode.LanguageModelInputPart | unknown,
+  ): BetaContentBlockParam[] | undefined {
+    if (part == null) {
+      return undefined;
+    }
+
+    if (part instanceof vscode.LanguageModelTextPart) {
+      if (part.value.trim()) {
+        return [{ type: 'text', text: part.value }];
+      } else {
+        return undefined;
+      }
+    } else if (part instanceof vscode.LanguageModelThinkingPart) {
+      if (role !== vscode.LanguageModelChatMessageRole.Assistant) {
+        throw new Error('Thinking parts can only appear in assistant messages');
+      }
+      const metadata = part.metadata as ThinkingBlockMetadata | undefined;
+      if (metadata?.redactedData) {
+        // from VSCode.
+        return [
+          {
+            type: 'redacted_thinking',
+            data: metadata.redactedData,
+          },
+        ];
+      } else if (metadata?._completeThinking) {
+        // from VSCode.
+        return [
+          {
+            type: 'thinking',
+            thinking: metadata._completeThinking,
+            signature: metadata.signature || '',
+          },
+        ];
+      } else {
+        const values =
+          typeof part.value === 'string' ? [part.value] : part.value;
+        return values.map((v) => ({
+          type: 'thinking',
+          thinking: v,
+          signature: '',
+        }));
+      }
+    } else if (part instanceof vscode.LanguageModelDataPart) {
+      if (this.isCacheControlMarker(part)) {
+        // ignore it, just use the officially recommended caching strategy.
+        return undefined;
+      } else if (this.isInternalMarker(part)) {
+        return undefined;
+      } else if (this.isImageMarker(part)) {
+        const mimeType = normalizeImageMimeType(part.mimeType);
+        if (!mimeType) {
+          throw new Error(
+            `Unsupported image mime type for Anthropic provider: ${part.mimeType}`,
+          );
+        }
+        return [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              data: Buffer.from(part.data).toString('base64'),
+              media_type: mimeType,
+            },
+          },
+        ];
+      } else {
+        throw new Error(
+          `Unsupported ${role} message LanguageModelDataPart mime type: ${part.mimeType}`,
+        );
+      }
+    } else if (part instanceof vscode.LanguageModelToolCallPart) {
+      if (role !== vscode.LanguageModelChatMessageRole.Assistant) {
+        throw new Error(
+          'Tool call parts can only appear in assistant messages',
+        );
+      }
+      return [
+        {
+          type: 'tool_use',
+          id: part.callId,
+          name: part.name,
+          input: part.input,
+        },
+      ];
+    } else if (
+      part instanceof vscode.LanguageModelToolResultPart ||
+      part instanceof vscode.LanguageModelToolResultPart2
+    ) {
+      if (
+        role === 'tool_result' ||
+        role === vscode.LanguageModelChatMessageRole.System
+      ) {
+        throw new Error(
+          'Tool result parts can only appear in assistant or user messages',
+        );
+      }
+      const content = part.content
+        .map(
+          (v) =>
+            this.convertPart('tool_result', v) as
+              | (BetaTextBlockParam | BetaImageBlockParam)[]
+              | undefined,
+        )
+        .filter((v) => v !== undefined)
+        .flat();
+      return [
+        {
+          type: 'tool_result',
+          tool_use_id: part.callId,
+          content: content || [],
+        },
+      ];
+    } else {
+      throw new Error(`Unsupported ${role} message part type encountered`);
+    }
   }
 
   /**
    * Check if a content block supports cache_control.
    * Thinking, redacted_thinking, server_tool_use, and web_search_tool_result blocks do not support cache_control.
    */
-  private contentBlockSupportsCacheControl(
-    block: AnthropicContentBlock,
+  private isCacheControlApplicableBlock(
+    block: BetaContentBlockParam,
   ): block is Exclude<
-    AnthropicContentBlock,
-    | { type: 'thinking' }
-    | { type: 'redacted_thinking' }
-    | { type: 'server_tool_use' }
-    | { type: 'web_search_tool_result' }
+    BetaContentBlockParam,
+    BetaThinkingBlockParam | BetaRedactedThinkingBlockParam
   > {
-    return (
-      block.type !== 'thinking' &&
-      block.type !== 'redacted_thinking' &&
-      block.type !== 'server_tool_use' &&
-      block.type !== 'web_search_tool_result'
-    );
+    return block.type !== 'thinking' && block.type !== 'redacted_thinking';
   }
 
   /**
@@ -160,280 +361,31 @@ export class AnthropicProvider implements ApiProvider {
    * Returns true if the data represents an ephemeral cache control marker.
    */
   private isCacheControlMarker(part: vscode.LanguageModelDataPart): boolean {
-    if (part.mimeType !== CustomDataPartMimeTypes.CacheControl) {
-      return false;
-    }
-    const dataString = Buffer.from(part.data).toString('utf-8');
-    return dataString === CacheType;
+    return (
+      part.mimeType === DataPartMimeTypes.CacheControl &&
+      part.data.toString() === 'ephemeral'
+    );
   }
 
-  /**
-   * Extract content blocks from a VS Code message
-   */
-  private extractContent(
-    msg: vscode.LanguageModelChatRequestMessage,
-  ): AnthropicContentBlock[] {
-    const blocks: AnthropicContentBlock[] = [];
-
-    for (const part of msg.content) {
-      if (part instanceof vscode.LanguageModelTextPart) {
-        if (part.value.trim()) {
-          blocks.push({ type: 'text', text: part.value });
-        }
-      } else if (part instanceof vscode.LanguageModelThinkingPart) {
-        // Handle thinking parts from previous assistant responses
-        const metadata = part.metadata as
-          | {
-              redactedData?: string;
-              _completeThinking?: string;
-              signature?: string;
-            }
-          | undefined;
-        if (metadata?.redactedData) {
-          // Redacted thinking block
-          blocks.push({
-            type: 'redacted_thinking',
-            data: metadata.redactedData,
-          });
-        } else if (metadata?._completeThinking) {
-          // Complete thinking block with signature
-          blocks.push({
-            type: 'thinking',
-            thinking: metadata._completeThinking,
-            signature: metadata.signature || '',
-          });
-        }
-        // Skip incremental thinking parts - we only care about the complete one
-      } else if (part instanceof vscode.LanguageModelToolCallPart) {
-        blocks.push({
-          type: 'tool_use',
-          id: part.callId,
-          name: part.name,
-          input: part.input as Record<string, unknown>,
-        });
-      } else if (part instanceof vscode.LanguageModelToolResultPart) {
-        const content = this.extractToolResultContent(part.content);
-        const toolResultBlock: AnthropicToolResultBlock = {
-          type: 'tool_result',
-          tool_use_id: part.callId,
-          content,
-        };
-        // Check if the tool result indicates an error
-        // LanguageModelToolResultPart may have isError property in newer VS Code versions
-        const isError = (part as { isError?: boolean }).isError;
-        if (isError !== undefined) {
-          toolResultBlock.is_error = isError;
-        }
-        blocks.push(toolResultBlock);
-      } else if (part instanceof vscode.LanguageModelDataPart) {
-        // Handle cache_control marker - add cache_control to the previous block
-        if (this.isCacheControlMarker(part)) {
-          const previousBlock = blocks.at(-1);
-          if (
-            previousBlock &&
-            this.contentBlockSupportsCacheControl(previousBlock)
-          ) {
-            previousBlock.cache_control = { type: 'ephemeral' };
-          } else {
-            // If no previous block or it doesn't support cache_control,
-            // create a placeholder text block with cache_control
-            // (empty string is invalid for Anthropic, use a space)
-            blocks.push({
-              type: 'text',
-              text: ' ',
-              cache_control: { type: 'ephemeral' },
-            });
-          }
-        } else if (part.mimeType === CustomDataPartMimeTypes.StatefulMarker) {
-          // Skip stateful markers - they are for internal use
-          continue;
-        } else if (part.mimeType.startsWith('image/')) {
-          const dataString = Buffer.from(part.data).toString('utf-8');
-          // Check if the data looks like a URL
-          if (
-            dataString.startsWith('http://') ||
-            dataString.startsWith('https://')
-          ) {
-            blocks.push({
-              type: 'image',
-              source: {
-                type: 'url',
-                url: dataString,
-              },
-            });
-          } else {
-            // Default to base64 encoding
-            const base64 = Buffer.from(part.data).toString('base64');
-            blocks.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: part.mimeType,
-                data: base64,
-              },
-            });
-          }
-        } else if (part.mimeType.startsWith('text/')) {
-          const text = Buffer.from(part.data).toString('utf-8');
-          blocks.push({ type: 'text', text });
-        } else {
-          throw new Error(
-            `Unsupported mime type in LanguageModelDataPart: ${
-              part.mimeType
-            }. Data length: ${part.data?.byteLength ?? 'unknown'}`,
-          );
-        }
-      } else {
-        throw new Error(
-          `Unsupported message part type encountered. Part details: ${JSON.stringify(
-            part,
-          )}.`,
-        );
-      }
-    }
-
-    return blocks;
+  private isInternalMarker(part: vscode.LanguageModelDataPart): boolean {
+    return part.mimeType === DataPartMimeTypes.StatefulMarker;
   }
 
-  /**
-   * Extract system content blocks, keeping cache_control markers.
-   */
-  private extractSystemContent(msg: vscode.LanguageModelChatRequestMessage): {
-    blocks: AnthropicSystemContentBlock[];
-    hasCacheControl: boolean;
-  } {
-    const blocks: AnthropicSystemContentBlock[] = [];
-    let hasCacheControl = false;
-
-    for (const part of msg.content) {
-      if (part instanceof vscode.LanguageModelTextPart) {
-        if (part.value.trim()) {
-          blocks.push({ type: 'text', text: part.value });
-        }
-      } else if (part instanceof vscode.LanguageModelDataPart) {
-        if (this.isCacheControlMarker(part)) {
-          const previousBlock = blocks.at(-1);
-          if (previousBlock) {
-            previousBlock.cache_control = { type: 'ephemeral' };
-          } else {
-            blocks.push({
-              type: 'text',
-              text: ' ',
-              cache_control: { type: 'ephemeral' },
-            });
-          }
-          hasCacheControl = true;
-        } else if (part.mimeType === CustomDataPartMimeTypes.StatefulMarker) {
-          continue;
-        } else if (part.mimeType.startsWith('text/')) {
-          const text = Buffer.from(part.data).toString('utf-8');
-          blocks.push({ type: 'text', text });
-        } else {
-          throw new Error(
-            `Unsupported mime type in system message LanguageModelDataPart: ${
-              part.mimeType
-            }. Data length: ${part.data?.byteLength ?? 'unknown'}`,
-          );
-        }
-      }
-    }
-
-    return { blocks, hasCacheControl };
-  }
-
-  /**
-   * Extract content for tool result
-   */
-  private extractToolResultContent(
-    content: unknown[],
-  ): string | (AnthropicTextBlock | AnthropicImageBlock)[] {
-    const blocks: (AnthropicTextBlock | AnthropicImageBlock)[] = [];
-
-    for (const part of content) {
-      if (part instanceof vscode.LanguageModelTextPart) {
-        // Anthropic errors if we have text parts with empty string text content
-        if (part.value.trim()) {
-          blocks.push({ type: 'text', text: part.value });
-        }
-      } else if (part instanceof vscode.LanguageModelThinkingPart) {
-        // Thinking parts should not appear in tool results, but skip them if they do
-        continue;
-      } else if (part instanceof vscode.LanguageModelDataPart) {
-        // Handle cache_control marker in tool results
-        if (this.isCacheControlMarker(part)) {
-          // In tool results, cache_control marker creates a placeholder text block
-          // (empty string is invalid for Anthropic, use a space)
-          blocks.push({
-            type: 'text',
-            text: ' ',
-            cache_control: { type: 'ephemeral' },
-          });
-        } else if (part.mimeType === CustomDataPartMimeTypes.StatefulMarker) {
-          // Skip stateful markers
-          continue;
-        } else if (part.mimeType.startsWith('image/')) {
-          const dataString = Buffer.from(part.data).toString('utf-8');
-          // Check if the data looks like a URL
-          if (
-            dataString.startsWith('http://') ||
-            dataString.startsWith('https://')
-          ) {
-            blocks.push({
-              type: 'image',
-              source: {
-                type: 'url',
-                url: dataString,
-              },
-            });
-          } else {
-            // Default to base64 encoding
-            const base64 = Buffer.from(part.data).toString('base64');
-            blocks.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: part.mimeType,
-                data: base64,
-              },
-            });
-          }
-        } else if (part.mimeType.startsWith('text/')) {
-          const text = Buffer.from(part.data).toString('utf-8');
-          blocks.push({ type: 'text', text });
-        } else {
-          throw new Error(
-            `Unsupported mime type in LanguageModelDataPart: ${
-              part.mimeType
-            }. Data length: ${part.data?.byteLength ?? 'unknown'}`,
-          );
-        }
-      } else {
-        throw new Error(
-          `Unsupported tool result part type encountered. Part details: ${JSON.stringify(
-            part,
-          )}.`,
-        );
-      }
-    }
-
-    if (blocks.length === 0) {
-      return '';
-    }
-
-    return blocks;
+  private isImageMarker(part: vscode.LanguageModelDataPart): boolean {
+    return part.mimeType.startsWith('image/');
   }
 
   /**
    * Ensure messages alternate between user and assistant roles
    */
   private ensureAlternatingRoles(
-    messages: AnthropicMessage[],
-  ): AnthropicMessage[] {
+    messages: BetaMessageParam[],
+  ): BetaMessageParam[] {
     if (messages.length === 0) {
       return [];
     }
 
-    const result: AnthropicMessage[] = [];
+    const result: BetaMessageParam[] = [];
 
     for (const msg of messages) {
       const lastRole =
@@ -441,18 +393,47 @@ export class AnthropicProvider implements ApiProvider {
 
       if (lastRole === msg.role) {
         // Merge with previous message of same role
-        result[result.length - 1].content.push(...msg.content);
+        const param = result[result.length - 1];
+        const newContent = Array.isArray(param.content)
+          ? param.content
+          : [
+              {
+                type: 'text',
+                text: param.content,
+              } satisfies BetaTextBlockParam,
+            ];
+        newContent.push(
+          ...(Array.isArray(msg.content)
+            ? msg.content
+            : [
+                {
+                  type: 'text',
+                  text: msg.content,
+                } satisfies BetaTextBlockParam,
+              ]),
+        );
+        param.content = newContent;
       } else {
-        result.push({ ...msg, content: [...msg.content] });
+        result.push({
+          ...msg,
+          content: [
+            ...(Array.isArray(msg.content)
+              ? msg.content
+              : [
+                  {
+                    type: 'text',
+                    text: msg.content,
+                  } satisfies BetaTextBlockParam,
+                ]),
+          ],
+        });
       }
     }
 
-    // Anthropic requires the first message to be from user
     if (result.length > 0 && result[0].role !== 'user') {
-      result.unshift({
-        role: 'user',
-        content: [{ type: 'text', text: '...' }],
-      });
+      throw new Error(
+        'The first message must be from the user role for Anthropic API',
+      );
     }
 
     return result;
@@ -470,8 +451,8 @@ export class AnthropicProvider implements ApiProvider {
   private convertTools(
     tools: readonly vscode.LanguageModelChatTool[],
     model?: ModelConfig,
-  ): { tools: AnthropicToolUnion[]; hasMemoryTool: boolean } {
-    const result: AnthropicToolUnion[] = [];
+  ): { tools: BetaToolUnion[]; hasMemoryTool: boolean } {
+    const result: BetaToolUnion[] = [];
     let hasMemoryTool = false;
     let hasWebSearchTool = false;
 
@@ -490,7 +471,7 @@ export class AnthropicProvider implements ApiProvider {
         result.push({
           type: 'memory_20250818',
           name: 'memory',
-        } as AnthropicMemoryTool);
+        });
         continue;
       }
 
@@ -498,13 +479,7 @@ export class AnthropicProvider implements ApiProvider {
         hasWebSearchTool = true;
       }
 
-      const inputSchema = (tool.inputSchema as
-        | AnthropicTool['input_schema']
-        | undefined) ?? {
-        type: 'object',
-        properties: {},
-        required: [],
-      };
+      const inputSchema = normalizeInputSchema(tool.inputSchema);
 
       result.push({
         name: tool.name,
@@ -516,7 +491,7 @@ export class AnthropicProvider implements ApiProvider {
     // Add web search server tool if enabled, supported, and no local web_search tool exists
     // This is because there is no local web_search tool definition we can replace
     if (model?.webSearch?.enabled && webSearchSupported && !hasWebSearchTool) {
-      const webSearchTool: AnthropicWebSearchTool = {
+      const webSearchTool: BetaToolUnion = {
         type: 'web_search_20250305',
         name: 'web_search',
       };
@@ -545,29 +520,23 @@ export class AnthropicProvider implements ApiProvider {
       result.push(webSearchTool);
     }
 
+    // Add cache control to last tool to prevent reuse across requests
+    if (result.length > 0) {
+      result.at(-1)!.cache_control = { type: 'ephemeral' };
+    }
+
     return { tools: result, hasMemoryTool };
   }
 
   private convertToolChoice(
     toolMode: vscode.LanguageModelChatToolMode,
-    tools?: AnthropicToolUnion[],
+    tools?: BetaToolUnion[],
     thinkingEnabled?: boolean,
-    parallelToolCalling?: boolean,
-  ): AnthropicRequest['tool_choice'] | undefined {
+  ): BetaToolChoice | undefined {
     // When thinking is enabled, Claude only supports 'auto' and 'none' modes.
     // Using 'any' or 'tool' with thinking enabled will cause an API error.
     if (thinkingEnabled) {
-      // With thinking enabled, we can only use 'auto' (default) or 'none'
-      // If user requested Required mode, we fall back to 'auto' since 'any' and 'tool' are not supported
-      if (toolMode === vscode.LanguageModelChatToolMode.Required) {
-        // Cannot use 'any' or specific tool with thinking, use 'auto' as fallback
-        return this.applyParallelToolChoice(
-          { type: 'auto' },
-          parallelToolCalling,
-        );
-      }
-      // For other modes, return undefined to use default 'auto' behavior
-      return this.applyParallelToolChoice(undefined, parallelToolCalling);
+      return { type: 'auto' };
     }
 
     if (toolMode === vscode.LanguageModelChatToolMode.Required) {
@@ -578,30 +547,31 @@ export class AnthropicProvider implements ApiProvider {
       }
 
       if (tools.length === 1) {
-        return this.applyParallelToolChoice(
-          { type: 'tool', name: tools[0].name },
-          parallelToolCalling,
-        );
+        const tool = tools[0];
+        if (!hasToolName(tool)) {
+          throw new Error('Selected tool does not have a name');
+        }
+        return { type: 'tool', name: tool.name };
       } else {
-        return this.applyParallelToolChoice(
-          { type: 'any' },
-          parallelToolCalling,
-        );
+        return { type: 'any' };
       }
     } else {
-      return this.applyParallelToolChoice(undefined, parallelToolCalling);
+      return { type: 'auto' };
     }
   }
 
   private applyParallelToolChoice(
-    toolChoice: AnthropicRequest['tool_choice'] | undefined,
+    toolChoice: BetaToolChoice | undefined,
     parallelToolCalling?: boolean,
-  ): AnthropicRequest['tool_choice'] | undefined {
+  ): BetaToolChoice | undefined {
     if (parallelToolCalling === undefined) {
       return toolChoice;
     }
 
     const base = toolChoice ?? { type: 'auto' as const };
+    if (base.type === 'none') {
+      return base;
+    }
     return {
       ...base,
       disable_parallel_tool_use:
@@ -667,8 +637,6 @@ export class AnthropicProvider implements ApiProvider {
       hasTools &&
       interleavedThinkingSupported;
 
-    const endpoint = toMessagesUrl(this.config.baseUrl);
-
     const { system, messages: anthropicMessages } =
       this.convertMessages(messages);
 
@@ -684,260 +652,216 @@ export class AnthropicProvider implements ApiProvider {
     const hasMemoryTool = toolsResult?.hasMemoryTool ?? false;
 
     // Build betas array for beta API features
-    const betaFeatures: string[] = [];
+    const betaFeatures = new Set<string>();
 
     if (interleavedThinkingEnabled) {
-      betaFeatures.push('interleaved-thinking-2025-05-14');
+      betaFeatures.add('interleaved-thinking-2025-05-14');
     }
 
     // Add context management beta for memory tool
     if (hasMemoryTool) {
-      betaFeatures.push('context-management-2025-06-27');
+      betaFeatures.add('context-management-2025-06-27');
     }
 
-    const headers = this.buildHeaders(
-      betaFeatures.length > 0 ? betaFeatures : undefined,
-    );
+    // Ensure anthropic-beta is always present for Claude Code validation
+    if (this.config.mimic === 'claude-code') {
+      betaFeatures.add('claude-code-20250219');
+      betaFeatures.add('interleaved-thinking-2025-05-14');
+    }
+
+    const headers = this.buildHeaders();
 
     // Pass thinkingEnabled to convertToolChoice to enforce tool_choice restrictions
-    const toolChoice = this.convertToolChoice(
-      options.toolMode,
-      tools,
-      thinkingEnabled,
+    const toolChoice = this.applyParallelToolChoice(
+      this.convertToolChoice(options.toolMode, tools, thinkingEnabled),
       model.parallelToolCalling,
     );
 
     try {
-      const requestBody: AnthropicRequest = {
+      const requestBase: Omit<MessageCreateParamsStreaming, 'stream'> = {
         model: getBaseModelId(model.id),
         messages: anthropicMessages,
         max_tokens: model.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-        stream: true,
       };
 
       if (this.config.mimic === 'claude-code') {
-        requestBody.metadata = {
+        requestBase.metadata = {
           user_id: USER_ID,
         };
       }
 
       if (system) {
-        requestBody.system = system;
+        requestBase.system = system;
       }
 
       if (tools) {
-        requestBody.tools = tools;
+        requestBase.tools = tools;
       }
 
       if (toolChoice) {
-        requestBody.tool_choice = toolChoice;
+        requestBase.tool_choice = toolChoice;
       }
 
       // Apply model configuration overrides
-      if (model.stream !== undefined) {
-        requestBody.stream = model.stream;
-      }
       if (model.temperature !== undefined) {
         // Note: When thinking is enabled, temperature modification is not supported
         // The API will reject non-default temperature values
-        requestBody.temperature = model.temperature;
+        requestBase.temperature = model.temperature;
       }
       if (model.topK !== undefined) {
         // Note: When thinking is enabled, top_k modification is not supported
-        requestBody.top_k = model.topK;
+        requestBase.top_k = model.topK;
       }
       if (model.topP !== undefined) {
         // Note: When thinking is enabled, top_p must be between 0.95 and 1
-        requestBody.top_p = model.topP;
+        requestBase.top_p = model.topP;
       }
       if (model.thinking !== undefined) {
         const { type, budgetTokens } = model.thinking;
         if (type === 'enabled') {
           // With interleaved thinking, budget_tokens can exceed max_tokens
           // For regular thinking, it must be less than max_tokens
-          requestBody.thinking = {
+          requestBase.thinking = {
             type,
             budget_tokens: this.normalizeThinkingBudget(
               budgetTokens,
-              requestBody.max_tokens,
+              requestBase.max_tokens,
               interleavedThinkingEnabled,
             ),
           };
         }
       }
 
+      if (betaFeatures.size > 0) {
+        requestBase.betas = Array.from(betaFeatures);
+      }
+
+      const stream = model.stream ?? true;
+
       logger.providerRequest({
         provider: this.config.name,
         modelId: model.id,
-        endpoint,
+        endpoint: this.messagesEndpoint,
         headers,
-        body: requestBody,
+        body: { ...requestBase, stream },
       });
 
       performanceTrace.ttf = Date.now() - performanceTrace.tts;
 
-      const response = await fetchWithRetry(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody),
-        signal: abortController.signal,
-        keepalive: true,
-        mode: 'cors',
-        logger,
-      });
+      const client = this.createClient(logger);
 
-      logger.providerResponseMeta(response);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `API request failed (${response.status}): ${errorText}`,
-        );
-      }
-
-      const contentType = response.headers.get('content-type') ?? '';
-
-      let usage: AnthropicUsage | undefined = undefined;
-
-      if (contentType.includes('text/event-stream')) {
-        yield* this.parseSSEStream(
-          response,
+      if (stream) {
+        const requestBody: MessageCreateParamsStreaming = {
+          ...requestBase,
+          stream: true,
+        };
+        const { data: sdkStream, response } = await client.beta.messages
+          .create(requestBody, {
+            headers,
+            signal: abortController.signal,
+          })
+          .withResponse();
+        logger.providerResponseMeta(response);
+        yield* this.parseMessageStream(
+          sdkStream,
           token,
           logger,
-          (usage = {} as AnthropicUsage),
           performanceTrace,
         );
       } else {
-        // Non-streaming response fallback
-        const rawText = await response.text();
-        logger.providerResponseChunk(rawText);
-        const result = JSON.parse(rawText);
-
-        usage = (result as { usage?: AnthropicUsage }).usage;
-        performanceTrace.ttft =
-          Date.now() - (performanceTrace.tts + performanceTrace.ttf);
-
-        for (const block of result.content ?? []) {
-          if (block.type === 'text') {
-            // Check for citations in text block
-            const textBlock = block as AnthropicTextBlockWithCitations;
-            if (textBlock.citations && textBlock.citations.length > 0) {
-              // Emit citations as a data part first
-              yield new vscode.LanguageModelDataPart(
-                new TextEncoder().encode(
-                  JSON.stringify({ citations: textBlock.citations }),
-                ),
-                CustomDataPartMimeTypes.TextCitations,
-              );
-            }
-            yield new vscode.LanguageModelTextPart(block.text);
-          } else if (block.type === 'tool_use') {
-            yield new vscode.LanguageModelToolCallPart(
-              block.id,
-              block.name,
-              block.input,
-            );
-          } else if (block.type === 'server_tool_use') {
-            // Handle server tool use (e.g., web_search)
-            const serverToolBlock = block as AnthropicServerToolUseBlock;
-            yield new vscode.LanguageModelDataPart(
-              new TextEncoder().encode(JSON.stringify(serverToolBlock)),
-              CustomDataPartMimeTypes.WebSearchToolUse,
-            );
-          } else if (block.type === 'web_search_tool_result') {
-            // Handle web search tool result
-            const resultBlock = block as AnthropicWebSearchToolResultBlock;
-            yield new vscode.LanguageModelDataPart(
-              new TextEncoder().encode(JSON.stringify(resultBlock)),
-              CustomDataPartMimeTypes.WebSearchToolResult,
-            );
-          } else if (block.type === 'thinking') {
-            // Output thinking content
-            yield new vscode.LanguageModelThinkingPart(block.thinking || '');
-            // Output final thinking part with metadata for multi-turn conversation
-            if (block.signature) {
-              const finalThinkingPart = new vscode.LanguageModelThinkingPart(
-                '',
-              );
-              finalThinkingPart.metadata = {
-                signature: block.signature,
-                _completeThinking: block.thinking,
-              };
-              yield finalThinkingPart;
-            }
-          }
-          // redacted_thinking blocks are intentionally not output
-        }
-      }
-
-      if (usage?.output_tokens !== undefined) {
-        performanceTrace.tps =
-          (usage.output_tokens /
-            (Date.now() - (performanceTrace.tts + performanceTrace.ttf))) *
-          1000;
-      } else {
-        performanceTrace.tps = NaN;
-      }
-
-      if (usage) {
-        logger.usage(usage);
+        const { data: result, response } = await client.beta.messages
+          .create(
+            {
+              ...requestBase,
+              stream: false,
+            },
+            {
+              headers,
+              signal: abortController.signal,
+            },
+          )
+          .withResponse();
+        logger.providerResponseMeta(response);
+        yield* this.parseMessage(result, performanceTrace, logger);
       }
     } finally {
       cancellationListener.dispose();
     }
   }
 
-  /**
-   * Parse SSE stream from Anthropic API
-   */
-  private async *parseSSEStream(
-    response: Response,
+  private async *parseMessage(
+    message: Anthropic.Beta.Messages.BetaMessage,
+    performanceTrace: PerformanceTrace,
+    logger: RequestLogger,
+  ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
+    // NOTE: The current behavior of VSCode is such that all Parts returned here will be
+    // aggregated into a single Part during the next request, and only the Thought part
+    // will be retained during the tool invocation round; most other types of Parts
+    // will be directly ignored, which can prevent us from sending the original data
+    // to the model provider and thus compromise full context and prompt caching support.
+    // we can only use two approaches simultaneously:
+    // 1. use the metadata attribute already in use in vscode-copilot-chat to restore the Thought part,
+    // ensuring basic compatibility across different models.
+    // 2. always send a StatefulMarker DataPart containing the complete, raw response data, to maximize context restoration.
+    const raw: BetaMessage = message;
+
+    performanceTrace.ttft =
+      Date.now() - (performanceTrace.tts + performanceTrace.ttf);
+
+    for (const block of message.content) {
+      switch (block.type) {
+        case 'text':
+          yield new vscode.LanguageModelTextPart(block.text);
+          break;
+
+        case 'thinking':
+          yield new vscode.LanguageModelThinkingPart(
+            block.thinking,
+            undefined,
+            {
+              signature: block.signature,
+              _completeThinking: block.thinking,
+            } satisfies ThinkingBlockMetadata,
+          );
+          break;
+
+        case 'redacted_thinking':
+          yield new vscode.LanguageModelThinkingPart(
+            '[Thinking...]',
+            undefined,
+            {
+              redactedData: block.data,
+            } satisfies ThinkingBlockMetadata,
+          );
+          break;
+
+        case 'tool_use':
+          const input = block.input ?? {};
+          yield new vscode.LanguageModelToolCallPart(
+            block.id,
+            block.name,
+            input,
+          );
+          break;
+
+        default:
+          throw new Error(`Unsupported message block type: ${block.type}`);
+      }
+    }
+    yield this.encodeStatefulMarkerPart(raw);
+
+    if (message.usage) {
+      this.processUsage(message.usage, performanceTrace, logger);
+    }
+  }
+
+  private async *parseMessageStream(
+    stream: AsyncIterable<BetaRawMessageStreamEvent>,
     token: vscode.CancellationToken,
     logger: RequestLogger,
-    usage: AnthropicUsage,
     performanceTrace: PerformanceTrace,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
-    const reader = response.body?.getReader();
-    if (!reader) {
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    // Track current tool call being built
-    let currentToolCall: {
-      id: string;
-      name: string;
-      inputJson: string;
-    } | null = null;
-
-    // Track pending thinking block
-    let pendingThinking: {
-      thinking: string;
-      signature: string;
-    } | null = null;
-
-    // Track pending redacted thinking block
-    let pendingRedactedThinking: {
-      data: string;
-    } | null = null;
-
-    // Track current server tool use block (for web search)
-    let currentServerToolUse: {
-      id: string;
-      name: string;
-      inputJson: string;
-    } | null = null;
-
-    // Track current text block with potential citations
-    let currentTextBlock: {
-      text: string;
-      hasCitations: boolean;
-    } | null = null;
-
-    // Track pending web search tool result
-    let pendingWebSearchResult: AnthropicWebSearchToolResultBlock | null = null;
+    let raw: BetaMessage | undefined;
 
     let firstTokenRecorded = false;
     const recordFirstToken = () => {
@@ -948,226 +872,317 @@ export class AnthropicProvider implements ApiProvider {
       }
     };
 
-    try {
-      while (!token.isCancellationRequested) {
-        const { done, value } = await reader.read();
-        if (done) {
+    for await (const event of stream) {
+      if (token.isCancellationRequested) {
+        break;
+      }
+
+      logger.providerResponseChunk(JSON.stringify(event));
+
+      raw = this.accumulateMessage(raw, event);
+
+      switch (event.type) {
+        case 'message_start': {
+          // do nothing.
           break;
         }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
+        case 'content_block_start': {
+          const block = event.content_block;
+          switch (block.type) {
+            case 'text':
+              yield new vscode.LanguageModelTextPart(block.text);
+              break;
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) {
-            continue;
+            case 'thinking':
+              yield new vscode.LanguageModelThinkingPart(block.thinking);
+              break;
+
+            case 'redacted_thinking':
+              yield new vscode.LanguageModelThinkingPart('[Thinking...]');
+              break;
+
+            default:
+              break;
+          }
+          break;
+        }
+
+        case 'content_block_delta': {
+          recordFirstToken();
+          const block = event.delta;
+          switch (block.type) {
+            case 'text_delta':
+              yield new vscode.LanguageModelTextPart(block.text);
+              break;
+
+            case 'thinking_delta':
+              yield new vscode.LanguageModelThinkingPart(block.thinking);
+              break;
+
+            default:
+              break;
+          }
+          break;
+        }
+
+        case 'content_block_stop': {
+          const block = raw.content.at(event.index)!;
+          switch (block.type) {
+            case 'tool_use':
+              yield new vscode.LanguageModelToolCallPart(
+                block.id,
+                block.name,
+                block.input as object,
+              );
+              break;
+
+            case 'thinking':
+              yield new vscode.LanguageModelThinkingPart('', undefined, {
+                signature: block.signature,
+                _completeThinking: block.thinking,
+              } satisfies ThinkingBlockMetadata);
+              break;
+
+            case 'redacted_thinking':
+              yield new vscode.LanguageModelThinkingPart('', undefined, {
+                redactedData: block.data,
+              } satisfies ThinkingBlockMetadata);
+              break;
+
+            default:
+              break;
           }
 
-          const data = trimmed.slice(5).trim();
-          logger.providerResponseChunk(data);
-          if (data === '[DONE]') {
-            return;
+          break;
+        }
+
+        case 'message_delta': {
+          break;
+        }
+
+        case 'message_stop': {
+          yield this.encodeStatefulMarkerPart(raw);
+
+          if (raw.usage) {
+            this.processUsage(raw.usage, performanceTrace, logger);
           }
+          break;
+        }
 
-          try {
-            const event = JSON.parse(data) as AnthropicStreamEvent;
-
-            if (event.type === 'content_block_start') {
-              if (event.content_block.type === 'tool_use') {
-                const toolBlock = event.content_block as AnthropicToolUseBlock;
-                currentToolCall = {
-                  id: toolBlock.id,
-                  name: toolBlock.name,
-                  inputJson: '',
-                };
-              } else if (event.content_block.type === 'thinking') {
-                pendingThinking = {
-                  thinking: '',
-                  signature: '',
-                };
-              } else if (event.content_block.type === 'redacted_thinking') {
-                const redactedBlock = event.content_block as {
-                  type: 'redacted_thinking';
-                  data: string;
-                };
-                pendingRedactedThinking = {
-                  data: redactedBlock.data,
-                };
-              } else if (event.content_block.type === 'server_tool_use') {
-                // Handle server tool use (e.g., web_search)
-                const serverToolBlock =
-                  event.content_block as AnthropicServerToolUseBlock;
-                currentServerToolUse = {
-                  id: serverToolBlock.id,
-                  name: serverToolBlock.name,
-                  inputJson: '',
-                };
-              } else if (
-                event.content_block.type === 'web_search_tool_result'
-              ) {
-                // Handle web search tool result
-                const resultBlock =
-                  event.content_block as AnthropicWebSearchToolResultBlock;
-                pendingWebSearchResult = resultBlock;
-                // Emit the web search result as a data part
-                recordFirstToken();
-                yield new vscode.LanguageModelDataPart(
-                  new TextEncoder().encode(JSON.stringify(resultBlock)),
-                  CustomDataPartMimeTypes.WebSearchToolResult,
-                );
-              } else if (event.content_block.type === 'text') {
-                // Check if this text block has citations
-                const textBlock =
-                  event.content_block as AnthropicTextBlockWithCitations;
-                if (textBlock.citations && textBlock.citations.length > 0) {
-                  currentTextBlock = {
-                    text: textBlock.text || '',
-                    hasCitations: true,
-                  };
-                  // Emit citations as a data part first
-                  recordFirstToken();
-                  yield new vscode.LanguageModelDataPart(
-                    new TextEncoder().encode(
-                      JSON.stringify({ citations: textBlock.citations }),
-                    ),
-                    CustomDataPartMimeTypes.TextCitations,
-                  );
-                  // Then emit the text
-                  if (textBlock.text) {
-                    recordFirstToken();
-                    yield new vscode.LanguageModelTextPart(textBlock.text);
-                  }
-                } else {
-                  currentTextBlock = {
-                    text: textBlock.text || '',
-                    hasCitations: false,
-                  };
-                }
-              }
-            } else if (event.type === 'content_block_delta') {
-              if (event.delta.type === 'text_delta') {
-                recordFirstToken();
-                yield new vscode.LanguageModelTextPart(event.delta.text);
-              } else if (event.delta.type === 'input_json_delta') {
-                // Handle input_json_delta for both regular tool_use and server_tool_use
-                recordFirstToken();
-                if (currentToolCall) {
-                  currentToolCall.inputJson += event.delta.partial_json;
-                } else if (currentServerToolUse) {
-                  currentServerToolUse.inputJson += event.delta.partial_json;
-                }
-              } else if (
-                event.delta.type === 'thinking_delta' &&
-                pendingThinking
-              ) {
-                pendingThinking.thinking += event.delta.thinking || '';
-                recordFirstToken();
-                yield new vscode.LanguageModelThinkingPart(
-                  event.delta.thinking || '',
-                );
-              } else if (
-                event.delta.type === 'signature_delta' &&
-                pendingThinking
-              ) {
-                pendingThinking.signature += event.delta.signature || '';
-              } else if (event.delta.type === 'citations_delta') {
-                const citation = (event.delta as { citation?: unknown })
-                  .citation;
-                if (citation) {
-                  const payload = { citations: [citation] };
-                  recordFirstToken();
-                  yield new vscode.LanguageModelDataPart(
-                    new TextEncoder().encode(JSON.stringify(payload)),
-                    CustomDataPartMimeTypes.TextCitations,
-                  );
-                }
-              }
-            } else if (event.type === 'content_block_stop') {
-              if (currentToolCall) {
-                try {
-                  const input = JSON.parse(currentToolCall.inputJson || '{}');
-                  recordFirstToken();
-                  yield new vscode.LanguageModelToolCallPart(
-                    currentToolCall.id,
-                    currentToolCall.name,
-                    input,
-                  );
-                } catch {
-                  // Invalid JSON, skip this tool call
-                }
-                currentToolCall = null;
-              } else if (currentServerToolUse) {
-                // Emit server tool use (e.g., web_search) as a data part
-                try {
-                  const input = JSON.parse(
-                    currentServerToolUse.inputJson || '{}',
-                  );
-                  const serverToolUseData = {
-                    type: 'server_tool_use',
-                    id: currentServerToolUse.id,
-                    name: currentServerToolUse.name,
-                    input,
-                  };
-                  recordFirstToken();
-                  yield new vscode.LanguageModelDataPart(
-                    new TextEncoder().encode(JSON.stringify(serverToolUseData)),
-                    CustomDataPartMimeTypes.WebSearchToolUse,
-                  );
-                } catch {
-                  // Invalid JSON, skip this server tool use
-                }
-                currentServerToolUse = null;
-              } else if (pendingThinking) {
-                // Output final thinking part with metadata for multi-turn conversation
-                if (pendingThinking.signature) {
-                  const finalThinkingPart =
-                    new vscode.LanguageModelThinkingPart('');
-                  finalThinkingPart.metadata = {
-                    signature: pendingThinking.signature,
-                    _completeThinking: pendingThinking.thinking,
-                  };
-                  recordFirstToken();
-                  yield finalThinkingPart;
-                }
-                pendingThinking = null;
-              } else if (pendingRedactedThinking) {
-                // Redacted thinking blocks don't need output, just clear state
-                pendingRedactedThinking = null;
-              } else if (pendingWebSearchResult) {
-                // Web search result already emitted in content_block_start, just clear state
-                pendingWebSearchResult = null;
-              } else if (currentTextBlock) {
-                // Clear text block state
-                currentTextBlock = null;
-              }
-            } else if (event.type === 'message_start') {
-              const _usage = event.message?.usage;
-              if (_usage) Object.assign(usage, _usage);
-            } else if (event.type === 'message_delta') {
-              const _usage = event.usage;
-              if (_usage) usage.output_tokens = _usage.output_tokens;
-            } else if (event.type === 'message_stop') {
-              const _usage = event.message?.usage;
-              if (_usage) Object.assign(usage, _usage);
-            } else if (event.type === 'error') {
-              throw new Error(`Stream error: ${event.error.message}`);
-            }
-          } catch (parseError) {
-            // Skip invalid JSON lines
-            if (
-              parseError instanceof Error &&
-              parseError.message.startsWith('Stream error')
-            ) {
-              throw parseError;
-            }
+        default: {
+          // NOTE: https://platform.claude.com/docs/en/build-with-claude/streaming
+          // Event streams may also include any number of ping events.
+          // We may occasionally send errors in the event stream.
+          if ((event as { type: string }).type === 'error') {
+            const error = (
+              event as { error?: { type: string; message: string } }
+            ).error;
+            throw new Error(
+              error
+                ? `${error.type}: ${error.message}`
+                : `Unknown error from stream`,
+            );
           }
         }
       }
-    } finally {
-      reader.releaseLock();
     }
+  }
+
+  private encodeStatefulMarkerPart(
+    raw: BetaMessage,
+  ): vscode.LanguageModelDataPart {
+    const rawBase64: StatefulMarkerData = `[MODELID]\\${Buffer.from(
+      JSON.stringify(raw),
+    ).toString('base64')}`;
+    return new vscode.LanguageModelDataPart(
+      Buffer.from(rawBase64),
+      DataPartMimeTypes.StatefulMarker,
+    );
+  }
+
+  private decodeStatefulMarkerPart(
+    part: vscode.LanguageModelDataPart,
+  ): BetaMessage {
+    if (part.mimeType !== DataPartMimeTypes.StatefulMarker) {
+      throw new Error(
+        `Invalid raw message stateful marker data mime type: ${part.mimeType}`,
+      );
+    }
+    const rawStr = part.data.toString();
+    const match = rawStr.match(/^.+?\\(.+)$/);
+    if (!match) {
+      throw new Error('Invalid raw message stateful marker data format');
+    }
+    const rawJson = Buffer.from(match[1], 'base64').toString('utf-8');
+    return JSON.parse(rawJson) as BetaMessage;
+  }
+
+  private accumulateMessage(
+    raw: BetaMessage | undefined,
+    event: BetaRawMessageStreamEvent,
+  ): BetaMessage {
+    if (!raw && event.type !== 'message_start') {
+      throw new Error(
+        `Unexpected event order, got ${event.type} before "message_start"`,
+      );
+    }
+
+    const snapshot = raw!;
+
+    const JSON_BUF_PROPERTY = '__json_buf';
+
+    function tracksToolInput(
+      content: BetaContentBlock,
+    ): content is TracksToolInput {
+      return (
+        content.type === 'tool_use' ||
+        content.type === 'server_tool_use' ||
+        content.type === 'mcp_tool_use'
+      );
+    }
+
+    switch (event.type) {
+      case 'message_start':
+        return event.message;
+
+      case 'content_block_start':
+        snapshot.content.push(event.content_block);
+        return snapshot;
+
+      case 'content_block_delta': {
+        const snapshotContent = snapshot.content.at(event.index);
+
+        switch (event.delta.type) {
+          case 'text_delta': {
+            if (snapshotContent?.type === 'text') {
+              snapshot.content[event.index] = {
+                ...snapshotContent,
+                text: (snapshotContent.text || '') + event.delta.text,
+              };
+            }
+            break;
+          }
+
+          case 'citations_delta': {
+            if (snapshotContent?.type === 'text') {
+              snapshot.content[event.index] = {
+                ...snapshotContent,
+                citations: [
+                  ...(snapshotContent.citations ?? []),
+                  event.delta.citation,
+                ],
+              };
+            }
+            break;
+          }
+
+          case 'input_json_delta': {
+            if (snapshotContent && tracksToolInput(snapshotContent)) {
+              // keep track of the raw JSON string.
+              let jsonBuf = (snapshotContent as any)[JSON_BUF_PROPERTY] || '';
+              jsonBuf += event.delta.partial_json;
+
+              const newContent = { ...snapshotContent };
+              Object.defineProperty(newContent, JSON_BUF_PROPERTY, {
+                value: jsonBuf,
+                enumerable: false,
+                writable: true,
+              });
+
+              snapshot.content[event.index] = newContent;
+            }
+            break;
+          }
+
+          case 'thinking_delta': {
+            if (snapshotContent?.type === 'thinking') {
+              snapshot.content[event.index] = {
+                ...snapshotContent,
+                thinking: snapshotContent.thinking + event.delta.thinking,
+              };
+            }
+            break;
+          }
+
+          case 'signature_delta': {
+            if (snapshotContent?.type === 'thinking') {
+              snapshot.content[event.index] = {
+                ...snapshotContent,
+                signature: event.delta.signature,
+              };
+            }
+            break;
+          }
+
+          default:
+            throw new Error(
+              `Unsupported content block delta type: ${event.delta}`,
+            );
+        }
+        return snapshot;
+      }
+
+      case 'content_block_stop':
+        const snapshotContent = snapshot.content.at(event.index);
+
+        if (snapshotContent && tracksToolInput(snapshotContent)) {
+          const jsonBuf = (snapshotContent as any)[JSON_BUF_PROPERTY] || '';
+          try {
+            snapshotContent.input = JSON.parse(jsonBuf);
+          } catch (err) {
+            throw new Error(
+              `Unable to parse tool parameter JSON from model. Please retry your request or adjust your prompt`,
+            );
+          }
+        }
+        return snapshot;
+
+      case 'message_delta':
+        snapshot.container = event.delta.container;
+        snapshot.stop_reason = event.delta.stop_reason;
+        snapshot.stop_sequence = event.delta.stop_sequence;
+        snapshot.usage.output_tokens = event.usage.output_tokens;
+        snapshot.context_management = event.context_management;
+
+        if (event.usage.input_tokens != null) {
+          snapshot.usage.input_tokens = event.usage.input_tokens;
+        }
+
+        if (event.usage.cache_creation_input_tokens != null) {
+          snapshot.usage.cache_creation_input_tokens =
+            event.usage.cache_creation_input_tokens;
+        }
+
+        if (event.usage.cache_read_input_tokens != null) {
+          snapshot.usage.cache_read_input_tokens =
+            event.usage.cache_read_input_tokens;
+        }
+
+        if (event.usage.server_tool_use != null) {
+          snapshot.usage.server_tool_use = event.usage.server_tool_use;
+        }
+        return snapshot;
+
+      case 'message_stop':
+        return snapshot;
+    }
+  }
+
+  private processUsage(
+    usage: BetaUsage,
+    performanceTrace: PerformanceTrace,
+    logger: RequestLogger,
+  ) {
+    if (usage.output_tokens) {
+      performanceTrace.tps =
+        (usage.output_tokens /
+          (Date.now() - (performanceTrace.tts + performanceTrace.ttf))) *
+        1000;
+    } else {
+      performanceTrace.tps = NaN;
+    }
+    logger.usage(usage);
   }
 
   /**
@@ -1183,30 +1198,18 @@ export class AnthropicProvider implements ApiProvider {
    * Uses the ListModels endpoint with pagination support
    */
   async getAvailableModels(): Promise<ModelConfig[]> {
-    const headers = this.buildHeaders();
     const allModels: ModelConfig[] = [];
     let afterId: string | undefined;
 
     try {
       do {
-        const endpoint = toModelsUrl(this.config.baseUrl, afterId);
-        const response = await fetchWithRetry(endpoint, {
-          method: 'GET',
-          headers,
-          keepalive: true,
-        });
+        const client = this.createClient();
+        const page = await client.models.list(
+          { after_id: afterId },
+          { headers: this.buildHeaders() },
+        );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Failed to fetch models (${response.status}): ${errorText}`,
-          );
-        }
-
-        const data = (await response.json()) as AnthropicListModelsResponse;
-
-        // Convert API response to ModelConfig format
-        for (const model of data.data) {
+        for (const model of page.data) {
           const wellKnowns = WELL_KNOWN_MODELS.find((v) => v.id === model.id);
           allModels.push(
             Object.assign(wellKnowns ?? {}, {
@@ -1216,15 +1219,8 @@ export class AnthropicProvider implements ApiProvider {
           );
         }
 
-        // Handle pagination
-        if (data.has_more && data.last_id) {
-          afterId = data.last_id;
-        } else {
-          break;
-        }
+        afterId = page.has_more && page.last_id ? page.last_id : undefined;
       } while (true);
-
-      return allModels;
     } catch (error) {
       // Re-throw with more context
       if (error instanceof Error) {
@@ -1235,20 +1231,7 @@ export class AnthropicProvider implements ApiProvider {
   }
 }
 
-function toMessagesUrl(baseUrl: string): string {
-  const normalized = normalizeBaseUrlInput(baseUrl);
-  return `${normalized}/v1/messages`;
-}
-
-function toModelsUrl(baseUrl: string, afterId?: string): string {
-  const normalized = normalizeBaseUrlInput(baseUrl);
-  const url = new URL(`${normalized}/v1/models`);
-  if (afterId) {
-    url.searchParams.set('after_id', afterId);
-  }
-  return url.toString();
-}
-
+// TODO: should we use identifiers that are not easily changed as the user part.
 const USER_ID = generateClaudeUserId();
 
 /**
@@ -1276,4 +1259,54 @@ function generateClaudeUserId(seedInput?: string): string {
 
   // 3. 拼接字符串
   return `user_${sha256Part}_account__session_${uuidPart}`;
+}
+
+const SUPPORTED_BASE64_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+] as const;
+
+type SupportedBase64ImageMimeType =
+  (typeof SUPPORTED_BASE64_IMAGE_MIME_TYPES)[number];
+
+function normalizeImageMimeType(
+  mimeType: string,
+): SupportedBase64ImageMimeType | undefined {
+  if (mimeType === 'image/jpg') {
+    return 'image/jpeg';
+  }
+  return (SUPPORTED_BASE64_IMAGE_MIME_TYPES as readonly string[]).includes(
+    mimeType,
+  )
+    ? (mimeType as SupportedBase64ImageMimeType)
+    : undefined;
+}
+
+type InputSchema = {
+  type: 'object';
+  properties?: unknown | null;
+  required?: string[] | readonly string[] | null;
+  [key: string]: unknown;
+};
+
+function normalizeInputSchema(schema: unknown): InputSchema {
+  if (schema && typeof schema === 'object') {
+    const record = schema as Record<string, unknown>;
+    if (record.type === 'object') {
+      return record as InputSchema;
+    }
+  }
+  return {
+    type: 'object',
+    properties: {},
+    required: [],
+  };
+}
+
+function hasToolName(
+  tool: BetaToolUnion,
+): tool is Extract<BetaToolUnion, { name: string }> {
+  return 'name' in tool;
 }

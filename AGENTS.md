@@ -1,0 +1,5 @@
+- Prohibit code that bypasses TypeScript's strict type checking, such as `as any` or `@ts-ignore`.
+- If you don't have a sufficient understanding of the specifications, please refer to the following official documents for more information:
+  - [OpenAI API Reference](https://platform.openai.com/docs/api-reference/introduction)
+  - [Anthropic API Reference](https://docs.anthropic.com/claude/reference/overview)
+  - [VSCode Language Model Chat Provider API](https://code.visualstudio.com/api/extension-guides/ai/language-model-chat-provider)

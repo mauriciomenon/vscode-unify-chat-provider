@@ -2,7 +2,7 @@
  * Custom data part mime types used for special markers.
  * These are used to communicate metadata through LanguageModelDataPart.
  */
-export namespace CustomDataPartMimeTypes {
+export namespace DataPartMimeTypes {
   /**
    * Cache control marker for Anthropic prompt caching.
    * When a LanguageModelDataPart with this mimeType is encountered,
@@ -42,10 +42,33 @@ export namespace CustomDataPartMimeTypes {
   export const TextCitations = 'application/vnd.anthropic.text-citations+json';
 }
 
+export interface ThinkingBlockMetadata {
+  /**
+   * Signature of the thinking block.
+   *
+   * VSCode use this.
+   */
+  signature?: string;
+
+  /**
+   * The thinking content (if any).
+   *
+   * VSCode use this.
+   */
+  redactedData?: string;
+
+  /**
+   * The complete thinking content (if available).
+   *
+   * VSCode use this.
+   */
+  _completeThinking?: string;
+}
+
 /**
- * The cache type for Anthropic prompt caching.
+ * `modelid\base64-encoded-raw-data`
  */
-export const CacheType = 'ephemeral';
+export type StatefulMarkerData = `${string}\\${string}`;
 
 export interface PerformanceTrace {
   /**
