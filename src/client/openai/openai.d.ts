@@ -1,5 +1,6 @@
 import 'openai/resources/chat/completions';
 import 'openai/lib/ChatCompletionStream';
+import { ChatCompletionReasoningEffort } from 'openai/resources/chat/completions';
 
 declare module 'openai/resources/chat/completions' {
   /**
@@ -30,6 +31,54 @@ declare module 'openai/resources/chat/completions' {
         format?: string;
         index?: number;
       };
+
+  /**
+   * OpenRouter unified reasoning configuration.
+   *
+   * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#controlling-reasoning-tokens
+   */
+  type OpenRouterReasoningEffort = Exclude<ChatCompletionReasoningEffort, null>;
+
+  type OpenRouterReasoningConfig =
+    | {
+        effort: OpenRouterReasoningEffort;
+        max_tokens?: never;
+        exclude?: boolean;
+        enabled?: boolean;
+      }
+    | {
+        max_tokens: number;
+        effort?: never;
+        exclude?: boolean;
+        enabled?: boolean;
+      }
+    | {
+        exclude?: boolean;
+        enabled?: boolean;
+        effort?: never;
+        max_tokens?: never;
+      };
+
+  interface ChatCompletionCreateParamsBase {
+    /**
+     * OpenRouter unified reasoning configuration.
+     *
+     * OpenRouter normalizes the different ways of customizing the amount of
+     * reasoning tokens that the model will use, providing a unified interface
+     * across different providers.
+     *
+     * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
+     */
+    reasoning?: OpenRouterReasoningConfig;
+
+    /**
+     * Legacy OpenRouter parameter (use `reasoning` instead).
+     *
+     * @deprecated Use `reasoning`.
+     * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#legacy-parameters
+     */
+    include_reasoning?: boolean;
+  }
   interface ChatCompletionMessage {
     /**
      * Thinking reasoning content to be included in the response.
@@ -81,6 +130,16 @@ declare module 'openai/resources/chat/completions' {
     reasoning_details?: OpenRouterReasoningDetail[];
   }
   interface ChatCompletionContentPartText {
+    /**
+     * OpenRouter cache control for prompt caching.
+     *
+     * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
+     */
+    cache_control?: {
+      type: 'ephemeral';
+    };
+  }
+  interface ChatCompletionFunctionTool {
     /**
      * OpenRouter cache control for prompt caching.
      *

@@ -395,22 +395,36 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
   private convertTools(
     tools: readonly vscode.LanguageModelChatTool[] | undefined,
+    shouldApplyCacheControl: boolean,
   ): ChatCompletionFunctionTool[] | undefined {
     if (!tools || tools.length === 0) {
       return undefined;
     }
-    return tools.map((tool) => ({
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: (tool.inputSchema ?? {
-          type: 'object',
-          properties: {},
-          required: [],
-        }) as FunctionParameters,
-      },
-    }));
+
+    const result = tools.map(
+      (tool) =>
+        ({
+          type: 'function',
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: (tool.inputSchema ?? {
+              type: 'object',
+              properties: {},
+              required: [],
+            }) as FunctionParameters,
+          },
+        } as ChatCompletionFunctionTool),
+    );
+
+    // Add cache control to last tool to prevent reuse across requests
+    if (shouldApplyCacheControl) {
+      if (result.length > 0) {
+        result.at(-1)!.cache_control = { type: 'ephemeral' };
+      }
+    }
+
+    return result;
   }
 
   private convertToolChoice(
@@ -430,6 +444,46 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       return 'required';
     }
     return undefined;
+  }
+
+  private buildReasoningParams(
+    model: ModelConfig,
+  ): Partial<ChatCompletionCreateParamsBase> {
+    const thinking = model.thinking;
+    if (!thinking) {
+      return {};
+    }
+
+    if (thinking.type === 'disabled') {
+      return { reasoning: { enabled: false } };
+    }
+
+    if (thinking.budgetTokens !== undefined) {
+      return {
+        reasoning: {
+          max_tokens: this.normalizeReasoningMaxTokens(
+            thinking.budgetTokens,
+            model.maxOutputTokens,
+          ),
+        },
+      };
+    }
+
+    if (thinking.effort !== undefined) {
+      return { reasoning: { effort: thinking.effort } };
+    }
+
+    return { reasoning: { enabled: true } };
+  }
+
+  private normalizeReasoningMaxTokens(
+    maxReasoningTokens: number,
+    maxOutputTokens: number | undefined,
+  ): number {
+    if (maxOutputTokens === undefined || maxOutputTokens <= 1) {
+      return maxReasoningTokens;
+    }
+    return Math.min(maxReasoningTokens, maxOutputTokens - 1);
   }
 
   async *streamChat(
@@ -456,16 +510,22 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       messages,
       shouldApplyCacheControl,
     );
-    const tools = this.convertTools(options.tools);
+    const tools = this.convertTools(options.tools, shouldApplyCacheControl);
     const toolChoice = this.convertToolChoice(options.toolMode, tools);
     const streamEnabled = model.stream ?? true;
 
     const baseBody: ChatCompletionCreateParamsBase = {
       model: getBaseModelId(model.id),
       messages: convertedMessages,
-      ...(model.thinking?.effort !== undefined
-        ? { reasoning_effort: model.thinking.effort }
+      ...(model.thinking?.type !== undefined
+        ? {
+            reasoning_effort:
+              model.thinking.type === 'enabled'
+                ? model.thinking.effort ?? 'medium'
+                : 'none',
+          }
         : {}),
+      ...this.buildReasoningParams(model),
       ...(model.maxOutputTokens !== undefined
         ? isFeatureSupported(FeatureId.OpenAIOnlyUseMaxCompletionTokens, model)
           ? { max_completion_tokens: model.maxOutputTokens }

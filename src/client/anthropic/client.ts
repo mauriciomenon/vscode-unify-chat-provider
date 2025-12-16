@@ -573,7 +573,6 @@ export class AnthropicProvider implements ApiProvider {
    * Constraints:
    * - Minimum value: 1024 tokens
    * - Must be less than max_tokens - 1
-   * - Reasonable upper limit: 32000 tokens
    *
    * @param thinkingConfig The thinking configuration from model config
    * @param maxOutputTokens The max_tokens value for the request
@@ -591,10 +590,10 @@ export class AnthropicProvider implements ApiProvider {
     // Normalize minimum value: must be at least 1024
     const normalizedBudget = configValue < 1024 ? 1024 : configValue;
 
-    // Calculate safe value: min of (32000, maxOutputTokens - 1, normalizedBudget)
+    // Calculate safe value: min of (maxOutputTokens - 1, normalizedBudget)
     return interleavedThinkingEnabled
       ? normalizedBudget
-      : Math.min(32000, maxOutputTokens - 1, normalizedBudget);
+      : Math.min(maxOutputTokens - 1, normalizedBudget);
   }
 
   /**

@@ -219,39 +219,29 @@ export class RequestLogger {
   usage(usage: BetaUsage | CompletionUsage): void {
     this.ch.info(`[${this.requestId}] Usage: ${JSON.stringify(usage)}`);
 
-    if (
-      'cache_read_input_tokens' in usage ||
-      'cache_creation_input_tokens' in usage
-    ) {
-      const u = usage as BetaUsage;
-      const cacheRead = u.cache_read_input_tokens ?? 0;
-      const cacheCreation = u.cache_creation_input_tokens ?? 0;
-      const inputTokens = u.input_tokens ?? 0;
+    if ('input_tokens' in usage) {
+      const cacheRead = usage.cache_read_input_tokens ?? 0;
+      const cacheCreation = usage.cache_creation_input_tokens ?? 0;
+      const uncachedInputTokens = usage.input_tokens;
+      const totalInput = cacheRead + cacheCreation + uncachedInputTokens;
+      const cacheHitRatio =
+        totalInput > 0 ? ((cacheRead / totalInput) * 100).toFixed(1) : '0.0';
+      this.ch.info(
+        `[${this.requestId}] Cache: ${cacheRead} read, ${cacheCreation} created, ${uncachedInputTokens} uncached (${cacheHitRatio}% hit ratio)`,
+      );
+      return;
+    } else if ('total_tokens' in usage) {
+      const cachedTokens = usage.prompt_tokens_details?.cached_tokens ?? 0;
+      const promptTokens = usage.prompt_tokens;
+      const uncachedTokens = Math.max(promptTokens - cachedTokens, 0);
+      const cacheHitRatio =
+        promptTokens > 0
+          ? ((cachedTokens / promptTokens) * 100).toFixed(1)
+          : '0.0';
 
-      const totalInput = cacheRead + cacheCreation + inputTokens;
-
-      if (totalInput > 0 && (cacheRead > 0 || cacheCreation > 0)) {
-        const cacheHitRatio = ((cacheRead / totalInput) * 100).toFixed(1);
-        this.ch.info(
-          `[${this.requestId}] Cache: ${cacheRead} read, ${cacheCreation} created, ${inputTokens} uncached (${cacheHitRatio}% hit ratio)`,
-        );
-      }
-    } else if (
-      'prompt_tokens_details' in usage &&
-      usage.prompt_tokens_details
-    ) {
-      const u = usage as CompletionUsage;
-      const cachedTokens = u.prompt_tokens_details?.cached_tokens ?? 0;
-      const promptTokens = u.prompt_tokens ?? 0;
-
-      if (promptTokens > 0 && cachedTokens > 0) {
-        const cacheHitRatio = ((cachedTokens / promptTokens) * 100).toFixed(1);
-        this.ch.info(
-          `[${this.requestId}] Cache: ${cachedTokens} cached, ${
-            promptTokens - cachedTokens
-          } uncached (${cacheHitRatio}% hit ratio)`,
-        );
-      }
+      this.ch.info(
+        `[${this.requestId}] Cache: ${cachedTokens} cached, ${uncachedTokens} uncached (${cacheHitRatio}% hit ratio)`,
+      );
     }
   }
 
