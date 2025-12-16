@@ -148,12 +148,12 @@ export function isFeatureSupported(
   }
 
   const baseId = getBaseModelId(model.id);
-  if (baseId && feature.supportedModels?.includes(baseId)) {
+  if (baseId && feature.supportedModels?.some((v) => baseId.includes(v))) {
     return true;
   }
 
   const family = model.family ?? baseId;
-  if (family && feature.supportedFamilys?.includes(family)) {
+  if (family && feature.supportedFamilys?.some((v) => family.includes(v))) {
     return true;
   }
 
