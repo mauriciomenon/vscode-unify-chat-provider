@@ -133,6 +133,46 @@ export const WELL_KNOWN_MODELS: ModelConfig[] = [
     },
   },
   {
+    id: 'gpt-5.2',
+    name: 'GPT-5.2',
+    maxInputTokens: 400000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-5.2-pro',
+    name: 'GPT-5.2 pro',
+    maxInputTokens: 400000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'xhigh',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-5.2-chat-latest',
+    name: 'GPT-5.2 Chat',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16384,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
     id: 'gpt-5.1',
     name: 'GPT-5.1',
     maxInputTokens: 400000,
