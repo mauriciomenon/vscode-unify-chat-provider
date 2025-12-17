@@ -37,6 +37,20 @@ export enum FeatureId {
    * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
    */
   OpenAIUseThinkingParam = 'openai_use-thinking-param',
+  /**
+   * Thinking reasoning content to be included in the response.
+   *
+   * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
+   * @see https://platform.moonshot.cn/docs/guide/use-kimi-k2-thinking-model
+   * @see https://docs.bigmodel.cn/cn/guide/develop/openai/introduction
+   */
+  OpenAIUseReasoningContent = 'openai_use-reasoning-content',
+  /**
+   * Structured reasoning blocks.
+   *
+   * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#preserving-reasoning-blocks
+   */
+  OpenAIUseReasoningDetails = 'openai_use-reasoning-details',
 }
 
 export interface Feature {
@@ -172,7 +186,13 @@ export const FEATURES: Record<FeatureId, Feature> = {
   [FeatureId.OpenAIUseReasoningParam]: {
     supportedProviders: ['openrouter.ai'],
   },
+  [FeatureId.OpenAIUseReasoningDetails]: {
+    supportedProviders: ['openrouter.ai'],
+  },
   [FeatureId.OpenAIUseThinkingParam]: {
+    supportedProviders: ['api.deepseek.com'],
+  },
+  [FeatureId.OpenAIUseReasoningContent]: {
     supportedProviders: ['api.deepseek.com'],
   },
 };

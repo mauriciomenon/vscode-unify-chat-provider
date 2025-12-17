@@ -98,6 +98,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     encodedModelId: string,
     messages: readonly vscode.LanguageModelChatRequestMessage[],
     shouldApplyCacheControl: boolean,
+    reasoningType: 'content' | 'details' | 'none',
   ): ChatCompletionMessageParam[] {
     const outMessages: ChatCompletionMessageParam[] = [];
     const rawMap = new Map<
@@ -176,6 +177,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
                           result.parts as
                             | ChatCompletionContentPartText[]
                             | string,
+                          reasoningType,
                         ),
                       }
                     : {
@@ -213,26 +215,32 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
   private buildReasoningContent(
     parts: ChatCompletionContentPartText[] | string,
+    reasoningType: 'content' | 'details' | 'none',
   ): Omit<ChatCompletionAssistantMessageParam, 'role'> {
     const reasoning =
       typeof parts === 'string' ? parts : parts.map((v) => v.text).join('');
-    return {
-      reasoning_content: reasoning,
-      reasoning_details:
-        typeof parts === 'string'
-          ? [
-              {
-                type: 'reasoning.text',
-                index: 0,
-                text: parts,
-              },
-            ]
-          : parts.map((part, index) => ({
-              type: 'reasoning.text',
-              index,
-              text: part.text,
-            })),
-    };
+    return reasoningType === 'content'
+      ? {
+          reasoning_content: reasoning,
+        }
+      : reasoningType === 'details'
+      ? {
+          reasoning_details:
+            typeof parts === 'string'
+              ? [
+                  {
+                    type: 'reasoning.text',
+                    index: 0,
+                    text: parts,
+                  },
+                ]
+              : parts.map((part, index) => ({
+                  type: 'reasoning.text',
+                  index,
+                  text: part.text,
+                })),
+        }
+      : {};
   }
 
   private applyCacheControl(messages: ChatCompletionMessageParam[]): void {
@@ -557,11 +565,34 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       this.config,
       model,
     );
+    const useReasoningDetails = isFeatureSupported(
+      FeatureId.OpenAIUseReasoningDetails,
+      this.config,
+      model,
+    );
+    const useReasoningContent = isFeatureSupported(
+      FeatureId.OpenAIUseReasoningContent,
+      this.config,
+      model,
+    );
+
+    const thinkingParamType: 'reasoning' | 'thinking' | 'official' =
+      useReasoningParam
+        ? 'reasoning'
+        : useThinkingParam
+        ? 'thinking'
+        : 'official';
+    const reasoningType: 'content' | 'details' | 'none' = useReasoningDetails
+      ? 'details'
+      : useReasoningContent
+      ? 'content'
+      : 'none';
 
     const convertedMessages = this.convertMessages(
       encodedModelId,
       messages,
       shouldApplyCacheControl,
+      reasoningType,
     );
     const tools = this.convertTools(options.tools, shouldApplyCacheControl);
     const toolChoice = this.convertToolChoice(options.toolMode, tools);
@@ -570,14 +601,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     const baseBody: ChatCompletionCreateParamsBase = {
       model: getBaseModelId(model.id),
       messages: convertedMessages,
-      ...this.buildThinkingParams(
-        model,
-        useReasoningParam
-          ? 'reasoning'
-          : useThinkingParam
-          ? 'thinking'
-          : 'official',
-      ),
+      ...this.buildThinkingParams(model, thinkingParamType),
       ...(model.maxOutputTokens !== undefined
         ? isFeatureSupported(
             FeatureId.OpenAIOnlyUseMaxCompletionTokens,
