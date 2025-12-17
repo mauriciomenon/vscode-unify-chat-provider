@@ -172,12 +172,11 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
                     : result.isThinking
                     ? {
                         role: 'assistant',
-                        reasoning_content:
-                          typeof result.parts === 'string'
-                            ? result.parts
-                            : (result.parts as ChatCompletionContentPartText[])
-                                .map((v) => v.text)
-                                .join(''),
+                        ...this.buildReasoningContent(
+                          result.parts as
+                            | ChatCompletionContentPartText[]
+                            | string,
+                        ),
                       }
                     : {
                         role: 'assistant',
@@ -210,6 +209,30 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     }
 
     return outMessages;
+  }
+
+  private buildReasoningContent(
+    parts: ChatCompletionContentPartText[] | string,
+  ): Omit<ChatCompletionAssistantMessageParam, 'role'> {
+    const reasoning =
+      typeof parts === 'string' ? parts : parts.map((v) => v.text).join('');
+    return {
+      reasoning_content: reasoning,
+      reasoning_details:
+        typeof parts === 'string'
+          ? [
+              {
+                type: 'reasoning.text',
+                index: 0,
+                text: parts,
+              },
+            ]
+          : parts.map((part, index) => ({
+              type: 'reasoning.text',
+              index,
+              text: part.text,
+            })),
+    };
   }
 
   private applyCacheControl(messages: ChatCompletionMessageParam[]): void {
@@ -446,8 +469,9 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     return undefined;
   }
 
-  private buildReasoningParams(
+  private buildThinkingParams(
     model: ModelConfig,
+    type: 'reasoning' | 'thinking' | 'official',
   ): Partial<ChatCompletionCreateParamsBase> {
     const thinking = model.thinking;
     if (!thinking) {
@@ -455,25 +479,43 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     }
 
     if (thinking.type === 'disabled') {
-      return { reasoning: { enabled: false } };
+      return type === 'reasoning'
+        ? { reasoning: { enabled: false } }
+        : type === 'thinking'
+        ? { thinking: { type: 'disabled' } }
+        : { reasoning_effort: 'none' };
     }
 
     if (thinking.budgetTokens !== undefined) {
-      return {
-        reasoning: {
-          max_tokens: this.normalizeReasoningMaxTokens(
-            thinking.budgetTokens,
-            model.maxOutputTokens,
-          ),
-        },
-      };
+      return type === 'reasoning'
+        ? {
+            reasoning: {
+              max_tokens: this.normalizeReasoningMaxTokens(
+                thinking.budgetTokens,
+                model.maxOutputTokens,
+              ),
+            },
+          }
+        : type === 'thinking'
+        ? { thinking: { type: 'enabled' } }
+        : // Defaults to 'medium' effort if budget is set
+          { reasoning_effort: 'medium' };
     }
 
     if (thinking.effort !== undefined) {
-      return { reasoning: { effort: thinking.effort } };
+      return type === 'reasoning'
+        ? { reasoning: { effort: thinking.effort } }
+        : type === 'thinking'
+        ? { thinking: { type: 'enabled' } }
+        : { reasoning_effort: thinking.effort };
     }
 
-    return { reasoning: { enabled: true } };
+    return type === 'reasoning'
+      ? { reasoning: { enabled: true } }
+      : type === 'thinking'
+      ? { thinking: { type: 'enabled' } }
+      : // Defaults to 'medium' effort if not set effort or budget
+        { reasoning_effort: 'medium' };
   }
 
   private normalizeReasoningMaxTokens(
@@ -505,6 +547,16 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       this.config,
       model,
     );
+    const useReasoningParam = isFeatureSupported(
+      FeatureId.OpenAIUseReasoningParam,
+      this.config,
+      model,
+    );
+    const useThinkingParam = isFeatureSupported(
+      FeatureId.OpenAIUseThinkingParam,
+      this.config,
+      model,
+    );
 
     const convertedMessages = this.convertMessages(
       encodedModelId,
@@ -518,15 +570,14 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     const baseBody: ChatCompletionCreateParamsBase = {
       model: getBaseModelId(model.id),
       messages: convertedMessages,
-      ...(model.thinking?.type !== undefined
-        ? {
-            reasoning_effort:
-              model.thinking.type === 'enabled'
-                ? model.thinking.effort ?? 'medium'
-                : 'none',
-          }
-        : {}),
-      ...this.buildReasoningParams(model),
+      ...this.buildThinkingParams(
+        model,
+        useReasoningParam
+          ? 'reasoning'
+          : useThinkingParam
+          ? 'thinking'
+          : 'official',
+      ),
       ...(model.maxOutputTokens !== undefined
         ? isFeatureSupported(
             FeatureId.OpenAIOnlyUseMaxCompletionTokens,
@@ -958,7 +1009,39 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         const details = (choice.message.reasoning_details ??= []);
         for (const delta of reasoning_details) {
           if (delta.index != null) {
-            details[delta.index] = delta;
+            const old = details[delta.index];
+            if (!old) {
+              details[delta.index] = delta;
+              continue;
+            }
+            switch (old.type) {
+              case 'reasoning.text':
+                const cur = delta as typeof old;
+                old.text += cur.text;
+                if (cur.signature) old.signature = cur.signature;
+                break;
+
+              case 'reasoning.summary':
+                {
+                  const cur = delta as typeof old;
+                  old.summary += cur.summary;
+                }
+                break;
+
+              case 'reasoning.encrypted':
+                {
+                  const cur = delta as typeof old;
+                  old.data += cur.data;
+                }
+                break;
+
+              default:
+                throw new Error(
+                  `Unsupported reasoning detail type: ${
+                    (old as OpenRouterReasoningDetail).type
+                  }`,
+                );
+            }
           } else {
             details.push({
               ...delta,

@@ -370,6 +370,7 @@ export const WELL_KNOWN_MODELS: WellKnownModelConfig[] = [
       toolCalling: true,
       imageInput: false,
     },
+    temperature: 1.0,
   },
   {
     id: 'deepseek-reasoner',
@@ -384,6 +385,7 @@ export const WELL_KNOWN_MODELS: WellKnownModelConfig[] = [
       toolCalling: true,
       imageInput: false,
     },
+    temperature: 1.0,
   },
   {
     id: 'kimi-k2-thinking',

@@ -3,6 +3,12 @@ import { getBaseModelId } from './model-id-utils';
 
 export enum FeatureId {
   /**
+   * Only sends the thought content after the user's last message.
+   * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
+   * @see https://platform.claude.com/docs/en/build-with-claude/extended-thinking
+   */
+  ConciseReasoning = 'concise-reasoning',
+  /**
    * @see https://platform.claude.com/docs/en/build-with-claude/extended-thinking#interleaved-thinking
    */
   AnthropicInterleavedThinking = 'anthropic_interleaved-thinking',
@@ -19,14 +25,18 @@ export enum FeatureId {
    */
   OpenAIOnlyUseMaxCompletionTokens = 'openai_only-use-max-completion-tokens',
   /**
-   * Only sends the thought content after the user's last message.
-   * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
-   */
-  OpenAIConciseReasoning = 'openai_concise-reasoning',
-  /**
    * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
    */
   OpenAICacheControl = 'openai_cache-control',
+  /**
+   * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
+   */
+  OpenAIUseReasoningParam = 'openai_use-reasoning-param',
+  /**
+   * @see https://platform.xiaomimimo.com/#/docs/api/text-generation/openai-api
+   * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
+   */
+  OpenAIUseThinkingParam = 'openai_use-thinking-param',
 }
 
 export interface Feature {
@@ -44,8 +54,15 @@ export interface Feature {
    * Supported provider URL patterns.
    * Can be strings with wildcards (*) or RegExp objects.
    * Examples:
-   * - "https://api.anthropic.com" - exact match
-   * - "https://*.openai.com" - wildcard match
+   * - "https://api.anthropic.com" - matches https://api.anthropic.com and subpaths
+   * - "https://api.anthropic.com/" - matches https://api.anthropic.com/ only (no subpaths)
+   * - "https://api.anthropic.com/v1" - matches https://api.anthropic.com/v1 only (no subpaths)
+   * - "anthropic.com" - matches any protocol and subpaths
+   * - "*.anthropic.com" - wildcard match for subdomains (matches any protocol, subdomains and subpaths)
+   * - "https://*.openai.com" - wildcard match (matches subdomains and subpaths)
+   * - "*.openai.com" - wildcard match (matches any protocol, subdomains and subpaths)
+   * - "https://*.api.anthropic.com" - wildcard match for subdomains (matches subdomains and subpaths)
+   * - "https://api.anthropic.com/v1/*" - matches https://api.anthropic.com/v1/foo but not https://sub.api.anthropic.com/v1/foo
    * - /^https:\/\/.*\.azure\.com/ - regex match
    */
   supportedProviders?: ProviderPattern[];
@@ -58,6 +75,9 @@ export interface Feature {
 }
 
 export const FEATURES: Record<FeatureId, Feature> = {
+  [FeatureId.ConciseReasoning]: {
+    supportedFamilys: ['deepseek-reasoner'],
+  },
   [FeatureId.AnthropicInterleavedThinking]: {
     supportedFamilys: [
       'claude-sonnet-4-5',
@@ -125,27 +145,35 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'gpt-oss-20b',
     ],
   },
-  [FeatureId.OpenAIConciseReasoning]: {
-    supportedFamilys: ['deepseek-reasoner'],
-  },
   [FeatureId.OpenAICacheControl]: {
-    supportedFamilys: [
-      'claude-sonnet-4-5',
-      'claude-sonnet-4.5',
-      'claude-sonnet-4',
-      'claude-3-7-sonnet',
-      'claude-3.7-sonnet',
-      'claude-haiku-4-5',
-      'claude-haiku-4.5',
-      'claude-3-5-haiku',
-      'claude-3.5-haiku',
-      'claude-3-haiku',
-      'claude-opus-4-5',
-      'claude-opus-4.5',
-      'claude-opus-4-1',
-      'claude-opus-4.1',
-      'claude-opus-4',
+    customCheckers: [
+      // Checker for OpenRouter Claude models:
+      (model, provider) =>
+        matchProvider(provider.baseUrl, 'openrouter.ai') &&
+        matchModelFamily(model.family ?? getBaseModelId(model.id), [
+          'claude-sonnet-4-5',
+          'claude-sonnet-4.5',
+          'claude-sonnet-4',
+          'claude-3-7-sonnet',
+          'claude-3.7-sonnet',
+          'claude-haiku-4-5',
+          'claude-haiku-4.5',
+          'claude-3-5-haiku',
+          'claude-3.5-haiku',
+          'claude-3-haiku',
+          'claude-opus-4-5',
+          'claude-opus-4.5',
+          'claude-opus-4-1',
+          'claude-opus-4.1',
+          'claude-opus-4',
+        ]),
     ],
+  },
+  [FeatureId.OpenAIUseReasoningParam]: {
+    supportedProviders: ['openrouter.ai'],
+  },
+  [FeatureId.OpenAIUseThinkingParam]: {
+    supportedProviders: ['api.deepseek.com'],
   },
 };
 
@@ -170,18 +198,99 @@ export type FeatureChecker = (
  * @param pattern The pattern to match against (string with wildcards or RegExp)
  * @returns true if the URL matches the pattern
  */
-function matchProviderPattern(url: string, pattern: ProviderPattern): boolean {
+function matchProvider(url: string, pattern: ProviderPattern): boolean {
   if (pattern instanceof RegExp) {
     return pattern.test(url);
   }
 
-  // Convert wildcard string to regex
-  // Escape special regex characters except *
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  // Convert * to regex pattern (match any characters)
-  const regexStr = `^${escaped.replace(/\*/g, '.*')}$`;
-  const regex = new RegExp(regexStr);
-  return regex.test(url);
+  const escapeRegExp = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const wildcardToRegExp = (value: string): RegExp => {
+    const regexBody = escapeRegExp(value).replace(/\\\*/g, '.*');
+    return new RegExp(`^${regexBody}$`);
+  };
+
+  const parseUrlLike = (input: string): URL | undefined => {
+    try {
+      return new URL(input);
+    } catch {
+      try {
+        return new URL(`https://${input}`);
+      } catch {
+        return undefined;
+      }
+    }
+  };
+
+  const parsedUrl = parseUrlLike(url);
+  if (!parsedUrl) {
+    return false;
+  }
+
+  // Parse string pattern: [protocol?]host[path?]
+  const protocolMatch = pattern.match(/^(https?:\/\/)(.*)$/i);
+  const rawProtocol = protocolMatch?.[1]?.toLowerCase();
+  const requiredProtocol =
+    rawProtocol === 'http://'
+      ? 'http:'
+      : rawProtocol === 'https://'
+      ? 'https:'
+      : undefined;
+
+  const rest = protocolMatch ? protocolMatch[2] : pattern;
+  const slashIndex = rest.indexOf('/');
+  const hostPattern = (slashIndex === -1 ? rest : rest.slice(0, slashIndex))
+    .trim()
+    .toLowerCase();
+  const pathPattern = slashIndex === -1 ? undefined : rest.slice(slashIndex);
+
+  // 1) Protocol
+  if (requiredProtocol && parsedUrl.protocol !== requiredProtocol) {
+    return false;
+  }
+
+  // 2) Host (and optional port)
+  const hostname = parsedUrl.hostname.toLowerCase();
+  const hostWithPort = parsedUrl.port
+    ? `${hostname}:${parsedUrl.port}`
+    : hostname;
+
+  const hostPatternHasWildcard = hostPattern.includes('*');
+  const hostPatternIncludesPort = hostPattern.includes(':');
+
+  const hostTarget = hostPatternIncludesPort ? hostWithPort : hostname;
+
+  const hostMatches = hostPatternHasWildcard
+    ? wildcardToRegExp(hostPattern).test(hostTarget)
+    : hostPatternIncludesPort
+    ? hostWithPort === hostPattern
+    : hostname === hostPattern;
+
+  if (!hostMatches) {
+    return false;
+  }
+
+  // 3) Path
+  if (!pathPattern) {
+    // Host-only patterns match subpaths.
+    return true;
+  }
+
+  const urlPath = parsedUrl.pathname;
+  if (!pathPattern.includes('*')) {
+    return urlPath === pathPattern;
+  }
+
+  return wildcardToRegExp(pathPattern).test(urlPath);
+}
+
+function matchModelId(id: string, patterns: string[]): boolean {
+  return patterns.some((v) => id.includes(v));
+}
+
+function matchModelFamily(family: string, patterns: string[]): boolean {
+  return patterns.some((v) => family.includes(v));
 }
 
 /**
@@ -201,15 +310,22 @@ export function isFeatureSupported(
     return false;
   }
 
+  const {
+    supportedModels,
+    supportedFamilys,
+    customCheckers,
+    supportedProviders,
+  } = feature;
+
   // Check custom checkers first - if any returns true, feature is supported
-  if (feature.customCheckers?.some((checker) => checker(model, provider))) {
+  if (customCheckers?.some((checker) => checker(model, provider))) {
     return true;
   }
 
   // Check supported providers
   if (
-    feature.supportedProviders?.some((pattern) =>
-      matchProviderPattern(provider.baseUrl, pattern),
+    supportedProviders?.some((pattern) =>
+      matchProvider(provider.baseUrl, pattern),
     )
   ) {
     return true;
@@ -217,13 +333,13 @@ export function isFeatureSupported(
 
   // Check supported models
   const baseId = getBaseModelId(model.id);
-  if (baseId && feature.supportedModels?.some((v) => baseId.includes(v))) {
+  if (supportedModels && matchModelId(baseId, supportedModels)) {
     return true;
   }
 
   // Check supported families
   const family = model.family ?? baseId;
-  if (family && feature.supportedFamilys?.some((v) => family.includes(v))) {
+  if (supportedFamilys && matchModelFamily(family, supportedFamilys)) {
     return true;
   }
 

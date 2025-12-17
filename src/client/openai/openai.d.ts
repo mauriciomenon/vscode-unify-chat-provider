@@ -72,12 +72,12 @@ declare module 'openai/resources/chat/completions' {
     reasoning?: OpenRouterReasoningConfig;
 
     /**
-     * Legacy OpenRouter parameter (use `reasoning` instead).
+     * Control whether to enable the thinking process.
      *
-     * @deprecated Use `reasoning`.
-     * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#legacy-parameters
+     * @see https://platform.xiaomimimo.com/#/docs/api/text-generation/openai-api
+     * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
      */
-    include_reasoning?: boolean;
+    thinking?: { type: 'enabled' | 'disabled' };
   }
   interface ChatCompletionMessage {
     /**
@@ -114,13 +114,6 @@ declare module 'openai/resources/chat/completions' {
      * @see https://docs.bigmodel.cn/cn/guide/develop/openai/introduction
      */
     reasoning_content?: string;
-
-    /**
-     * Thinking reasoning content.
-     *
-     * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
-     */
-    reasoning?: string;
 
     /**
      * Structured reasoning blocks.
