@@ -89,10 +89,7 @@ export class AnthropicProvider implements ApiProvider {
    * Build request headers
    */
   private buildHeaders(modelConfig?: ModelConfig): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     Object.assign(headers, this.config.extraHeaders, modelConfig?.extraHeaders);
 
@@ -745,15 +742,17 @@ export class AnthropicProvider implements ApiProvider {
       performanceTrace.ttf = Date.now() - performanceTrace.tts;
 
       if (stream) {
-        const requestBody: MessageCreateParamsStreaming = {
-          ...requestBase,
-          stream: true,
-        };
         const { data: sdkStream, response } = await client.beta.messages
-          .create(requestBody, {
-            headers,
-            signal: abortController.signal,
-          })
+          .create(
+            {
+              ...requestBase,
+              stream: true,
+            },
+            {
+              headers,
+              signal: abortController.signal,
+            },
+          )
           .withResponse();
         logger.providerResponseMeta(response);
         yield* this.parseMessageStream(

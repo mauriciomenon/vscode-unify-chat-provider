@@ -128,6 +128,7 @@ This includes:
 - The current Features use “Feature” as the key and should also use conditions to determine which Features should be enabled. In addition to boolean values, other types of data are also supported. So user can override the support of a Feature in the configuration.
 - Precise thinking contents to reduce the amount of network data (OpenAIConciseReasoning and Anthropic thinking).
 - Support monitoring of balance usage.
+- Embedded functionality similar to [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
 
 ## License
 
