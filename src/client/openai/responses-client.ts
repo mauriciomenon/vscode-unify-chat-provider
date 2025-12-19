@@ -8,10 +8,12 @@ import { ThinkingBlockMetadata } from '../types';
 import { ApiProvider } from '../interface';
 import OpenAI from 'openai';
 import {
+  bodyInitToLoggableValue,
   decodeStatefulMarkerPart,
   DEFAULT_RETRY_CONFIG,
   encodeStatefulMarkerPart,
   fetchWithRetry,
+  headersInitToRecord,
   isCacheControlMarker,
   isImageMarker,
   isInternalMarker,
@@ -41,11 +43,9 @@ import { ProviderConfig, ModelConfig, PerformanceTrace } from '../../types';
 
 export class OpenAIResponsesProvider implements ApiProvider {
   private readonly baseUrl: string;
-  private readonly endpoint: string;
 
   constructor(private readonly config: ProviderConfig) {
     this.baseUrl = this.buildBaseUrl(config.baseUrl);
-    this.endpoint = `${this.baseUrl}/responses`;
   }
 
   private buildBaseUrl(baseUrl: string): string {
@@ -54,10 +54,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
   }
 
   private buildHeaders(modelConfig?: ModelConfig): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     Object.assign(headers, this.config.extraHeaders, modelConfig?.extraHeaders);
 
@@ -73,16 +70,33 @@ export class OpenAIResponsesProvider implements ApiProvider {
    * A new client is created per request to enable per-request logging.
    */
   private createClient(logger?: RequestLogger): OpenAI {
-    const customFetch = (
+    const customFetch = async (
       input: RequestInfo | URL,
       init?: RequestInit,
     ): Promise<Response> => {
       const url = typeof input === 'string' ? input : input.toString();
-      return fetchWithRetry(url, {
+
+      if (logger) {
+        const requestHeaders = headersInitToRecord(init?.headers);
+        logger.providerRequest({
+          endpoint: url,
+          method: init?.method,
+          headers: requestHeaders,
+          body: bodyInitToLoggableValue(init?.body, requestHeaders),
+        });
+      }
+
+      const response = await fetchWithRetry(url, {
         ...init,
         logger,
         retryConfig: DEFAULT_RETRY_CONFIG,
       });
+
+      if (logger) {
+        logger.providerResponseMeta(response);
+      }
+
+      return response;
     };
 
     return new OpenAI({
@@ -415,13 +429,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
     Object.assign(baseBody, this.config.extraBody, model.extraBody);
 
-    logger.providerRequest({
-      provider: this.config.name,
-      modelId: model.id,
-      endpoint: this.endpoint,
-      headers: this.buildHeaders(model),
-      body: baseBody,
-    });
+    const headers = this.buildHeaders(model);
 
     const client = this.createClient(logger);
 
@@ -429,26 +437,22 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
     try {
       if (streamEnabled) {
-        const { data: stream, response } = await client.responses
-          .create(
-            { ...baseBody, stream: true },
-            {
-              signal: abortController.signal,
-            },
-          )
-          .withResponse();
-        logger.providerResponseMeta(response);
+        const stream = await client.responses.create(
+          { ...baseBody, stream: true },
+          {
+            headers,
+            signal: abortController.signal,
+          },
+        );
         yield* this.parseMessageStream(stream, token, logger, performanceTrace);
       } else {
-        const { data, response } = await client.responses
-          .create(
-            { ...baseBody, stream: false },
-            {
-              signal: abortController.signal,
-            },
-          )
-          .withResponse();
-        logger.providerResponseMeta(response);
+        const data = await client.responses.create(
+          { ...baseBody, stream: false },
+          {
+            headers,
+            signal: abortController.signal,
+          },
+        );
         yield* this.parseMessage(data, performanceTrace, logger);
       }
     } finally {
@@ -728,7 +732,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
   async getAvailableModels(): Promise<ModelConfig[]> {
     const result: ModelConfig[] = [];
     const client = this.createClient();
-    const page = await client.models.list();
+    const page = await client.models.list({ headers: this.buildHeaders() });
     for await (const model of page) {
       result.push({ id: model.id });
     }

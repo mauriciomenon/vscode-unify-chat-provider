@@ -41,6 +41,107 @@ export interface FetchWithRetryOptions extends RequestInit {
   logger?: RequestLogger;
 }
 
+export function headersInitToRecord(
+  headers: HeadersInit | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!headers) {
+    return out;
+  }
+
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  }
+
+  if (Array.isArray(headers)) {
+    for (const [key, value] of headers) {
+      out[String(key)] = String(value);
+    }
+    return out;
+  }
+
+  for (const [key, value] of Object.entries(headers)) {
+    out[key] = String(value);
+  }
+  return out;
+}
+
+export function getHeaderValueIgnoreCase(
+  headers: Record<string, string>,
+  name: string,
+): string | undefined {
+  const target = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === target) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function isUint8Array(value: unknown): value is Uint8Array {
+  return value instanceof Uint8Array;
+}
+
+function isArrayBuffer(value: unknown): value is ArrayBuffer {
+  return value instanceof ArrayBuffer;
+}
+
+function isUrlSearchParams(value: unknown): value is URLSearchParams {
+  return value instanceof URLSearchParams;
+}
+
+function isBlob(value: unknown): value is Blob {
+  return typeof Blob !== 'undefined' && value instanceof Blob;
+}
+
+function tryParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+export function bodyInitToLoggableValue(
+  body: RequestInit['body'] | undefined,
+  headers: Record<string, string> | undefined,
+): unknown {
+  if (body == null) {
+    return null;
+  }
+
+  if (typeof body === 'string') {
+    const contentType =
+      (headers && getHeaderValueIgnoreCase(headers, 'content-type')) || '';
+    if (/\bjson\b/i.test(contentType)) {
+      return tryParseJson(body);
+    }
+    return body;
+  }
+
+  if (isUrlSearchParams(body)) {
+    return body.toString();
+  }
+
+  if (isUint8Array(body)) {
+    return { type: 'uint8array', bytes: body.byteLength };
+  }
+
+  if (isArrayBuffer(body)) {
+    return { type: 'arraybuffer', bytes: body.byteLength };
+  }
+
+  if (isBlob(body)) {
+    return { type: 'blob', bytes: body.size, mimeType: body.type || undefined };
+  }
+
+  return { type: typeof body };
+}
+
 /**
  * Check if an HTTP status code is retryable.
  */

@@ -19,9 +19,11 @@ import type {
 import type { RequestLogger } from '../../logger';
 import { ApiProvider } from '../interface';
 import {
+  bodyInitToLoggableValue,
   normalizeBaseUrlInput,
   fetchWithRetry,
   DEFAULT_RETRY_CONFIG,
+  headersInitToRecord,
   isCacheControlMarker,
   isImageMarker,
   isInternalMarker,
@@ -45,11 +47,9 @@ import { isFeatureSupported } from '../utils';
 // TODO Context editing support
 export class AnthropicProvider implements ApiProvider {
   private readonly baseUrl: string;
-  private readonly endpoint: string;
 
   constructor(private readonly config: ProviderConfig) {
     this.baseUrl = this.buildBaseUrl(config.baseUrl);
-    this.endpoint = `${this.baseUrl}/v1/messages`;
   }
 
   /**
@@ -67,16 +67,33 @@ export class AnthropicProvider implements ApiProvider {
    * A new client is created per request to enable per-request logging.
    */
   private createClient(logger?: RequestLogger): Anthropic {
-    const customFetch = (
+    const customFetch = async (
       input: RequestInfo | URL,
       init?: RequestInit,
     ): Promise<Response> => {
       const url = typeof input === 'string' ? input : input.toString();
-      return fetchWithRetry(url, {
+
+      if (logger) {
+        const requestHeaders = headersInitToRecord(init?.headers);
+        logger.providerRequest({
+          endpoint: url,
+          method: init?.method,
+          headers: requestHeaders,
+          body: bodyInitToLoggableValue(init?.body, requestHeaders),
+        });
+      }
+
+      const response = await fetchWithRetry(url, {
         ...init,
         logger,
         retryConfig: DEFAULT_RETRY_CONFIG,
       });
+
+      if (logger) {
+        logger.providerResponseMeta(response);
+      }
+
+      return response;
     };
 
     return new Anthropic({
@@ -729,32 +746,21 @@ export class AnthropicProvider implements ApiProvider {
 
       const stream = model.stream ?? true;
 
-      logger.providerRequest({
-        provider: this.config.name,
-        modelId: model.id,
-        endpoint: this.endpoint,
-        headers,
-        body: { ...requestBase, stream },
-      });
-
       const client = this.createClient(logger);
 
       performanceTrace.ttf = Date.now() - performanceTrace.tts;
 
       if (stream) {
-        const { data: sdkStream, response } = await client.beta.messages
-          .create(
-            {
-              ...requestBase,
-              stream: true,
-            },
-            {
-              headers,
-              signal: abortController.signal,
-            },
-          )
-          .withResponse();
-        logger.providerResponseMeta(response);
+        const sdkStream = await client.beta.messages.create(
+          {
+            ...requestBase,
+            stream: true,
+          },
+          {
+            headers,
+            signal: abortController.signal,
+          },
+        );
         yield* this.parseMessageStream(
           sdkStream,
           token,
@@ -762,19 +768,16 @@ export class AnthropicProvider implements ApiProvider {
           performanceTrace,
         );
       } else {
-        const { data: result, response } = await client.beta.messages
-          .create(
-            {
-              ...requestBase,
-              stream: false,
-            },
-            {
-              headers,
-              signal: abortController.signal,
-            },
-          )
-          .withResponse();
-        logger.providerResponseMeta(response);
+        const result = await client.beta.messages.create(
+          {
+            ...requestBase,
+            stream: false,
+          },
+          {
+            headers,
+            signal: abortController.signal,
+          },
+        );
         yield* this.parseMessage(result, performanceTrace, logger);
       }
     } finally {

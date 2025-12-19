@@ -164,15 +164,23 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       ttft: 0,
     };
 
-    logger.start(model.id);
-    logger.vscodeInput(messages, options);
-
     const found = this.findProviderAndModel(model.id);
     if (!found) {
       throw new Error(`Model not found: ${model.id}`);
     }
 
     const { provider, model: modelConfig } = found;
+
+    logger.start({
+      providerName: provider.name,
+      providerType: provider.type,
+      baseUrl: provider.baseUrl,
+      vscodeModelId: model.id,
+      modelId: modelConfig.id,
+      modelName: modelConfig.name,
+    });
+    logger.vscodeInput(messages, options);
+
     const client = this.getClient(provider);
 
     // Stream the response

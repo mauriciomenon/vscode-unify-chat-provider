@@ -22,6 +22,8 @@ More API formats will be added in future releases.
 
 ## Configuration
 
+> WARNING: This extension stores API keys in your settings. Be cautious when sharing or using a public GitHub repository to sync your settings file.
+
 Add providers to your workspace settings (`.vscode/settings.json`) using the `unifyChatProvider.endpoints` array:
 
 ```json

@@ -73,6 +73,7 @@ export class RequestLogger {
   private readonly ch = getChannel();
   private providerContext: {
     label: string;
+    method: string;
     endpoint: string;
     headers: Record<string, string>;
     body: unknown;
@@ -84,8 +85,21 @@ export class RequestLogger {
   /**
    * Log the start of a request. Always printed.
    */
-  start(modelId: string): void {
-    this.ch.info(`[${this.requestId}] ▶ Request started for model: ${modelId}`);
+  start(details: {
+    providerName: string;
+    providerType: string;
+    baseUrl: string;
+    vscodeModelId: string;
+    modelId: string;
+    modelName?: string;
+  }): void {
+    const modelLabel = details.modelName
+      ? `${details.modelName} (${details.modelId})`
+      : details.modelId;
+
+    this.ch.info(
+      `[${this.requestId}] ▶ Request started | Provider: ${details.providerName} (${details.providerType}) | Base URL: ${details.baseUrl} | VSCode Model ID: ${details.vscodeModelId} | Config Model: ${modelLabel}`,
+    );
   }
 
   /**
@@ -116,32 +130,31 @@ export class RequestLogger {
   }
 
   /**
-   * Log the request being sent to the provider.
+   * Log the HTTP request being sent to the provider.
    * Headers are always masked for sensitive values.
    * Only logged when verbose is enabled, but context is saved for error logging.
    */
   providerRequest(details: {
-    provider: string;
     endpoint: string;
-    headers: Record<string, string>;
-    body: unknown;
-    modelId?: string;
+    method?: string;
+    headers?: Record<string, string>;
+    body?: unknown;
   }): void {
-    const maskedHeaders = maskSensitiveHeaders(details.headers);
-    const label = `${details.provider}${
-      details.modelId ? ` (${details.modelId})` : ''
-    }`;
+    const method = details.method || 'GET';
+    const maskedHeaders = maskSensitiveHeaders(details.headers ?? {});
+    const label = 'HTTP';
 
     this.providerContext = {
       label,
+      method,
       endpoint: details.endpoint,
       headers: maskedHeaders,
-      body: details.body,
+      body: details.body ?? null,
       logged: false,
     };
 
     if (isVerboseEnabled()) {
-      this.ch.info(`[${this.requestId}] → ${label} ${details.endpoint}`);
+      this.ch.info(`[${this.requestId}] → ${method} ${details.endpoint}`);
       this.ch.info(
         `[${this.requestId}] Provider Request Headers:\n${JSON.stringify(
           maskedHeaders,
@@ -151,7 +164,7 @@ export class RequestLogger {
       );
       this.ch.info(
         `[${this.requestId}] Provider Request Body:\n${JSON.stringify(
-          details.body,
+          details.body ?? null,
           null,
           2,
         )}`,
@@ -317,7 +330,7 @@ export class RequestLogger {
     }
 
     const ctx = this.providerContext;
-    this.ch.error(`[${this.requestId}] → ${ctx.label} ${ctx.endpoint}`);
+    this.ch.error(`[${this.requestId}] → ${ctx.method} ${ctx.endpoint}`);
     this.ch.error(
       `[${this.requestId}] Provider Request Headers:\n${JSON.stringify(
         ctx.headers,
