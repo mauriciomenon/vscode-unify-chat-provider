@@ -13,6 +13,7 @@ import type {
   ChatRequest,
   ChatResponse,
   Message,
+  ToolCall,
   Tool,
 } from 'ollama';
 import {
@@ -163,7 +164,107 @@ export class OllamaProvider implements ApiProvider {
       outMessages[index] = raw;
     }
 
+    this.mergeToolCalls(outMessages);
+    this.reorderToolResults(outMessages);
+    this.normalizeToolResultToolIds(outMessages);
+
     return outMessages;
+  }
+
+  /**
+   * Merge consecutive tool calls in messages into the last message of the run.
+   */
+  private mergeToolCalls(messages: Message[]): void {
+    let runStart = 0;
+    while (runStart < messages.length) {
+      const role = messages[runStart].role;
+
+      let runEnd = runStart;
+      while (
+        runEnd + 1 < messages.length &&
+        messages[runEnd + 1].role === role
+      ) {
+        runEnd++;
+      }
+
+      const mergedToolCalls: ToolCall[] = [];
+      for (let i = runStart; i <= runEnd; i++) {
+        const message = messages[i];
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          mergedToolCalls.push(...message.tool_calls);
+          message.tool_calls = undefined;
+        }
+      }
+
+      if (mergedToolCalls.length > 0) {
+        messages[runEnd].tool_calls = mergedToolCalls;
+      }
+
+      runStart = runEnd + 1;
+    }
+  }
+
+  /**
+   * Reorder tool result messages based on indices in their call IDs.
+   * After reordering, normalize tool result `tool_name` from a call ID back to a tool ID.
+   */
+  private reorderToolResults(messages: Message[]): void {
+    let blockStart = 0;
+    while (blockStart < messages.length) {
+      if (messages[blockStart].role !== 'tool') {
+        blockStart++;
+        continue;
+      }
+
+      let blockEnd = blockStart;
+      while (
+        blockEnd + 1 < messages.length &&
+        messages[blockEnd + 1].role === 'tool'
+      ) {
+        blockEnd++;
+      }
+
+      const segment = messages.slice(blockStart, blockEnd + 1);
+      const decorated = segment.map((message, position) => {
+        const parsed =
+          message.tool_name != null
+            ? this.parseToolCallId(message.tool_name)
+            : undefined;
+        return { message, position, index: parsed?.index };
+      });
+
+      const indices = decorated
+        .map((d) => d.index)
+        .filter((v): v is number => v !== undefined);
+
+      if (indices.length >= 2 && new Set(indices).size === indices.length) {
+        decorated.sort((a, b) => {
+          const aIndex = a.index ?? Number.POSITIVE_INFINITY;
+          const bIndex = b.index ?? Number.POSITIVE_INFINITY;
+          if (aIndex !== bIndex) return aIndex - bIndex;
+          return a.position - b.position;
+        });
+
+        for (let offset = 0; offset < decorated.length; offset++) {
+          messages[blockStart + offset] = decorated[offset].message;
+        }
+      }
+
+      blockStart = blockEnd + 1;
+    }
+  }
+
+  /**
+   * Normalize tool result `tool_name` from a call ID back to a tool ID.
+   */
+  private normalizeToolResultToolIds(messages: Message[]): void {
+    for (const message of messages) {
+      const toolNameOrCallId = message.tool_name;
+      if (toolNameOrCallId) {
+        message.tool_name =
+          this.parseToolCallId(toolNameOrCallId)?.name ?? toolNameOrCallId;
+      }
+    }
   }
 
   convertPart(
@@ -261,7 +362,7 @@ export class OllamaProvider implements ApiProvider {
       return {
         role: 'tool',
         content: content || '',
-        tool_name: this.extractToolNameFromCallId(part.callId),
+        tool_name: part.callId,
       };
     } else {
       throw new Error(`Unsupported ${role} message part type encountered`);
@@ -432,7 +533,7 @@ export class OllamaProvider implements ApiProvider {
           throw new Error('Ollama tool call missing function name');
         }
         yield new vscode.LanguageModelToolCallPart(
-          this.buildToolCallId(call.function.name, index),
+          this.generateToolCallId(call.function.name, index),
           call.function.name,
           this.normalizeToolArguments(call.function.arguments),
         );
@@ -510,7 +611,7 @@ export class OllamaProvider implements ApiProvider {
             throw new Error('Ollama tool call missing function name');
           }
           yield new vscode.LanguageModelToolCallPart(
-            this.buildToolCallId(call.function.name, index),
+            this.generateToolCallId(call.function.name, index),
             call.function.name,
             this.normalizeToolArguments(call.function.arguments),
           );
@@ -585,17 +686,41 @@ export class OllamaProvider implements ApiProvider {
     }
   }
 
-  private buildToolCallId(name: string, index: number): string {
+  private generateToolCallId(name: string, index: number): string {
     return `${TOOL_CALL_ID_PREFIX}${name}:${index}:${randomUUID()}`;
   }
 
-  private extractToolNameFromCallId(callId: string): string {
+  private parseToolCallId(
+    callId: string,
+  ): { name: string; index: number; uuid: string } | undefined {
     if (!callId.startsWith(TOOL_CALL_ID_PREFIX)) {
-      return callId;
+      return undefined;
     }
     const suffix = callId.slice(TOOL_CALL_ID_PREFIX.length);
-    const name = suffix.split(':')[0];
-    return name || callId;
+
+    const lastColonIndex = suffix.lastIndexOf(':');
+    if (lastColonIndex === -1) {
+      return undefined;
+    }
+    const secondLastColonIndex = suffix.lastIndexOf(':', lastColonIndex - 1);
+    if (secondLastColonIndex === -1) {
+      return undefined;
+    }
+
+    const name = suffix.slice(0, secondLastColonIndex);
+    const indexStr = suffix.slice(secondLastColonIndex + 1, lastColonIndex);
+    const uuid = suffix.slice(lastColonIndex + 1);
+
+    if (!name || !uuid || !/^\d+$/.test(indexStr)) {
+      return undefined;
+    }
+
+    const index = Number.parseInt(indexStr, 10);
+    if (!Number.isSafeInteger(index) || index < 0) {
+      return undefined;
+    }
+
+    return { name, index, uuid };
   }
 
   private processUsage(
