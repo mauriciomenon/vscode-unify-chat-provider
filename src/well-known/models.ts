@@ -119,6 +119,18 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
+    id: 'claude-3-5-sonnet',
+    alternativeIds: ['claude-3.5-sonnet'],
+    name: 'Claude Sonnet 3.5',
+    maxInputTokens: 200000,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
     id: 'claude-3-5-haiku',
     alternativeIds: ['claude-3.5-haiku'],
     name: 'Claude Haiku 3.5',
@@ -135,6 +147,17 @@ const _WELL_KNOWN_MODELS = [
     name: 'Claude Haiku 3',
     maxInputTokens: 200000,
     maxOutputTokens: 4000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'claude-3-opus',
+    name: 'Claude Opus 3',
+    maxInputTokens: 200000,
+    maxOutputTokens: 4096,
     stream: true,
     capabilities: {
       toolCalling: true,
