@@ -12,6 +12,7 @@ import {
   bodyInitToLoggableValue,
   decodeStatefulMarkerPart,
   DEFAULT_RETRY_CONFIG,
+  DEFAULT_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
   fetchWithRetry,
   headersInitToRecord,
@@ -20,6 +21,7 @@ import {
   isInternalMarker,
   normalizeBaseUrlInput,
   normalizeImageMimeType,
+  withIdleTimeout,
 } from '../../utils';
 import * as vscode from 'vscode';
 import {
@@ -38,7 +40,6 @@ import {
   ToolChoiceOptions,
 } from 'openai/resources/responses/responses';
 import { getBaseModelId } from '../../model-id-utils';
-import { Stream } from 'openai/core/streaming';
 import { randomUUID } from 'crypto';
 import { ProviderConfig, ModelConfig, PerformanceTrace } from '../../types';
 
@@ -71,6 +72,9 @@ export class OpenAIResponsesProvider implements ApiProvider {
    * A new client is created per request to enable per-request logging.
    */
   private createClient(logger?: ProviderHttpLogger): OpenAI {
+    const connectionTimeoutMs =
+      this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
+
     const customFetch = async (
       input: RequestInfo | URL,
       init?: RequestInit,
@@ -91,6 +95,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
         ...init,
         logger,
         retryConfig: DEFAULT_RETRY_CONFIG,
+        connectionTimeoutMs,
       });
 
       if (logger) {
@@ -438,6 +443,9 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
     try {
       if (streamEnabled) {
+        const responseTimeoutMs =
+          this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+
         const stream = await client.responses.create(
           { ...baseBody, stream: true },
           {
@@ -445,7 +453,17 @@ export class OpenAIResponsesProvider implements ApiProvider {
             signal: abortController.signal,
           },
         );
-        yield* this.parseMessageStream(stream, token, logger, performanceTrace);
+        const timedStream = withIdleTimeout(
+          stream,
+          responseTimeoutMs,
+          abortController.signal,
+        );
+        yield* this.parseMessageStream(
+          timedStream,
+          token,
+          logger,
+          performanceTrace,
+        );
       } else {
         const data = await client.responses.create(
           { ...baseBody, stream: false },
@@ -548,7 +566,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
   }
 
   private *extractThinkingParts(
-    reasonings: ResponseReasoningItem[],
+    reasonings: (ResponseReasoningItem | string)[],
     emitMode: 'full' | 'metadata-only' | 'content-only' = 'full',
     metadata?: ThinkingBlockMetadata,
   ): Generator<vscode.LanguageModelThinkingPart> {
@@ -569,6 +587,11 @@ export class OpenAIResponsesProvider implements ApiProvider {
     };
 
     for (const reasoning of reasonings) {
+      if (typeof reasoning === 'string') {
+        yield* emitText(reasoning);
+        continue;
+      }
+
       for (const part of reasoning.summary) {
         if (part.type === 'summary_text') {
           yield* emitText(part.text);
@@ -583,7 +606,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
       if (reasoning.encrypted_content) {
         if (emitMode !== 'metadata-only') {
-          yield new vscode.LanguageModelThinkingPart('[Thinking...]');
+          yield new vscode.LanguageModelThinkingPart('Encrypted thinking...');
         }
         if (metadata) {
           metadata.redactedData = reasoning.encrypted_content;
@@ -601,7 +624,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
   }
 
   private async *parseMessageStream(
-    stream: Stream<ResponseStreamEvent>,
+    stream: AsyncIterable<ResponseStreamEvent>,
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,
@@ -627,6 +650,12 @@ export class OpenAIResponsesProvider implements ApiProvider {
       recordFirstToken();
 
       switch (event.type) {
+        case 'response.output_item.added':
+          if (event.item.type === 'reasoning' && event.item.encrypted_content) {
+            yield* this.extractThinkingParts([event.item], 'content-only');
+          }
+          break;
+
         case 'response.output_text.delta':
           if (event.delta) {
             yield new vscode.LanguageModelTextPart(event.delta);
@@ -641,13 +670,13 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
         case 'response.reasoning_text.delta':
           if (event.delta) {
-            yield new vscode.LanguageModelThinkingPart(event.delta);
+            yield* this.extractThinkingParts([event.delta], 'content-only');
           }
           break;
 
         case 'response.reasoning_summary_text.delta':
           if (event.delta) {
-            yield new vscode.LanguageModelThinkingPart(event.delta);
+            yield* this.extractThinkingParts([event.delta], 'content-only');
           }
           break;
 

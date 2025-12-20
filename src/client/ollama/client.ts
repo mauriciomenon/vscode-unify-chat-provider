@@ -21,6 +21,7 @@ import {
   decodeStatefulMarkerPart,
   bodyInitToLoggableValue,
   DEFAULT_RETRY_CONFIG,
+  DEFAULT_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
   fetchWithRetry,
   headersInitToRecord,
@@ -29,6 +30,7 @@ import {
   isInternalMarker,
   normalizeBaseUrlInput,
   normalizeImageMimeType,
+  withIdleTimeout,
 } from '../../utils';
 import { getBaseModelId } from '../../model-id-utils';
 import { randomUUID } from 'crypto';
@@ -70,6 +72,9 @@ export class OllamaProvider implements ApiProvider {
     headers?: Record<string, string>,
     logger?: ProviderHttpLogger,
   ): Ollama {
+    const connectionTimeoutMs =
+      this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
+
     const customFetch = async (
       input: RequestInfo | URL,
       init?: RequestInit,
@@ -90,6 +95,7 @@ export class OllamaProvider implements ApiProvider {
         ...init,
         logger,
         retryConfig: DEFAULT_RETRY_CONFIG,
+        connectionTimeoutMs,
       });
       if (logger) {
         logger.providerResponseMeta(response);
@@ -463,8 +469,10 @@ export class OllamaProvider implements ApiProvider {
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     const headers = this.buildHeaders(model);
     const client = this.createClient(headers, logger);
+    const abortController = new AbortController();
     let stream: AbortableAsyncIterator<ChatResponse> | undefined;
     const cancellationListener = token.onCancellationRequested(() => {
+      abortController.abort();
       if (stream) {
         stream.abort();
       } else {
@@ -492,8 +500,21 @@ export class OllamaProvider implements ApiProvider {
 
     try {
       if (streamEnabled) {
+        const responseTimeoutMs =
+          this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+
         stream = await client.chat({ ...baseBody, stream: true });
-        yield* this.parseMessageStream(stream, token, logger, performanceTrace);
+        const timedStream = withIdleTimeout(
+          stream,
+          responseTimeoutMs,
+          abortController.signal,
+        );
+        yield* this.parseMessageStream(
+          timedStream,
+          token,
+          logger,
+          performanceTrace,
+        );
       } else {
         const result = await client.chat({ ...baseBody, stream: false });
         yield* this.parseMessage(result, performanceTrace, logger);
@@ -557,7 +578,7 @@ export class OllamaProvider implements ApiProvider {
   }
 
   private async *parseMessageStream(
-    stream: AbortableAsyncIterator<ChatResponse>,
+    stream: AsyncIterable<ChatResponse>,
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,

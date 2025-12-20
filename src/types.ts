@@ -20,6 +20,8 @@ export interface ProviderConfig {
   extraHeaders?: Record<string, string>;
   /** Extra body parameters to include in requests */
   extraBody?: Record<string, unknown>;
+  /** Timeout configuration */
+  timeout?: TimeoutConfig;
 }
 
 /**
@@ -115,6 +117,24 @@ export interface ModelCapabilities {
   toolCalling?: boolean | number;
   /** Whether the model supports image input */
   imageInput?: boolean;
+}
+
+/**
+ * Timeout configuration for HTTP requests and SSE streams.
+ * All values are in milliseconds.
+ */
+export interface TimeoutConfig {
+  /**
+   * Maximum time to wait for the TCP connection to be established.
+   * Default: 10000 (10 seconds)
+   */
+  connection?: number;
+  /**
+   * Maximum time to wait between receiving data chunks during SSE streaming.
+   * Resets each time new data is received (token, SSE ping, keep-alive, etc.).
+   * Default: 120000 (2 minutes)
+   */
+  response?: number;
 }
 
 export interface PerformanceTrace {

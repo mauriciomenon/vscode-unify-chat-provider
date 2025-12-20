@@ -24,6 +24,7 @@ import {
   normalizeBaseUrlInput,
   fetchWithRetry,
   DEFAULT_RETRY_CONFIG,
+  DEFAULT_TIMEOUT_CONFIG,
   headersInitToRecord,
   isCacheControlMarker,
   isImageMarker,
@@ -31,6 +32,7 @@ import {
   encodeStatefulMarkerPart,
   decodeStatefulMarkerPart,
   normalizeImageMimeType,
+  withIdleTimeout,
 } from '../../utils';
 import { getBaseModelId } from '../../model-id-utils';
 import { DEFAULT_MAX_OUTPUT_TOKENS } from '../../defaults';
@@ -71,6 +73,9 @@ export class AnthropicProvider implements ApiProvider {
    * A new client is created per request to enable per-request logging.
    */
   private createClient(logger?: ProviderHttpLogger): Anthropic {
+    const connectionTimeoutMs =
+      this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
+
     const customFetch = async (
       input: RequestInfo | URL,
       init?: RequestInit,
@@ -105,6 +110,7 @@ export class AnthropicProvider implements ApiProvider {
         ...init,
         logger,
         retryConfig: DEFAULT_RETRY_CONFIG,
+        connectionTimeoutMs,
       });
 
       if (logger) {
@@ -691,6 +697,7 @@ export class AnthropicProvider implements ApiProvider {
 
     const thinkingEnabled = model.thinking?.type === 'enabled';
     const hasTools = (options.tools && options.tools.length > 0) ?? false;
+    const stream = model.stream ?? true;
 
     const anthropicInterleavedThinkingEnabled =
       thinkingEnabled &&
@@ -717,6 +724,17 @@ export class AnthropicProvider implements ApiProvider {
     const tools = toolsResult?.tools;
     const hasMemoryTool = toolsResult?.hasMemoryTool ?? false;
 
+    const fineGrainedToolStreamingEnabled =
+      this.config.mimic === 'claude-code'
+        ? true
+        : stream === true &&
+          (tools?.length ?? 0) > 0 &&
+          isFeatureSupported(
+            FeatureId.AnthropicFineGrainedToolStreaming,
+            this.config,
+            model,
+          );
+
     // Build betas array for beta API features
     const betaFeatures = new Set<string>();
 
@@ -727,6 +745,11 @@ export class AnthropicProvider implements ApiProvider {
     // Add context management beta for memory tool
     if (hasMemoryTool) {
       betaFeatures.add('context-management-2025-06-27');
+    }
+
+    // Fine-grained tool streaming for Claude models when using tools with streaming.
+    if (fineGrainedToolStreamingEnabled) {
+      betaFeatures.add('fine-grained-tool-streaming-2025-05-14');
     }
 
     // Ensure anthropic-beta is always present for Claude Code validation
@@ -806,8 +829,6 @@ export class AnthropicProvider implements ApiProvider {
         requestBase.betas = Array.from(betaFeatures);
       }
 
-      const stream = model.stream ?? true;
-
       const client = this.createClient(logger);
 
       performanceTrace.ttf = Date.now() - performanceTrace.tts;
@@ -823,11 +844,22 @@ export class AnthropicProvider implements ApiProvider {
             signal: abortController.signal,
           },
         );
-        yield* this.parseMessageStream(
+
+        // Wrap stream with idle timeout
+        const responseTimeoutMs =
+          this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+        const timedStream = withIdleTimeout(
           sdkStream,
+          responseTimeoutMs,
+          abortController.signal,
+        );
+
+        yield* this.parseMessageStream(
+          timedStream,
           token,
           logger,
           performanceTrace,
+          fineGrainedToolStreamingEnabled,
         );
       } else {
         const result = await client.beta.messages.create(
@@ -887,7 +919,7 @@ export class AnthropicProvider implements ApiProvider {
 
         case 'redacted_thinking':
           yield new vscode.LanguageModelThinkingPart(
-            '[Thinking...]',
+            'Encrypted thinking...',
             undefined,
             {
               redactedData: block.data,
@@ -920,6 +952,7 @@ export class AnthropicProvider implements ApiProvider {
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,
+    fineGrainedToolStreamingEnabled: boolean,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     let raw: BetaMessage | undefined;
 
@@ -939,7 +972,7 @@ export class AnthropicProvider implements ApiProvider {
 
       logger.providerResponseChunk(JSON.stringify(event));
 
-      raw = this.accumulateMessage(raw, event);
+      raw = this.accumulateMessage(raw, event, fineGrainedToolStreamingEnabled);
 
       switch (event.type) {
         case 'message_start': {
@@ -959,7 +992,9 @@ export class AnthropicProvider implements ApiProvider {
               break;
 
             case 'redacted_thinking':
-              yield new vscode.LanguageModelThinkingPart('[Thinking...]');
+              yield new vscode.LanguageModelThinkingPart(
+                'Encrypted thinking...',
+              );
               break;
 
             default:
@@ -1052,6 +1087,7 @@ export class AnthropicProvider implements ApiProvider {
   private accumulateMessage(
     raw: BetaMessage | undefined,
     event: BetaRawMessageStreamEvent,
+    fineGrainedToolStreamingEnabled: boolean,
   ): BetaMessage {
     if (!raw && event.type !== 'message_start') {
       throw new Error(
@@ -1062,6 +1098,10 @@ export class AnthropicProvider implements ApiProvider {
     const snapshot = raw!;
 
     const JSON_BUF_PROPERTY = '__json_buf';
+
+    type ToolInputJsonBuffer = {
+      __json_buf?: string;
+    };
 
     function tracksToolInput(
       content: BetaContentBlock,
@@ -1110,11 +1150,17 @@ export class AnthropicProvider implements ApiProvider {
 
           case 'input_json_delta': {
             if (snapshotContent && tracksToolInput(snapshotContent)) {
-              // keep track of the raw JSON string.
-              let jsonBuf = (snapshotContent as any)[JSON_BUF_PROPERTY] || '';
+              const toolContent = snapshotContent as TracksToolInput &
+                ToolInputJsonBuffer;
+
+              // Keep track of the raw JSON string.
+              let jsonBuf = toolContent.__json_buf ?? '';
               jsonBuf += event.delta.partial_json;
 
-              const newContent = { ...snapshotContent };
+              const newContent: TracksToolInput & ToolInputJsonBuffer = {
+                ...snapshotContent,
+              };
+
               Object.defineProperty(newContent, JSON_BUF_PROPERTY, {
                 value: jsonBuf,
                 enumerable: false,
@@ -1158,13 +1204,21 @@ export class AnthropicProvider implements ApiProvider {
         const snapshotContent = snapshot.content.at(event.index);
 
         if (snapshotContent && tracksToolInput(snapshotContent)) {
-          const jsonBuf = (snapshotContent as any)[JSON_BUF_PROPERTY] || '';
+          const toolContent = snapshotContent as TracksToolInput &
+            ToolInputJsonBuffer;
+          const jsonBuf = toolContent.__json_buf ?? '';
           try {
-            snapshotContent.input = JSON.parse(jsonBuf);
+            snapshotContent.input = jsonBuf.trim() ? JSON.parse(jsonBuf) : {};
           } catch (err) {
-            throw new Error(
-              `Unable to parse tool parameter JSON from model. Please retry your request or adjust your prompt`,
-            );
+            if (fineGrainedToolStreamingEnabled) {
+              snapshotContent.input = {
+                INVALID_JSON: jsonBuf,
+              };
+            } else {
+              throw new Error(
+                'Unable to parse tool parameter JSON from model. Please retry your request or adjust your prompt',
+              );
+            }
           }
         }
         return snapshot;

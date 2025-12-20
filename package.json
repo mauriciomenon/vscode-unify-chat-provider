@@ -170,6 +170,22 @@
                 "description": "Extra body parameters to include in requests.",
                 "additionalProperties": true
               },
+              "timeout": {
+                "type": "object",
+                "description": "Timeout configuration for HTTP requests and SSE streams.",
+                "properties": {
+                  "connection": {
+                    "type": "integer",
+                    "description": "TCP connection timeout in milliseconds.",
+                    "default": 10000
+                  },
+                  "response": {
+                    "type": "integer",
+                    "description": "Maximum time between SSE data chunks in milliseconds.",
+                    "default": 120000
+                  }
+                }
+              },
               "models": {
                 "type": "array",
                 "description": "List of available models.",

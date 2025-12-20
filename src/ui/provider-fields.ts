@@ -21,6 +21,7 @@ export interface ProviderFieldContext extends FieldContext {
   store: ConfigStore;
   originalName?: string;
   onEditModels: (draft: ProviderFormDraft) => Promise<void>;
+  onEditTimeout: (draft: ProviderFormDraft) => Promise<void>;
 }
 
 /**
@@ -247,6 +248,32 @@ export const providerFormSchema: FormSchema<ProviderFormDraft> = {
         draft.extraBody
           ? `${Object.keys(draft.extraBody).length} properties`
           : 'Not configured',
+    },
+    // Timeout
+    {
+      key: 'timeout',
+      type: 'custom',
+      label: 'Timeout',
+      icon: 'clock',
+      section: 'others',
+      edit: async (draft, context) => {
+        const ctx = context as ProviderFieldContext;
+        await ctx.onEditTimeout(draft);
+      },
+      getDescription: (draft) => {
+        if (!draft.timeout?.connection && !draft.timeout?.response) {
+          return 'default';
+        }
+        const parts: string[] = [];
+        if (draft.timeout?.connection) {
+          parts.push(`conn: ${draft.timeout.connection}ms`);
+        }
+        if (draft.timeout?.response) {
+          parts.push(`resp: ${draft.timeout.response}ms`);
+        }
+        return parts.join(', ');
+      },
+      getDetail: () => 'Configure connection and response timeouts.',
     },
   ],
 };

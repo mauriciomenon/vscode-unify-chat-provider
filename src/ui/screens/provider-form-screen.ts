@@ -52,6 +52,7 @@ export async function runProviderFormScreen(
     store: ctx.store,
     originalName,
     onEditModels: async () => {},
+    onEditTimeout: async () => {},
   };
 
   const selection = await pickQuickItem<FormItem<ProviderFormDraft>>({
@@ -135,6 +136,17 @@ export async function runProviderFormScreen(
           models: draft.models,
           providerLabel: draft.name ?? originalName ?? 'Provider',
           requireAtLeastOne: false,
+          draft,
+        },
+      };
+    }
+
+    if (field === 'timeout') {
+      return {
+        kind: 'push',
+        route: {
+          kind: 'timeoutForm',
+          timeout: draft.timeout ?? {},
           draft,
         },
       };

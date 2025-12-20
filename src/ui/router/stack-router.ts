@@ -4,6 +4,7 @@ import { runModelListScreen } from '../screens/model-list-screen';
 import { runModelSelectionScreen } from '../screens/model-selection-screen';
 import { runProviderFormScreen } from '../screens/provider-form-screen';
 import { runProviderListScreen } from '../screens/provider-list-screen';
+import { runTimeoutFormScreen } from '../screens/timeout-form-screen';
 import { runWellKnownProviderApiKeyScreen } from '../screens/well-known-provider-api-key-screen';
 import { runWellKnownProviderListScreen } from '../screens/well-known-provider-list-screen';
 import { runWellKnownProviderNameScreen } from '../screens/well-known-provider-name-screen';
@@ -72,6 +73,8 @@ async function dispatchRoute(
       return runModelFormScreen(ctx, route, resume);
     case 'modelSelection':
       return runModelSelectionScreen(ctx, route, resume);
+    case 'timeoutForm':
+      return runTimeoutFormScreen(ctx, route, resume);
     default:
       return assertNever(route);
   }

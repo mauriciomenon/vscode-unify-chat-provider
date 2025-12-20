@@ -28,6 +28,16 @@ export const DEFAULT_RETRY_CONFIG = {
   jitterFactor: 0.1,
 } as const;
 
+/**
+ * Default timeout configuration for HTTP requests and SSE streams.
+ */
+export const DEFAULT_TIMEOUT_CONFIG = {
+  /** Connection timeout in milliseconds (10 seconds) */
+  connection: 10_000,
+  /** Response/idle timeout in milliseconds (2 minutes) */
+  response: 120_000,
+} as const;
+
 export interface RetryConfig {
   maxRetries?: number;
   initialDelayMs?: number;
@@ -39,6 +49,8 @@ export interface RetryConfig {
 export interface FetchWithRetryOptions extends RequestInit {
   retryConfig?: RetryConfig;
   logger?: ProviderHttpLogger;
+  /** Connection timeout in milliseconds. If not specified, uses DEFAULT_TIMEOUT_CONFIG.connection */
+  connectionTimeoutMs?: number;
 }
 
 export function headersInitToRecord(
@@ -208,7 +220,7 @@ export async function fetchWithRetry(
   url: string,
   options: FetchWithRetryOptions = {},
 ): Promise<Response> {
-  const { retryConfig, logger, ...fetchOptions } = options;
+  const { retryConfig, logger, connectionTimeoutMs, ...fetchOptions } = options;
   const maxRetries = retryConfig?.maxRetries ?? DEFAULT_RETRY_CONFIG.maxRetries;
   const initialDelayMs =
     retryConfig?.initialDelayMs ?? DEFAULT_RETRY_CONFIG.initialDelayMs;
@@ -217,13 +229,37 @@ export async function fetchWithRetry(
     retryConfig?.backoffMultiplier ?? DEFAULT_RETRY_CONFIG.backoffMultiplier;
   const jitterFactor =
     retryConfig?.jitterFactor ?? DEFAULT_RETRY_CONFIG.jitterFactor;
+  const connTimeout = connectionTimeoutMs ?? DEFAULT_TIMEOUT_CONFIG.connection;
 
   let lastResponse: Response | undefined;
+  let lastError: Error | undefined;
   let attempt = 0;
 
   while (attempt <= maxRetries) {
+    // Create timeout controller for connection timeout
+    const timeoutController = new AbortController();
+    const existingSignal = fetchOptions.signal;
+
+    // Combine with existing signal if present
+    if (existingSignal) {
+      existingSignal.addEventListener('abort', () => {
+        timeoutController.abort(existingSignal.reason);
+      });
+    }
+
+    const timeoutId = setTimeout(() => {
+      timeoutController.abort(
+        new Error(`Connection timeout after ${connTimeout}ms`),
+      );
+    }, connTimeout);
+
     try {
-      const response = await fetch(url, fetchOptions);
+      const response = await fetch(url, {
+        ...fetchOptions,
+        signal: timeoutController.signal,
+      });
+
+      clearTimeout(timeoutId);
 
       // If successful or non-retryable error, return immediately
       if (response.ok || !isRetryableStatusCode(response.status)) {
@@ -251,13 +287,113 @@ export async function fetchWithRetry(
 
       attempt++;
     } catch (error) {
-      // Network errors or abort signals should not be retried
+      clearTimeout(timeoutId);
+
+      // Check if this is a connection timeout error (retryable)
+      if (
+        error instanceof Error &&
+        error.message.includes('Connection timeout')
+      ) {
+        lastError = error;
+
+        if (attempt < maxRetries) {
+          const delayMs = calculateBackoffDelay(attempt, {
+            initialDelayMs,
+            maxDelayMs,
+            backoffMultiplier,
+            jitterFactor,
+          });
+
+          logger?.retry(attempt + 1, maxRetries, 0, delayMs);
+          await delay(delayMs);
+        }
+
+        attempt++;
+        continue;
+      }
+
+      // Other errors (network errors, user abort) should not be retried
       throw error;
     }
   }
 
-  // All retries exhausted, return the last response
+  // All retries exhausted
+  if (lastError) {
+    throw lastError;
+  }
   return lastResponse!;
+}
+
+/**
+ * Wraps an async iterable with idle timeout support.
+ * Throws Error if no data is received within responseTimeoutMs.
+ *
+ * Each time data is received (token, SSE ping, keep-alive comment, etc.),
+ * the timeout timer is reset.
+ *
+ * @param source The source async iterable to wrap
+ * @param responseTimeoutMs Maximum time to wait between data chunks
+ * @param abortSignal Optional abort signal to cancel the iteration
+ */
+export async function* withIdleTimeout<T>(
+  source: AsyncIterable<T>,
+  responseTimeoutMs: number,
+  abortSignal?: AbortSignal,
+): AsyncGenerator<T> {
+  const iterator = source[Symbol.asyncIterator]();
+
+  const createTimeoutPromise = (): Promise<'timeout'> => {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve('timeout'), responseTimeoutMs);
+    });
+  };
+
+  const createAbortPromise = (): Promise<'abort'> => {
+    if (!abortSignal) {
+      return new Promise(() => {}); // Never resolves
+    }
+    return new Promise((resolve) => {
+      if (abortSignal.aborted) {
+        resolve('abort');
+      } else {
+        abortSignal.addEventListener('abort', () => resolve('abort'), {
+          once: true,
+        });
+      }
+    });
+  };
+
+  while (true) {
+    // Check if already aborted
+    if (abortSignal?.aborted) {
+      throw abortSignal.reason ?? new Error('Aborted');
+    }
+
+    // Race between next value, timeout, and abort
+    const result = await Promise.race([
+      iterator.next().then((r) => ({ kind: 'value' as const, result: r })),
+      createTimeoutPromise().then(() => ({ kind: 'timeout' as const })),
+      createAbortPromise().then(() => ({ kind: 'abort' as const })),
+    ]);
+
+    if (result.kind === 'abort') {
+      throw abortSignal?.reason ?? new Error('Aborted');
+    }
+
+    if (result.kind === 'timeout') {
+      throw new Error(
+        `Response timeout: No data received for ${responseTimeoutMs}ms`,
+      );
+    }
+
+    // Normal iteration result
+    const iterResult = result.result;
+    if (iterResult.done) {
+      return;
+    }
+
+    yield iterResult.value;
+  }
 }
 
 /**

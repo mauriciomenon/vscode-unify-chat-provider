@@ -309,7 +309,9 @@ export class RequestLogger implements ProviderHttpLogger {
     if (!isVerboseEnabled()) {
       return;
     }
-    this.ch.info(`[${this.requestId}] VSCode Output: ${JSON.stringify(part)}`);
+    this.ch.info(
+      `[${this.requestId}] VSCode Output:\n${stringifyForLog(part)}`,
+    );
   }
 
   /**
@@ -365,6 +367,8 @@ export class RequestLogger implements ProviderHttpLogger {
       this.ch.info(
         `[${this.requestId}] Cache: ${cachedTokens} cached, ${uncachedTokens} uncached (${cacheHitRatio}% hit ratio)`,
       );
+    } else {
+      this.ch.info(`[${this.requestId}] Cache: No cache usage data available.`);
     }
   }
 
@@ -520,3 +524,5 @@ export function createSimpleHttpLogger(context: {
   const id = `http-${nextHttpLogId++}`;
   return new SimpleHttpLogger(id, context);
 }
+
+getChannel().info('Initialized.');

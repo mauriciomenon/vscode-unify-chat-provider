@@ -78,6 +78,12 @@ export enum FeatureId {
    */
   AnthropicMemoryTool = 'anthropic_memory-tool',
   /**
+   * Fine-grained tool streaming for tool_use parameters.
+   *
+   * @see https://docs.anthropic.com/en/docs/build-with-claude/tool-use
+   */
+  AnthropicFineGrainedToolStreaming = 'anthropic_fine-grained-tool-streaming',
+  /**
    * @see https://community.openai.com/t/developer-role-not-accepted-for-o1-o1-mini-o3-mini/1110750/7
    */
   OpenAIOnlyUseMaxCompletionTokens = 'openai_only-use-max-completion-tokens',
@@ -154,6 +160,9 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'claude-opus-4.1',
       'claude-opus-4',
     ],
+  },
+  [FeatureId.AnthropicFineGrainedToolStreaming]: {
+    supportedFamilys: ['claude-'],
   },
   [FeatureId.OpenAIOnlyUseMaxCompletionTokens]: {
     supportedFamilys: [

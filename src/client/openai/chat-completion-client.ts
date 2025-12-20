@@ -12,6 +12,7 @@ import {
   bodyInitToLoggableValue,
   decodeStatefulMarkerPart,
   DEFAULT_RETRY_CONFIG,
+  DEFAULT_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
   fetchWithRetry,
   headersInitToRecord,
@@ -20,6 +21,7 @@ import {
   isInternalMarker,
   normalizeBaseUrlInput,
   normalizeImageMimeType,
+  withIdleTimeout,
 } from '../../utils';
 import * as vscode from 'vscode';
 import {
@@ -40,7 +42,6 @@ import {
 import { FunctionParameters } from 'openai/resources/shared';
 import { getBaseModelId } from '../../model-id-utils';
 import { CompletionUsage } from 'openai/resources/completions';
-import { Stream } from 'openai/core/streaming';
 import { ChatCompletionSnapshot } from 'openai/lib/ChatCompletionStream';
 import { ThinkingBlockMetadata } from '../types';
 import { FeatureId } from '../definitions';
@@ -75,6 +76,9 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
    * A new client is created per request to enable per-request logging.
    */
   private createClient(logger?: ProviderHttpLogger): OpenAI {
+    const connectionTimeoutMs =
+      this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
+
     const customFetch = async (
       input: RequestInfo | URL,
       init?: RequestInit,
@@ -95,6 +99,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         ...init,
         logger,
         retryConfig: DEFAULT_RETRY_CONFIG,
+        connectionTimeoutMs,
       });
 
       if (logger) {
@@ -632,6 +637,9 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
     try {
       if (streamEnabled) {
+        const responseTimeoutMs =
+          this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+
         const stream = await client.chat.completions.create(
           { ...baseBody, stream: true },
           {
@@ -639,7 +647,17 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
             signal: abortController.signal,
           },
         );
-        yield* this.parseMessageStream(stream, token, logger, performanceTrace);
+        const timedStream = withIdleTimeout(
+          stream,
+          responseTimeoutMs,
+          abortController.signal,
+        );
+        yield* this.parseMessageStream(
+          timedStream,
+          token,
+          logger,
+          performanceTrace,
+        );
       } else {
         const data = await client.chat.completions.create(
           { ...baseBody, stream: false },
@@ -810,7 +828,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
         case 'reasoning.encrypted':
           if (emitMode !== 'metadata-only') {
-            yield new vscode.LanguageModelThinkingPart('[Thinking...]');
+            yield new vscode.LanguageModelThinkingPart('Encrypted thinking...');
           }
           if (metadata) {
             metadata.redactedData = content.data;
@@ -836,7 +854,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
   }
 
   private async *parseMessageStream(
-    stream: Stream<OpenAI.Chat.Completions.ChatCompletionChunk>,
+    stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>,
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,

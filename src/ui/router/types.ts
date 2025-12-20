@@ -1,6 +1,6 @@
 import type { ConfigStore } from '../../config-store';
 import type { ProviderType } from '../../client/definitions';
-import { ProviderConfig, ModelConfig } from '../../types';
+import { ProviderConfig, ModelConfig, TimeoutConfig } from '../../types';
 import type { ProviderFormDraft } from '../form-utils';
 
 export interface UiContext {
@@ -69,6 +69,12 @@ export interface ModelSelectionRoute {
   fetchModels: () => Promise<ModelConfig[]>;
 }
 
+export interface TimeoutFormRoute {
+  kind: 'timeoutForm';
+  timeout: TimeoutConfig;
+  draft: ProviderFormDraft;
+}
+
 export type UiRoute =
   | ProviderListRoute
   | ProviderFormRoute
@@ -77,7 +83,8 @@ export type UiRoute =
   | WellKnownProviderApiKeyRoute
   | ModelListRoute
   | ModelFormRoute
-  | ModelSelectionRoute;
+  | ModelSelectionRoute
+  | TimeoutFormRoute;
 
 export type ModelFormResult =
   | { kind: 'saved'; model: ModelConfig; originalId?: string }
