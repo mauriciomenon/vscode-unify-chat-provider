@@ -19,22 +19,25 @@ import type {
 } from 'ollama';
 import {
   decodeStatefulMarkerPart,
-  bodyInitToLoggableValue,
-  DEFAULT_RETRY_CONFIG,
   DEFAULT_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
-  fetchWithRetry,
-  headersInitToRecord,
   isCacheControlMarker,
   isImageMarker,
   isInternalMarker,
-  normalizeBaseUrlInput,
   normalizeImageMimeType,
   withIdleTimeout,
 } from '../../utils';
 import { getBaseModelId } from '../../model-id-utils';
 import { randomUUID } from 'crypto';
 import { ThinkingBlockMetadata } from '../types';
+import {
+  buildBaseUrl,
+  createCustomFetch,
+  createFirstTokenRecorder,
+  estimateTokenCount as sharedEstimateTokenCount,
+  mergeHeaders,
+  processUsage as sharedProcessUsage,
+} from '../utils';
 
 const TOOL_CALL_ID_PREFIX = 'ollama-tool:';
 
@@ -42,20 +45,14 @@ export class OllamaProvider implements ApiProvider {
   private readonly baseUrl: string;
 
   constructor(private readonly config: ProviderConfig) {
-    this.baseUrl = this.buildBaseUrl(config.baseUrl);
-  }
-
-  private buildBaseUrl(baseUrl: string): string {
-    const normalized = normalizeBaseUrlInput(baseUrl);
-    return /\/api$/i.test(normalized)
-      ? normalized.replace(/\/api$/i, '')
-      : normalized;
+    this.baseUrl = buildBaseUrl(config.baseUrl, { stripPattern: /\/api$/i });
   }
 
   private buildHeaders(modelConfig?: ModelConfig): Record<string, string> {
-    const headers: Record<string, string> = {};
-
-    Object.assign(headers, this.config.extraHeaders, modelConfig?.extraHeaders);
+    const headers = mergeHeaders(
+      this.config.extraHeaders,
+      modelConfig?.extraHeaders,
+    );
 
     if (this.config.apiKey) {
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
@@ -75,37 +72,9 @@ export class OllamaProvider implements ApiProvider {
     const connectionTimeoutMs =
       this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
 
-    const customFetch = async (
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url = typeof input === 'string' ? input : input.toString();
-
-      if (logger) {
-        const requestHeaders = headersInitToRecord(init?.headers);
-        logger.providerRequest({
-          endpoint: url,
-          method: init?.method,
-          headers: requestHeaders,
-          body: bodyInitToLoggableValue(init?.body, requestHeaders),
-        });
-      }
-
-      const response = await fetchWithRetry(url, {
-        ...init,
-        logger,
-        retryConfig: DEFAULT_RETRY_CONFIG,
-        connectionTimeoutMs,
-      });
-      if (logger) {
-        logger.providerResponseMeta(response);
-      }
-      return response;
-    };
-
     return new Ollama({
       host: this.baseUrl,
-      fetch: customFetch,
+      fetch: createCustomFetch({ connectionTimeoutMs, logger }),
       headers,
     });
   }
@@ -591,14 +560,7 @@ export class OllamaProvider implements ApiProvider {
         }
       | undefined;
 
-    let firstTokenRecorded = false;
-    const recordFirstToken = () => {
-      if (!firstTokenRecorded) {
-        performanceTrace.ttft =
-          Date.now() - (performanceTrace.tts + performanceTrace.ttf);
-        firstTokenRecorded = true;
-      }
-    };
+    const recordFirstToken = createFirstTokenRecorder(performanceTrace);
 
     for await (const event of stream) {
       if (token.isCancellationRequested) {
@@ -753,16 +715,7 @@ export class OllamaProvider implements ApiProvider {
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
   ) {
-    if (usage.eval_count) {
-      performanceTrace.tps =
-        (usage.eval_count /
-          (Date.now() - (performanceTrace.tts + performanceTrace.ttf))) *
-        1000;
-    } else {
-      performanceTrace.tps = NaN;
-    }
-
-    logger.usage({
+    sharedProcessUsage(usage.eval_count, performanceTrace, logger, {
       prompt_tokens: usage.prompt_eval_count ?? 0,
       completion_tokens: usage.eval_count ?? 0,
       total_tokens: (usage.prompt_eval_count ?? 0) + (usage.eval_count ?? 0),
@@ -770,8 +723,7 @@ export class OllamaProvider implements ApiProvider {
   }
 
   estimateTokenCount(text: string): number {
-    // Rough estimation: ~4 characters per token for English text
-    return Math.ceil(text.length / 4);
+    return sharedEstimateTokenCount(text);
   }
 
   async getAvailableModels(): Promise<ModelConfig[]> {

@@ -20,12 +20,7 @@ import { createSimpleHttpLogger } from '../../logger';
 import type { ProviderHttpLogger, RequestLogger } from '../../logger';
 import { ApiProvider } from '../interface';
 import {
-  bodyInitToLoggableValue,
-  normalizeBaseUrlInput,
-  fetchWithRetry,
-  DEFAULT_RETRY_CONFIG,
   DEFAULT_TIMEOUT_CONFIG,
-  headersInitToRecord,
   isCacheControlMarker,
   isImageMarker,
   isInternalMarker,
@@ -41,7 +36,15 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { TracksToolInput } from '@anthropic-ai/sdk/lib/BetaMessageStream';
 import { ThinkingBlockMetadata } from '../types';
 import { FeatureId } from '../definitions';
-import { isFeatureSupported } from '../utils';
+import {
+  buildBaseUrl,
+  createCustomFetch,
+  createFirstTokenRecorder,
+  estimateTokenCount as sharedEstimateTokenCount,
+  isFeatureSupported,
+  mergeHeaders,
+  processUsage as sharedProcessUsage,
+} from '../utils';
 
 /**
  * Client for Anthropic-compatible APIs
@@ -55,17 +58,7 @@ export class AnthropicProvider implements ApiProvider {
     "You are Claude Code, Anthropic's official CLI for Claude.";
 
   constructor(private readonly config: ProviderConfig) {
-    this.baseUrl = this.buildBaseUrl(config.baseUrl);
-  }
-
-  /**
-   * Anthropic SDK expects a base URL without a trailing /v1 segment.
-   */
-  private buildBaseUrl(baseUrl: string): string {
-    const normalized = normalizeBaseUrlInput(baseUrl);
-    return /\/v\d+$/i.test(normalized)
-      ? normalized.replace(/\/v\d+$/i, '')
-      : normalized;
+    this.baseUrl = buildBaseUrl(config.baseUrl, { stripPattern: /\/v\d+$/i });
   }
 
   /**
@@ -76,55 +69,30 @@ export class AnthropicProvider implements ApiProvider {
     const connectionTimeoutMs =
       this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
 
-    const customFetch = async (
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      let url = typeof input === 'string' ? input : input.toString();
-
-      // Claude Code client always calls the messages endpoints with `?beta=true`.
-      if (this.config.mimic === 'claude-code') {
-        try {
-          const u = new URL(url);
-          const isMessagesEndpoint =
-            u.pathname.endsWith('/v1/messages') ||
-            u.pathname.endsWith('/v1/messages/count_tokens');
-          if (isMessagesEndpoint && !u.searchParams.has('beta')) {
-            u.searchParams.set('beta', 'true');
+    // Claude Code client always calls the messages endpoints with `?beta=true`.
+    const urlTransformer =
+      this.config.mimic === 'claude-code'
+        ? (url: string) => {
+            try {
+              const u = new URL(url);
+              const isMessagesEndpoint =
+                u.pathname.endsWith('/v1/messages') ||
+                u.pathname.endsWith('/v1/messages/count_tokens');
+              if (isMessagesEndpoint && !u.searchParams.has('beta')) {
+                u.searchParams.set('beta', 'true');
+              }
+              return u.toString();
+            } catch {
+              return url;
+            }
           }
-          url = u.toString();
-        } catch {}
-      }
-
-      if (logger) {
-        const requestHeaders = headersInitToRecord(init?.headers);
-        logger.providerRequest({
-          endpoint: url,
-          method: init?.method,
-          headers: requestHeaders,
-          body: bodyInitToLoggableValue(init?.body, requestHeaders),
-        });
-      }
-
-      const response = await fetchWithRetry(url, {
-        ...init,
-        logger,
-        retryConfig: DEFAULT_RETRY_CONFIG,
-        connectionTimeoutMs,
-      });
-
-      if (logger) {
-        logger.providerResponseMeta(response);
-      }
-
-      return response;
-    };
+        : undefined;
 
     return new Anthropic({
       apiKey: this.config.apiKey,
       baseURL: this.baseUrl,
-      maxRetries: 0, // disable SDK retry; we use fetchWithRetry
-      fetch: customFetch,
+      maxRetries: 0,
+      fetch: createCustomFetch({ connectionTimeoutMs, logger, urlTransformer }),
     });
   }
 
@@ -132,14 +100,14 @@ export class AnthropicProvider implements ApiProvider {
    * Build request headers
    */
   private buildHeaders(modelConfig?: ModelConfig): Record<string, string> {
-    const headers: Record<string, string> = {};
-
-    Object.assign(headers, this.config.extraHeaders, modelConfig?.extraHeaders);
+    const headers = mergeHeaders(
+      this.config.extraHeaders,
+      modelConfig?.extraHeaders,
+    );
 
     if (this.config.mimic === 'claude-code') {
       headers['User-Agent'] = 'claude-cli/1.0.83 (external, cli)';
       headers['x-app'] = 'cli';
-      // these headers already set by the SDK, but we set them here for fixed values
       headers['x-stainless-arch'] = 'arm64';
       headers['x-stainless-lang'] = 'js';
       headers['x-stainless-os'] = 'MacOS';
@@ -956,14 +924,7 @@ export class AnthropicProvider implements ApiProvider {
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     let raw: BetaMessage | undefined;
 
-    let firstTokenRecorded = false;
-    const recordFirstToken = () => {
-      if (!firstTokenRecorded) {
-        performanceTrace.ttft =
-          Date.now() - (performanceTrace.tts + performanceTrace.ttf);
-        firstTokenRecorded = true;
-      }
-    };
+    const recordFirstToken = createFirstTokenRecorder(performanceTrace);
 
     for await (const event of stream) {
       if (token.isCancellationRequested) {
@@ -1259,23 +1220,16 @@ export class AnthropicProvider implements ApiProvider {
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
   ) {
-    if (usage.output_tokens) {
-      performanceTrace.tps =
-        (usage.output_tokens /
-          (Date.now() - (performanceTrace.tts + performanceTrace.ttf))) *
-        1000;
-    } else {
-      performanceTrace.tps = NaN;
-    }
-    logger.usage(usage);
+    sharedProcessUsage(
+      usage.output_tokens,
+      performanceTrace,
+      logger,
+      usage as unknown as Record<string, unknown>,
+    );
   }
 
-  /**
-   * Estimate token count for text (rough approximation)
-   */
   estimateTokenCount(text: string): number {
-    // Rough estimation: ~4 characters per token for English text
-    return Math.ceil(text.length / 4);
+    return sharedEstimateTokenCount(text);
   }
 
   /**

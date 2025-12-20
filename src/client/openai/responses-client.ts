@@ -9,20 +9,23 @@ import { ThinkingBlockMetadata } from '../types';
 import { ApiProvider } from '../interface';
 import OpenAI from 'openai';
 import {
-  bodyInitToLoggableValue,
   decodeStatefulMarkerPart,
-  DEFAULT_RETRY_CONFIG,
   DEFAULT_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
-  fetchWithRetry,
-  headersInitToRecord,
   isCacheControlMarker,
   isImageMarker,
   isInternalMarker,
-  normalizeBaseUrlInput,
   normalizeImageMimeType,
   withIdleTimeout,
 } from '../../utils';
+import {
+  buildBaseUrl,
+  createCustomFetch,
+  createFirstTokenRecorder,
+  estimateTokenCount as sharedEstimateTokenCount,
+  mergeHeaders,
+  processUsage as sharedProcessUsage,
+} from '../utils';
 import * as vscode from 'vscode';
 import {
   EasyInputMessage,
@@ -47,18 +50,17 @@ export class OpenAIResponsesProvider implements ApiProvider {
   private readonly baseUrl: string;
 
   constructor(private readonly config: ProviderConfig) {
-    this.baseUrl = this.buildBaseUrl(config.baseUrl);
-  }
-
-  private buildBaseUrl(baseUrl: string): string {
-    const normalized = normalizeBaseUrlInput(baseUrl);
-    return /\/v\d+$/.test(normalized) ? normalized : `${normalized}/v1`;
+    this.baseUrl = buildBaseUrl(config.baseUrl, {
+      ensureSuffix: '/v1',
+      skipSuffixIfMatch: /\/v\d+$/,
+    });
   }
 
   private buildHeaders(modelConfig?: ModelConfig): Record<string, string> {
-    const headers: Record<string, string> = {};
-
-    Object.assign(headers, this.config.extraHeaders, modelConfig?.extraHeaders);
+    const headers = mergeHeaders(
+      this.config.extraHeaders,
+      modelConfig?.extraHeaders,
+    );
 
     if (this.config.apiKey) {
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
@@ -75,41 +77,11 @@ export class OpenAIResponsesProvider implements ApiProvider {
     const connectionTimeoutMs =
       this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection;
 
-    const customFetch = async (
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url = typeof input === 'string' ? input : input.toString();
-
-      if (logger) {
-        const requestHeaders = headersInitToRecord(init?.headers);
-        logger.providerRequest({
-          endpoint: url,
-          method: init?.method,
-          headers: requestHeaders,
-          body: bodyInitToLoggableValue(init?.body, requestHeaders),
-        });
-      }
-
-      const response = await fetchWithRetry(url, {
-        ...init,
-        logger,
-        retryConfig: DEFAULT_RETRY_CONFIG,
-        connectionTimeoutMs,
-      });
-
-      if (logger) {
-        logger.providerResponseMeta(response);
-      }
-
-      return response;
-    };
-
     return new OpenAI({
       apiKey: this.config.apiKey,
       baseURL: this.baseUrl,
-      maxRetries: 0, // Disable SDK's built-in retry - we use our own fetchWithRetry
-      fetch: customFetch,
+      maxRetries: 0,
+      fetch: createCustomFetch({ connectionTimeoutMs, logger }),
     });
   }
 
@@ -631,14 +603,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     let usage: ResponseUsage | undefined;
 
-    let firstTokenRecorded = false;
-    const recordFirstToken = () => {
-      if (!firstTokenRecorded) {
-        performanceTrace.ttft =
-          Date.now() - (performanceTrace.tts + performanceTrace.ttf);
-        firstTokenRecorded = true;
-      }
-    };
+    const recordFirstToken = createFirstTokenRecorder(performanceTrace);
 
     for await (const event of stream) {
       if (token.isCancellationRequested) {
@@ -743,20 +708,16 @@ export class OpenAIResponsesProvider implements ApiProvider {
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
   ) {
-    if (usage.output_tokens) {
-      performanceTrace.tps =
-        (usage.output_tokens /
-          (Date.now() - (performanceTrace.tts + performanceTrace.ttf))) *
-        1000;
-    } else {
-      performanceTrace.tps = NaN;
-    }
-    logger.usage(usage);
+    sharedProcessUsage(
+      usage.output_tokens,
+      performanceTrace,
+      logger,
+      usage as unknown as Record<string, unknown>,
+    );
   }
 
   estimateTokenCount(text: string): number {
-    // Rough estimation: ~4 characters per token for English text
-    return Math.ceil(text.length / 4);
+    return sharedEstimateTokenCount(text);
   }
 
   async getAvailableModels(): Promise<ModelConfig[]> {

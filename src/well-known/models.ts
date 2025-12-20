@@ -538,7 +538,10 @@ export function findBestMatchingWellKnownModel(
  */
 export function mergeWithWellKnownModel(apiModel: ModelConfig): ModelConfig {
   const wellKnown = findBestMatchingWellKnownModel(apiModel.id);
-  return Object.assign({}, wellKnown ?? {}, apiModel);
+  const filteredApiModel = Object.fromEntries(
+    Object.entries(apiModel).filter(([, value]) => value !== undefined),
+  ) as ModelConfig;
+  return Object.assign({}, wellKnown ?? {}, filteredApiModel);
 }
 
 /**

@@ -253,7 +253,7 @@ export const providerFormSchema: FormSchema<ProviderFormDraft> = {
     {
       key: 'timeout',
       type: 'custom',
-      label: 'Timeout',
+      label: 'Network Timeout',
       icon: 'clock',
       section: 'others',
       edit: async (draft, context) => {
@@ -273,7 +273,6 @@ export const providerFormSchema: FormSchema<ProviderFormDraft> = {
         }
         return parts.join(', ');
       },
-      getDetail: () => 'Configure connection and response timeouts.',
     },
   ],
 };

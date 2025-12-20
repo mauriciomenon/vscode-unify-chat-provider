@@ -150,6 +150,7 @@ export interface ProviderHttpLogger {
     body?: unknown;
   }): void;
   providerResponseMeta(response: Response): void;
+  providerResponseBody?(body: unknown): void;
   retry(
     attempt: number,
     maxRetries: number,
@@ -500,6 +501,10 @@ export class SimpleHttpLogger implements ProviderHttpLogger {
       response.statusText || ''
     } (${contentType})`.trim();
     this.ch.info(message);
+  }
+
+  providerResponseBody(body: unknown): void {
+    this.ch.info(`[${this.requestId}] Response:\n${stringifyForLog(body)}`);
   }
 
   error(error: unknown): void {

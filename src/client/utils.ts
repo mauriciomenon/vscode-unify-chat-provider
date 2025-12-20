@@ -1,5 +1,13 @@
 import { getBaseModelId } from '../model-id-utils';
-import { ModelConfig, ProviderConfig } from '../types';
+import type { ProviderHttpLogger, RequestLogger } from '../logger';
+import { ModelConfig, PerformanceTrace, ProviderConfig } from '../types';
+import {
+  bodyInitToLoggableValue,
+  DEFAULT_RETRY_CONFIG,
+  fetchWithRetry,
+  headersInitToRecord,
+  normalizeBaseUrlInput,
+} from '../utils';
 import { FeatureId, FEATURES, PROVIDER_TYPES } from './definitions';
 import { ApiProvider } from './interface';
 import { ProviderPattern } from './types';
@@ -164,4 +172,162 @@ export function isFeatureSupported(
   }
 
   return false;
+}
+
+// ============================================================================
+// Shared utility functions for client implementations
+// ============================================================================
+
+/**
+ * Build a base URL with optional pattern stripping or suffix ensuring.
+ */
+export function buildBaseUrl(
+  baseUrl: string,
+  options?: {
+    stripPattern?: RegExp;
+    ensureSuffix?: string;
+    /** Skip adding ensureSuffix if URL matches this pattern */
+    skipSuffixIfMatch?: RegExp;
+  },
+): string {
+  const normalized = normalizeBaseUrlInput(baseUrl);
+
+  if (options?.stripPattern && options.stripPattern.test(normalized)) {
+    return normalized.replace(options.stripPattern, '');
+  }
+
+  if (options?.ensureSuffix) {
+    // Skip if URL already matches the skip pattern (e.g., /v\d+$)
+    if (options.skipSuffixIfMatch?.test(normalized)) {
+      return normalized;
+    }
+    if (!normalized.endsWith(options.ensureSuffix)) {
+      return `${normalized}${options.ensureSuffix}`;
+    }
+  }
+
+  return normalized;
+}
+
+/**
+ * Merge multiple header objects into one.
+ */
+export function mergeHeaders(
+  ...sources: (Record<string, string> | undefined)[]
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const source of sources) {
+    if (source) {
+      Object.assign(result, source);
+    }
+  }
+  return result;
+}
+
+/**
+ * Estimate token count for text (rough approximation: ~4 characters per token).
+ */
+export function estimateTokenCount(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Process usage information and update performance trace.
+ */
+export function processUsage(
+  outputTokens: number | undefined,
+  performanceTrace: PerformanceTrace,
+  logger: RequestLogger,
+  usage: Record<string, unknown>,
+): void {
+  if (outputTokens) {
+    performanceTrace.tps =
+      (outputTokens / (Date.now() - (performanceTrace.tts + performanceTrace.ttf))) *
+      1000;
+  } else {
+    performanceTrace.tps = NaN;
+  }
+  logger.usage(usage as unknown as Parameters<RequestLogger['usage']>[0]);
+}
+
+/**
+ * Create a function to record the first token timing.
+ */
+export function createFirstTokenRecorder(
+  performanceTrace: PerformanceTrace,
+): () => void {
+  let recorded = false;
+  return () => {
+    if (!recorded) {
+      performanceTrace.ttft =
+        Date.now() - (performanceTrace.tts + performanceTrace.ttf);
+      recorded = true;
+    }
+  };
+}
+
+/**
+ * Options for creating a custom fetch function.
+ */
+export interface CreateCustomFetchOptions {
+  connectionTimeoutMs: number;
+  logger?: ProviderHttpLogger;
+  urlTransformer?: (url: string) => string;
+}
+
+/**
+ * Create a custom fetch function with logging, retry, and timeout support.
+ */
+export function createCustomFetch(
+  options: CreateCustomFetchOptions,
+): typeof fetch {
+  const { connectionTimeoutMs, logger, urlTransformer } = options;
+
+  return async (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    let url = typeof input === 'string' ? input : input.toString();
+
+    if (urlTransformer) {
+      url = urlTransformer(url);
+    }
+
+    if (logger) {
+      const requestHeaders = headersInitToRecord(init?.headers);
+      logger.providerRequest({
+        endpoint: url,
+        method: init?.method,
+        headers: requestHeaders,
+        body: bodyInitToLoggableValue(init?.body, requestHeaders),
+      });
+    }
+
+    const response = await fetchWithRetry(url, {
+      ...init,
+      logger,
+      retryConfig: DEFAULT_RETRY_CONFIG,
+      connectionTimeoutMs,
+    });
+
+    if (logger) {
+      logger.providerResponseMeta(response);
+
+      if (logger.providerResponseBody) {
+        const contentType = response.headers.get('content-type') ?? '';
+        const isStreaming =
+          contentType.includes('text/event-stream') ||
+          contentType.includes('ndjson');
+        if (!isStreaming) {
+          const cloned = response.clone();
+          cloned.json().then(
+            (body) => logger.providerResponseBody!(body),
+            () => {},
+          );
+        }
+      }
+    }
+
+    return response;
+  };
 }
