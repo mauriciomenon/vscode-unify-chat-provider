@@ -59,7 +59,8 @@ const { values } = parseArgs({
 const dryRun = values['dry-run'] === true;
 const yes = values.yes === true;
 const allowDirty = values['allow-dirty'] === true;
-const providedVersion = typeof values.version === 'string' ? values.version : undefined;
+const providedVersion =
+  typeof values.version === 'string' ? values.version : undefined;
 const providedBump = typeof values.bump === 'string' ? values.bump : undefined;
 const skipPublish = values['skip-publish'] === true;
 const skipGitHub = values['skip-github'] === true;
@@ -97,14 +98,22 @@ try {
   const tagName = `v${nextVersion}`;
   const date = formatDate(new Date());
 
-  const branch = (await runCapture(repoRoot, 'git', ['branch', '--show-current'])).stdout.trim();
-  const headSha = (await runCapture(repoRoot, 'git', ['rev-parse', 'HEAD'])).stdout.trim();
+  const branch = (
+    await runCapture(repoRoot, 'git', ['branch', '--show-current'])
+  ).stdout.trim();
+  const headSha = (
+    await runCapture(repoRoot, 'git', ['rev-parse', 'HEAD'])
+  ).stdout.trim();
   const baseTag = await getLatestGitTag(repoRoot);
   const range = baseTag ? `${baseTag}..HEAD` : 'HEAD';
   const commits = await getCommits(repoRoot, range);
 
   const sections = groupCommits(commits);
-  const changelogEntry = renderChangelogEntry({ version: nextVersion, date, sections });
+  const changelogEntry = renderChangelogEntry({
+    version: nextVersion,
+    date,
+    sections,
+  });
 
   // Create temp file for user to edit changelog
   const changelogTempFile = await writeChangelogTempFile(changelogEntry);
@@ -150,14 +159,23 @@ try {
 
   const doCommitAndTag = yes
     ? true
-    : await confirm(rl, `Create git commit + tag ${tagName}?`, true);
+    : await confirm(rl, `Create git commit?`, true);
   if (doCommitAndTag) {
     await runInherit(repoRoot, 'git', ['add', 'package.json', 'CHANGELOG.md']);
-    await runInherit(repoRoot, 'git', ['commit', '-m', `chore(release): ${tagName}`]);
+    await runInherit(repoRoot, 'git', [
+      'commit',
+      '-m',
+      `chore(release): ${tagName}`,
+    ]);
   }
 
   const vsixPath = join(repoRoot, `${extensionName}-${nextVersion}.vsix`);
-  await runInherit(repoRoot, 'vsce', ['package', '--out', vsixPath, '--allow-all-proposed-apis']);
+  await runInherit(repoRoot, 'vsce', [
+    'package',
+    '--out',
+    vsixPath,
+    '--allow-all-proposed-apis',
+  ]);
 
   if (!skipPublish) {
     await runInherit(repoRoot, 'vsce', ['publish', '--packagePath', vsixPath]);
@@ -187,17 +205,24 @@ try {
 
 async function assertGitRepo(cwd: string): Promise<void> {
   try {
-    const result = await runCapture(cwd, 'git', ['rev-parse', '--is-inside-work-tree']);
+    const result = await runCapture(cwd, 'git', [
+      'rev-parse',
+      '--is-inside-work-tree',
+    ]);
     if (result.stdout.trim() !== 'true') {
       throw new Error('Not a git repository.');
     }
   } catch (error) {
-    throw new Error(`git is required and must be run inside a git repo. (${String(error)})`);
+    throw new Error(
+      `git is required and must be run inside a git repo. (${String(error)})`,
+    );
   }
 }
 
 async function assertGitClean(cwd: string, allowDirty: boolean): Promise<void> {
-  const status = (await runCapture(cwd, 'git', ['status', '--porcelain'])).stdout.trim();
+  const status = (
+    await runCapture(cwd, 'git', ['status', '--porcelain'])
+  ).stdout.trim();
   if (!status) {
     return;
   }
@@ -217,7 +242,8 @@ async function resolveNextVersion(params: {
   yes: boolean;
   rl: ReturnType<typeof createInterface>;
 }): Promise<string> {
-  const { current, currentRaw, providedVersion, providedBump, yes, rl } = params;
+  const { current, currentRaw, providedVersion, providedBump, yes, rl } =
+    params;
 
   if (providedVersion) {
     const parsed = parseSemver(providedVersion);
@@ -265,10 +291,16 @@ async function resolveNextVersion(params: {
   }
 }
 
-function normalizeBump(value: string | undefined): 'patch' | 'minor' | 'major' | null {
+function normalizeBump(
+  value: string | undefined,
+): 'patch' | 'minor' | 'major' | null {
   if (!value) return null;
   const normalized = value.trim().toLowerCase();
-  if (normalized === 'patch' || normalized === 'minor' || normalized === 'major') {
+  if (
+    normalized === 'patch' ||
+    normalized === 'minor' ||
+    normalized === 'major'
+  ) {
     return normalized;
   }
   throw new Error(`Invalid --bump: ${value} (expected patch|minor|major)`);
@@ -286,7 +318,11 @@ function parseSemver(input: string): Semver | null {
   const major = Number(match.groups.major);
   const minor = Number(match.groups.minor);
   const patch = Number(match.groups.patch);
-  if (!Number.isInteger(major) || !Number.isInteger(minor) || !Number.isInteger(patch)) {
+  if (
+    !Number.isInteger(major) ||
+    !Number.isInteger(minor) ||
+    !Number.isInteger(patch)
+  ) {
     return null;
   }
   const prerelease = match.groups.prerelease || undefined;
@@ -294,9 +330,18 @@ function parseSemver(input: string): Semver | null {
   return { major, minor, patch, prerelease, build };
 }
 
-function bumpSemver(current: Semver, bump: 'patch' | 'minor' | 'major'): Semver {
-  if (bump === 'patch') return { major: current.major, minor: current.minor, patch: current.patch + 1 };
-  if (bump === 'minor') return { major: current.major, minor: current.minor + 1, patch: 0 };
+function bumpSemver(
+  current: Semver,
+  bump: 'patch' | 'minor' | 'major',
+): Semver {
+  if (bump === 'patch')
+    return {
+      major: current.major,
+      minor: current.minor,
+      patch: current.patch + 1,
+    };
+  if (bump === 'minor')
+    return { major: current.major, minor: current.minor + 1, patch: 0 };
   return { major: current.major + 1, minor: 0, patch: 0 };
 }
 
@@ -309,7 +354,11 @@ function formatSemver(version: Semver): string {
 
 async function getLatestGitTag(cwd: string): Promise<string | null> {
   try {
-    const result = await runCapture(cwd, 'git', ['describe', '--tags', '--abbrev=0']);
+    const result = await runCapture(cwd, 'git', [
+      'describe',
+      '--tags',
+      '--abbrev=0',
+    ]);
     const tag = result.stdout.trim();
     return tag ? tag : null;
   } catch {
@@ -319,7 +368,12 @@ async function getLatestGitTag(cwd: string): Promise<string | null> {
 
 async function getCommits(cwd: string, range: string): Promise<Commit[]> {
   const format = '%H%x09%s%x09%an';
-  const result = await runCapture(cwd, 'git', ['log', range, '--no-merges', `--pretty=format:${format}`]);
+  const result = await runCapture(cwd, 'git', [
+    'log',
+    range,
+    '--no-merges',
+    `--pretty=format:${format}`,
+  ]);
   const lines = result.stdout.split(/\r?\n/).filter(Boolean);
   const commits: Commit[] = [];
   for (const line of lines) {
@@ -392,7 +446,12 @@ function groupCommits(commits: Commit[]): Section[] {
 
 function parseConventionalSubject(
   subject: string,
-): { type: string; scope?: string; breaking: boolean; description: string } | null {
+): {
+  type: string;
+  scope?: string;
+  breaking: boolean;
+  description: string;
+} | null {
   const match = /^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/.exec(subject);
   if (!match) {
     return null;
@@ -420,7 +479,7 @@ function renderChangelogEntry(params: {
 }): string {
   const lines: string[] = [];
   lines.push(`## v${params.version} - ${params.date}`, '');
-  const hasCommits = params.sections.some(s => s.commits.length > 0);
+  const hasCommits = params.sections.some((s) => s.commits.length > 0);
   if (!hasCommits) {
     lines.push('- No changes recorded.', '');
     return lines.join('\n');
@@ -431,7 +490,11 @@ function renderChangelogEntry(params: {
     }
     lines.push(`### ${section.title}`);
     for (const commit of section.commits) {
-      lines.push(`- ${formatCommitTitle(commit)} (${commit.shortHash}, ${commit.author})`);
+      lines.push(
+        `- ${formatCommitTitle(commit)} (${commit.shortHash}, ${
+          commit.author
+        })`,
+      );
     }
     lines.push('');
   }
@@ -461,9 +524,21 @@ function printSummary(params: {
   console.log(`- Branch:    ${params.branch}`);
   console.log(`- Commit:    ${params.headSha}`);
   console.log(`- Base tag:  ${params.baseTag ?? '(none)'}`);
-  console.log(`- Commits:   ${params.commits.length} (range: ${params.baseTag ? `${params.baseTag}..HEAD` : 'HEAD'})`);
-  console.log(`- Publish:   ${params.skipPublish ? 'skip' : 'VS Code Marketplace (vsce publish)'}`);
-  console.log(`- GitHub:    ${params.skipGitHub ? 'skip' : 'Create Release + upload VSIX'}`);
+  console.log(
+    `- Commits:   ${params.commits.length} (range: ${
+      params.baseTag ? `${params.baseTag}..HEAD` : 'HEAD'
+    })`,
+  );
+  console.log(
+    `- Publish:   ${
+      params.skipPublish ? 'skip' : 'VS Code Marketplace (vsce publish)'
+    }`,
+  );
+  console.log(
+    `- GitHub:    ${
+      params.skipGitHub ? 'skip' : 'Create Release + upload VSIX'
+    }`,
+  );
   console.log(`- Mode:      ${params.dryRun ? 'dry-run' : 'live'}`);
   console.log('');
   console.log(`Edit changelog: ${params.changelogTempFile}`);
@@ -480,7 +555,10 @@ async function updatePackageJsonVersion(
   await writeFile(pkgPath, `${JSON.stringify(pkgJson, null, 2)}\n`, 'utf8');
 }
 
-async function upsertChangelog(changelogPath: string, entry: string): Promise<void> {
+async function upsertChangelog(
+  changelogPath: string,
+  entry: string,
+): Promise<void> {
   const header = '# Changelog';
   const exists = await fileExists(changelogPath);
   if (!exists) {
@@ -494,17 +572,30 @@ async function upsertChangelog(changelogPath: string, entry: string): Promise<vo
   const headerMatch = /^#\s*Changelog\s*\n(\n)*/.exec(normalized);
   if (!headerMatch) {
     const merged = `${header}\n\n${entry.trimEnd()}\n\n${normalized.trimStart()}`;
-    await writeFile(changelogPath, `${merged.replace(/\n{3,}/g, '\n\n')}\n`, 'utf8');
+    await writeFile(
+      changelogPath,
+      `${merged.replace(/\n{3,}/g, '\n\n')}\n`,
+      'utf8',
+    );
     return;
   }
 
   const insertAt = headerMatch[0].length;
-  const merged = `${normalized.slice(0, insertAt)}${entry.trimEnd()}\n\n${normalized.slice(insertAt).trimStart()}`;
-  await writeFile(changelogPath, `${merged.replace(/\n{3,}/g, '\n\n')}\n`, 'utf8');
+  const merged = `${normalized.slice(
+    0,
+    insertAt,
+  )}${entry.trimEnd()}\n\n${normalized.slice(insertAt).trimStart()}`;
+  await writeFile(
+    changelogPath,
+    `${merged.replace(/\n{3,}/g, '\n\n')}\n`,
+    'utf8',
+  );
 }
 
 async function ensureGitTag(cwd: string, tagName: string): Promise<void> {
-  const existing = (await runCapture(cwd, 'git', ['tag', '--list', tagName])).stdout.trim();
+  const existing = (
+    await runCapture(cwd, 'git', ['tag', '--list', tagName])
+  ).stdout.trim();
   if (existing === tagName) {
     console.log(`Tag already exists: ${tagName}`);
     return;
@@ -580,7 +671,9 @@ async function resolveGitHubRepoSlug(repoRoot: string): Promise<string | null> {
   }
 
   try {
-    const origin = (await runCapture(repoRoot, 'git', ['remote', 'get-url', 'origin'])).stdout.trim();
+    const origin = (
+      await runCapture(repoRoot, 'git', ['remote', 'get-url', 'origin'])
+    ).stdout.trim();
     return parseGitHubSlug(origin);
   } catch {
     return null;
@@ -610,7 +703,9 @@ function parseGitHubSlug(input: string): string | null {
     return `${ssh[1]}/${stripGitSuffix(ssh[2])}`;
   }
 
-  const https = /^https?:\/\/github\.com\/([^/]+)\/(.+)$/.exec(trimmed.replace(/^git\+/, ''));
+  const https = /^https?:\/\/github\.com\/([^/]+)\/(.+)$/.exec(
+    trimmed.replace(/^git\+/, ''),
+  );
   if (https) {
     const repo = https[2].split('/')[0] ?? https[2];
     return `${https[1]}/${stripGitSuffix(repo)}`;
@@ -654,7 +749,9 @@ async function createGitHubRelease(params: {
 
   if (!response.ok) {
     const message = await safeReadResponseText(response);
-    throw new Error(`GitHub release create failed (${response.status}): ${message}`);
+    throw new Error(
+      `GitHub release create failed (${response.status}): ${message}`,
+    );
   }
 
   const json: unknown = await response.json();
@@ -690,7 +787,9 @@ async function uploadGitHubReleaseAsset(params: {
 
   if (!response.ok) {
     const message = await safeReadResponseText(response);
-    throw new Error(`GitHub asset upload failed (${response.status}): ${message}`);
+    throw new Error(
+      `GitHub asset upload failed (${response.status}): ${message}`,
+    );
   }
 }
 
@@ -710,7 +809,10 @@ async function writeChangelogTempFile(changelogEntry: string): Promise<string> {
 
 function changelogToGitHubReleaseNotes(changelogEntry: string): string {
   // Convert CHANGELOG format "## v1.0.0 - 2025-01-01" to GitHub format "## v1.0.0 (2025-01-01)"
-  return changelogEntry.replace(/^(## v[\d.]+) - (\d{4}-\d{2}-\d{2})/, '$1 ($2)');
+  return changelogEntry.replace(
+    /^(## v[\d.]+) - (\d{4}-\d{2}-\d{2})/,
+    '$1 ($2)',
+  );
 }
 
 async function confirm(
@@ -724,7 +826,11 @@ async function confirm(
   return answer === 'y' || answer === 'yes';
 }
 
-async function canRun(cwd: string, command: string, args: string[]): Promise<boolean> {
+async function canRun(
+  cwd: string,
+  command: string,
+  args: string[],
+): Promise<boolean> {
   try {
     await runCapture(cwd, command, args);
     return true;
@@ -735,7 +841,11 @@ async function canRun(cwd: string, command: string, args: string[]): Promise<boo
 
 type RunResult = { stdout: string; stderr: string };
 
-async function runCapture(cwd: string, command: string, args: string[]): Promise<RunResult> {
+async function runCapture(
+  cwd: string,
+  command: string,
+  args: string[],
+): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
@@ -748,25 +858,35 @@ async function runCapture(cwd: string, command: string, args: string[]): Promise
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', chunk => {
+    child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
-    child.stderr.on('data', chunk => {
+    child.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
 
     child.on('error', reject);
-    child.on('close', code => {
+    child.on('close', (code) => {
       if (code === 0) {
         resolve({ stdout, stderr });
       } else {
-        reject(new Error(`${command} ${args.join(' ')} failed (${code}): ${stderr || stdout}`));
+        reject(
+          new Error(
+            `${command} ${args.join(' ')} failed (${code}): ${
+              stderr || stdout
+            }`,
+          ),
+        );
       }
     });
   });
 }
 
-async function runInherit(cwd: string, command: string, args: string[]): Promise<void> {
+async function runInherit(
+  cwd: string,
+  command: string,
+  args: string[],
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
@@ -774,7 +894,7 @@ async function runInherit(cwd: string, command: string, args: string[]): Promise
       env: process.env,
     });
     child.on('error', reject);
-    child.on('close', code => {
+    child.on('close', (code) => {
       if (code === 0) resolve();
       else reject(new Error(`${command} ${args.join(' ')} failed (${code})`));
     });
@@ -801,7 +921,10 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-function parseJsonObject(text: string, sourcePath: string): Record<string, unknown> {
+function parseJsonObject(
+  text: string,
+  sourcePath: string,
+): Record<string, unknown> {
   let value: unknown;
   try {
     value = JSON.parse(text);
