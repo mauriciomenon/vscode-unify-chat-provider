@@ -1,8 +1,5 @@
 import * as vscode from 'vscode';
-import {
-  mergeWithWellKnownModels,
-  WELL_KNOWN_MODELS,
-} from '../../well-known/models';
+import { WELL_KNOWN_MODELS } from '../../well-known/models';
 import { confirmDelete, pickQuickItem, showDeletedMessage } from '../component';
 import {
   duplicateModel,
@@ -283,20 +280,14 @@ export async function runModelListScreen(
   }
 
   if (selection.action === 'add-from-official') {
-    if (!route.draft?.baseUrl || !route.draft?.type) {
+    const provider = buildProviderConfigForOfficialModels(route);
+    if (!provider) {
       vscode.window.showErrorMessage(
         'Please configure API Format and Base URL first before fetching official models.',
       );
       return { kind: 'stay' };
     }
-    const draft = route.draft;
-    const client = createProvider({
-      type: draft.type!,
-      name: draft.name ?? 'temp',
-      baseUrl: draft.baseUrl!,
-      apiKey: draft.apiKey,
-      models: [],
-    });
+    const client = createProvider(provider);
     if (!client.getAvailableModels) {
       vscode.window.showErrorMessage(
         'Fetching official models is not supported for this provider.',
@@ -311,7 +302,7 @@ export async function runModelListScreen(
         title: 'Add From Official Model List',
         existingModels: route.models,
         fetchModels: async () =>
-          mergeWithWellKnownModels(await client.getAvailableModels!()),
+          officialModelsManager.getOfficialModels(provider, true),
       },
     };
   }

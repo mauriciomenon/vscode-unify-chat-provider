@@ -10,7 +10,7 @@ import { ModelConfig, PerformanceTrace, ProviderConfig } from './types';
 import { getBaseModelId } from './model-id-utils';
 import { createProvider } from './client/utils';
 import { formatModelDetail } from './ui/form-utils';
-import { officialModelsManager } from './official-models-manager';
+import { getAllModelsForProvider } from './utils';
 
 export class UnifyChatService implements vscode.LanguageModelChatProvider {
   private readonly clients = new Map<string, ApiProvider>();
@@ -32,25 +32,9 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     const models: vscode.LanguageModelChatInformation[] = [];
 
     for (const provider of this.configStore.endpoints) {
-      // Collect user-configured model IDs for deduplication
-      const userModelIds = new Set(provider.models.map((m) => m.id));
-
-      // Add user-configured models first
-      for (const model of provider.models) {
+      const allModels = await getAllModelsForProvider(provider);
+      for (const model of allModels) {
         models.push(this.createModelInfo(provider, model));
-      }
-
-      // Add official models if enabled (excluding conflicts with user models)
-      if (provider.autoFetchOfficialModels) {
-        const officialModels = await officialModelsManager.getOfficialModels(
-          provider,
-        );
-        for (const model of officialModels) {
-          // Skip if user already has this model configured
-          if (!userModelIds.has(model.id)) {
-            models.push(this.createModelInfo(provider, model));
-          }
-        }
       }
     }
 
@@ -153,23 +137,10 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       return null;
     }
 
-    // First check user-configured models
-    const userModel = provider.models.find((m) => m.id === parsed.modelName);
-    if (userModel) {
-      return { provider, model: userModel };
-    }
-
-    // Then check official models if enabled
-    if (provider.autoFetchOfficialModels) {
-      const officialModels = await officialModelsManager.getOfficialModels(
-        provider,
-      );
-      const officialModel = officialModels.find(
-        (m) => m.id === parsed.modelName,
-      );
-      if (officialModel) {
-        return { provider, model: officialModel };
-      }
+    const allModels = await getAllModelsForProvider(provider);
+    const model = allModels.find((m) => m.id === parsed.modelName);
+    if (model) {
+      return { provider, model };
     }
 
     return null;

@@ -1,5 +1,7 @@
 import { DataPartMimeTypes, StatefulMarkerData } from './client/types';
 import type { ProviderHttpLogger } from './logger';
+import { officialModelsManager } from './official-models-manager';
+import type { ModelConfig, ProviderConfig } from './types';
 import * as vscode from 'vscode';
 
 /**
@@ -490,4 +492,39 @@ export function normalizeImageMimeType(
   )
     ? (mimeType as SupportedBase64ImageMimeType)
     : undefined;
+}
+
+export interface GetAllModelsOptions {
+  /**
+   * Whether to force fetch official models (skip cache)
+   */
+  forceFetch?: boolean;
+}
+
+/**
+ * Get all models for a provider (user models + official models)
+ * - Automatically deduplicates, user models take priority
+ * - If autoFetchOfficialModels is not enabled, only returns user models
+ */
+export async function getAllModelsForProvider(
+  provider: ProviderConfig,
+  options?: GetAllModelsOptions,
+): Promise<ModelConfig[]> {
+  const userModels = provider.models;
+  const userModelIds = new Set(userModels.map((m) => m.id));
+
+  let officialModels: ModelConfig[] = [];
+  if (provider.autoFetchOfficialModels) {
+    officialModels = await officialModelsManager.getOfficialModels(
+      provider,
+      options?.forceFetch,
+    );
+  }
+
+  // Filter out official models that conflict with user models
+  const filteredOfficialModels = officialModels.filter(
+    (m) => !userModelIds.has(m.id),
+  );
+
+  return [...userModels, ...filteredOfficialModels];
 }

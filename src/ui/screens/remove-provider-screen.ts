@@ -1,6 +1,21 @@
 import * as vscode from 'vscode';
 import type { ConfigStore } from '../../config-store';
 import { confirmRemove, pickQuickItem, showRemovedMessage } from '../component';
+import { getAllModelsForProvider } from '../../utils';
+import { ProviderConfig } from '../../types';
+
+async function buildProviderItem(
+  p: ProviderConfig,
+): Promise<vscode.QuickPickItem & { providerName: string }> {
+  const allModels = await getAllModelsForProvider(p);
+  const modelList = allModels.map((m) => m.name || m.id).join(', ');
+  return {
+    label: p.name,
+    description: p.baseUrl,
+    detail: `${allModels.length} model(s): ${modelList}`,
+    providerName: p.name,
+  };
+}
 
 export async function runRemoveProviderScreen(
   store: ConfigStore,
@@ -11,19 +26,14 @@ export async function runRemoveProviderScreen(
     return;
   }
 
+  const items = await Promise.all(endpoints.map(buildProviderItem));
+
   const selection = await pickQuickItem<
     vscode.QuickPickItem & { providerName: string }
   >({
     title: 'Remove Provider',
     placeholder: 'Select a provider to remove',
-    items: endpoints.map((p) => ({
-      label: p.name,
-      description: p.baseUrl,
-      detail: `${p.models.length} model(s): ${p.models
-        .map((m) => m.name || m.id)
-        .join(', ')}`,
-      providerName: p.name,
-    })),
+    items,
   });
 
   if (!selection) return;

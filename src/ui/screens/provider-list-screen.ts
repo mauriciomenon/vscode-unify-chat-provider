@@ -13,6 +13,7 @@ import type {
 import { duplicateProvider, saveProviderDraft } from '../provider-ops';
 import { createProviderDraft } from '../form-utils';
 import { ProviderConfig } from '../../types';
+import { getAllModelsForProvider } from '../../utils';
 
 type ProviderListItem = vscode.QuickPickItem & {
   action?: 'add' | 'add-from-wellknown' | 'add-from-base64' | 'provider';
@@ -28,7 +29,7 @@ export async function runProviderListScreen(
     title: 'Manage Providers',
     placeholder: 'Select a provider to edit, or add a new one',
     ignoreFocusOut: false,
-    items: buildProviderListItems(ctx.store),
+    items: await buildProviderListItems(ctx.store),
     onDidTriggerItemButton: async (event, qp) => {
       const item = event.item;
       if (item.action !== 'provider' || !item.providerName) return;
@@ -47,7 +48,7 @@ export async function runProviderListScreen(
         const provider = ctx.store.getProvider(item.providerName);
         if (provider) {
           await duplicateProvider(ctx.store, provider);
-          qp.items = buildProviderListItems(ctx.store);
+          qp.items = await buildProviderListItems(ctx.store);
         }
         return;
       }
@@ -60,7 +61,7 @@ export async function runProviderListScreen(
         if (!confirmed) return;
         await ctx.store.removeProvider(item.providerName);
         showDeletedMessage(item.providerName, 'Provider');
-        qp.items = buildProviderListItems(ctx.store);
+        qp.items = await buildProviderListItems(ctx.store);
       }
     },
   });
@@ -124,7 +125,9 @@ export async function runProviderListScreen(
   return { kind: 'stay' };
 }
 
-function buildProviderListItems(store: UiContext['store']): ProviderListItem[] {
+async function buildProviderListItems(
+  store: UiContext['store'],
+): Promise<ProviderListItem[]> {
   const items: ProviderListItem[] = [
     {
       label: '$(add) Add Provider...',
@@ -145,7 +148,8 @@ function buildProviderListItems(store: UiContext['store']): ProviderListItem[] {
 
   for (const provider of store.endpoints) {
     items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
-    const modelList = provider.models.map((m) => m.name || m.id).join(', ');
+    const allModels = await getAllModelsForProvider(provider);
+    const modelList = allModels.map((m) => m.name || m.id).join(', ');
     items.push({
       label: provider.name,
       description: provider.baseUrl,
