@@ -16,6 +16,7 @@
   "engines": {
     "vscode": "^1.104.0"
   },
+  "packageManager": "npm@10.8.2",
   "extensionDependencies": [
     "GitHub.copilot-chat"
   ],

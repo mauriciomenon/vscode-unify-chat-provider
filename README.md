@@ -126,8 +126,8 @@ This includes:
 
 ## Release
 
-- Preview (no changes): `pnpm run release:dry`
-- Interactive release: `pnpm run release`
+- Preview (no changes): `npm run release:dry`
+- Interactive release: `npm run release`
 - Prereqs:
   - Bun (to run `scripts/release.ts`)
   - VS Code Marketplace: `vsce` authenticated (via `VSCE_PAT` or `vsce login`)
