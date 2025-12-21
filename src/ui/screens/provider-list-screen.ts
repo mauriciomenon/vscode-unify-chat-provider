@@ -132,7 +132,7 @@ function buildProviderListItems(store: UiContext['store']): ProviderListItem[] {
       alwaysShow: true,
     },
     {
-      label: '$(broadcast) Add From Well-Known Provider List...',
+      label: '$(star-empty) Add From Well-Known Provider List...',
       action: 'add-from-wellknown',
       alwaysShow: true,
     },

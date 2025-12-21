@@ -1,5 +1,8 @@
 import type { UiContext, UiNavAction, UiResume, UiRoute } from './types';
-import { runModelFormScreen } from '../screens/model-form-screen';
+import {
+  runModelFormScreen,
+  runModelViewScreen,
+} from '../screens/model-form-screen';
 import { runModelListScreen } from '../screens/model-list-screen';
 import { runModelSelectionScreen } from '../screens/model-selection-screen';
 import { runProviderFormScreen } from '../screens/provider-form-screen';
@@ -71,6 +74,8 @@ async function dispatchRoute(
       return runModelListScreen(ctx, route, resume);
     case 'modelForm':
       return runModelFormScreen(ctx, route, resume);
+    case 'modelView':
+      return runModelViewScreen(ctx, route, resume);
     case 'modelSelection':
       return runModelSelectionScreen(ctx, route, resume);
     case 'timeoutForm':

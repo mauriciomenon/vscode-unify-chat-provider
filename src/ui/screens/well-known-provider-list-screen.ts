@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { WELL_KNOWN_PROVIDERS } from '../../well-known/providers';
 import { pickQuickItem } from '../component';
-import { createProviderDraft } from '../form-utils';
+import { createProviderDraft, validateProviderNameUnique } from '../form-utils';
 import type {
   UiContext,
   UiNavAction,
@@ -16,7 +16,7 @@ type WellKnownProviderItem = vscode.QuickPickItem & {
 };
 
 export async function runWellKnownProviderListScreen(
-  _ctx: UiContext,
+  ctx: UiContext,
   _route: WellKnownProviderListRoute,
   _resume: UiResume | undefined,
 ): Promise<UiNavAction> {
@@ -43,6 +43,18 @@ export async function runWellKnownProviderListScreen(
   }
 
   const draft = createProviderDraft(picked.provider);
+  const suggestedName = draft.name ?? picked.provider.name;
+  if (validateProviderNameUnique(suggestedName, ctx.store) === null) {
+    draft.name = suggestedName.trim();
+    return {
+      kind: 'push',
+      route: {
+        kind: 'wellKnownProviderApiKey',
+        provider: picked.provider,
+        draft,
+      },
+    };
+  }
 
   return {
     kind: 'push',

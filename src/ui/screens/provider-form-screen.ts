@@ -69,8 +69,9 @@ export async function runProviderFormScreen(
       isSettings ? providerSettingsSchema : providerFormSchema,
       draft,
       {
-      isEditing: !!existing,
-      includeActionButtons: !isSettings,
+        isEditing: !!existing,
+        hasConfirm: !isSettings,
+        hasCopy: !isSettings,
       },
       context,
     ),

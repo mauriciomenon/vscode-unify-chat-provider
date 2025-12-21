@@ -10,6 +10,7 @@ import { ModelConfig, PerformanceTrace, ProviderConfig } from './types';
 import { getBaseModelId } from './model-id-utils';
 import { createProvider } from './client/utils';
 import { formatModelDetail } from './ui/form-utils';
+import { officialModelsManager } from './official-models-manager';
 
 export class UnifyChatService implements vscode.LanguageModelChatProvider {
   private readonly clients = new Map<string, ApiProvider>();
@@ -24,15 +25,32 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
   /**
    * Provide information about available models
    */
-  provideLanguageModelChatInformation(
+  async provideLanguageModelChatInformation(
     options: { silent: boolean },
     _token: vscode.CancellationToken,
-  ): vscode.ProviderResult<vscode.LanguageModelChatInformation[]> {
+  ): Promise<vscode.LanguageModelChatInformation[]> {
     const models: vscode.LanguageModelChatInformation[] = [];
 
     for (const provider of this.configStore.endpoints) {
+      // Collect user-configured model IDs for deduplication
+      const userModelIds = new Set(provider.models.map((m) => m.id));
+
+      // Add user-configured models first
       for (const model of provider.models) {
         models.push(this.createModelInfo(provider, model));
+      }
+
+      // Add official models if enabled (excluding conflicts with user models)
+      if (provider.autoFetchOfficialModels) {
+        const officialModels = await officialModelsManager.getOfficialModels(
+          provider,
+        );
+        for (const model of officialModels) {
+          // Skip if user already has this model configured
+          if (!userModelIds.has(model.id)) {
+            models.push(this.createModelInfo(provider, model));
+          }
+        }
       }
     }
 
@@ -115,9 +133,9 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
   /**
    * Find provider and model configuration by model ID
    */
-  private findProviderAndModel(
+  private async findProviderAndModel(
     modelId: string,
-  ): { provider: ProviderConfig; model: ModelConfig } | null {
+  ): Promise<{ provider: ProviderConfig; model: ModelConfig } | null> {
     const parsed = this.parseModelId(modelId);
     if (!parsed) {
       return null;
@@ -131,10 +149,26 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     const provider = this.configStore.endpoints.find(
       (p) => p.name === decodedProviderName,
     );
-    if (provider) {
-      const model = provider.models.find((m) => m.id === parsed.modelName);
-      if (model) {
-        return { provider, model };
+    if (!provider) {
+      return null;
+    }
+
+    // First check user-configured models
+    const userModel = provider.models.find((m) => m.id === parsed.modelName);
+    if (userModel) {
+      return { provider, model: userModel };
+    }
+
+    // Then check official models if enabled
+    if (provider.autoFetchOfficialModels) {
+      const officialModels = await officialModelsManager.getOfficialModels(
+        provider,
+      );
+      const officialModel = officialModels.find(
+        (m) => m.id === parsed.modelName,
+      );
+      if (officialModel) {
+        return { provider, model: officialModel };
       }
     }
 
@@ -172,7 +206,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       ttft: 0,
     };
 
-    const found = this.findProviderAndModel(model.id);
+    const found = await this.findProviderAndModel(model.id);
     if (!found) {
       throw new Error(`Model not found: ${model.id}`);
     }
@@ -230,7 +264,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     text: string | vscode.LanguageModelChatMessage,
     _token: vscode.CancellationToken,
   ): Promise<number> {
-    const found = this.findProviderAndModel(model.id);
+    const found = await this.findProviderAndModel(model.id);
 
     // Extract text content
     let content: string;

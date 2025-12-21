@@ -1,6 +1,7 @@
 import type { ConfigStore } from '../../config-store';
 import type { ProviderType } from '../../client/definitions';
 import { ProviderConfig, ModelConfig, TimeoutConfig } from '../../types';
+import type { OfficialModelsFetchState } from '../../official-models-manager';
 import type { ProviderFormDraft } from '../form-utils';
 
 export interface UiContext {
@@ -42,6 +43,10 @@ export interface ModelListRoute {
   invocation: 'addProvider' | 'addFromWellKnownProvider' | 'providerEdit';
   models: ModelConfig[];
   providerLabel: string;
+  officialModelsData?: {
+    models: ModelConfig[];
+    state: OfficialModelsFetchState | undefined;
+  };
   requireAtLeastOne?: boolean;
   draft?: ProviderFormDraft;
   existing?: ProviderConfig;
@@ -60,6 +65,13 @@ export interface ModelFormRoute {
   initialConfig?: Partial<ModelConfig>;
   originalId?: string;
   draft?: ModelConfig;
+}
+
+export interface ModelViewRoute {
+  kind: 'modelView';
+  providerLabel?: string;
+  providerType?: ProviderType;
+  model: ModelConfig;
 }
 
 export interface ModelSelectionRoute {
@@ -83,6 +95,7 @@ export type UiRoute =
   | WellKnownProviderApiKeyRoute
   | ModelListRoute
   | ModelFormRoute
+  | ModelViewRoute
   | ModelSelectionRoute
   | TimeoutFormRoute;
 

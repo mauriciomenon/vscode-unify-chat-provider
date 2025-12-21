@@ -18,6 +18,23 @@ export interface QuickPickConfig<T extends vscode.QuickPickItem> {
     event: vscode.QuickPickItemButtonEvent<T>,
     quickPick: vscode.QuickPick<T>,
   ) => void | Promise<void>;
+  /**
+   * Handle inline actions that should not close the picker.
+   * Return true to keep the picker open (action was handled inline).
+   * Return false or undefined to close the picker normally.
+   */
+  onInlineAction?: (
+    item: T,
+    quickPick: vscode.QuickPick<T>,
+  ) => Promise<boolean | void> | boolean | void;
+  /**
+   * Subscribe to external events that should trigger an items refresh.
+   * The callback receives a function to rebuild items when external state changes.
+   * Returns a disposable to unsubscribe.
+   */
+  onExternalRefresh?: (
+    refreshItems: (newItems: readonly T[]) => void,
+  ) => vscode.Disposable;
 }
 
 export async function pickQuickItem<T extends vscode.QuickPickItem>(
@@ -44,6 +61,14 @@ export async function pickQuickItem<T extends vscode.QuickPickItem>(
       let shouldClose = true;
       if (!item) return;
       try {
+        // Check for inline action first
+        if (config.onInlineAction) {
+          const handled = await config.onInlineAction(item, qp);
+          if (handled === true) {
+            qp.selectedItems = [];
+            return; // Action handled inline, keep picker open
+          }
+        }
         if (config.onWillAccept) {
           const result = await config.onWillAccept(item, qp);
           if (result === false) {
@@ -69,7 +94,16 @@ export async function pickQuickItem<T extends vscode.QuickPickItem>(
       });
     }
 
+    // Subscribe to external refresh events
+    let externalRefreshDisposable: vscode.Disposable | undefined;
+    if (config.onExternalRefresh) {
+      externalRefreshDisposable = config.onExternalRefresh((newItems) => {
+        qp.items = [...newItems];
+      });
+    }
+
     qp.onDidHide(() => {
+      externalRefreshDisposable?.dispose();
       finish(undefined);
       qp.dispose();
     });

@@ -17,6 +17,7 @@ import { modelFormSchema, type ModelFieldContext } from '../model-fields';
 import type {
   ModelFormResult,
   ModelFormRoute,
+  ModelViewRoute,
   UiContext,
   UiNavAction,
   UiResume,
@@ -131,6 +132,57 @@ export async function runModelFormScreen(
     await editModelFieldByFormItem(draft, field, selection.label, context);
   }
 
+  return { kind: 'stay' };
+}
+
+/**
+ * Read-only model view screen for viewing official models
+ */
+export async function runModelViewScreen(
+  _ctx: UiContext,
+  route: ModelViewRoute,
+  _resume: UiResume | undefined,
+): Promise<UiNavAction> {
+  const model = route.model;
+  const providerSuffix = route.providerLabel ? ` (${route.providerLabel})` : '';
+
+  const context: ModelFieldContext = {
+    models: [],
+    originalId: model.id,
+    providerType: route.providerType,
+  };
+
+  // Build read-only items (no confirm, no duplicate/delete, only copy)
+  const readOnlyItems = buildFormItems(
+    modelFormSchema,
+    model,
+    {
+      isEditing: false,
+      hasConfirm: false,
+      hasCopy: true,
+    },
+    context,
+  );
+
+  const selection = await pickQuickItem<FormItem<ModelConfig>>({
+    title: `Model: ${
+      route.model.name || route.model.id
+    }${providerSuffix} (Read-Only)`,
+    placeholder: 'Select a field to view',
+    ignoreFocusOut: true,
+    items: readOnlyItems,
+  });
+
+  if (!selection || selection.action === 'cancel') {
+    return { kind: 'pop' };
+  }
+
+  if (selection.action === 'copy') {
+    await showCopiedBase64Config(model);
+    return { kind: 'stay' };
+  }
+
+  // For any field selection, just stay (read-only, no editing)
   return { kind: 'stay' };
 }
 

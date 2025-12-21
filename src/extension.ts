@@ -8,15 +8,22 @@ import {
   manageProviders,
   removeProvider,
 } from './ui';
+import { officialModelsManager } from './official-models-manager';
 
 const VENDOR_ID = 'unify-chat-provider';
 
 /**
  * Extension activation
  */
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(
+  context: vscode.ExtensionContext,
+): Promise<void> {
   const configStore = new ConfigStore();
   const chatProvider = new UnifyChatService(configStore);
+
+  // Initialize official models manager
+  await officialModelsManager.initialize(context);
+  context.subscriptions.push(officialModelsManager);
 
   // Register the language model chat provider
   const providerRegistration = vscode.lm.registerLanguageModelChatProvider(
@@ -32,6 +39,13 @@ export function activate(context: vscode.ExtensionContext): void {
   // Re-register provider when configuration changes to pick up new models
   context.subscriptions.push(
     configStore.onDidChange(() => {
+      chatProvider.handleConfigurationChange();
+    }),
+  );
+
+  // Re-register provider when official models are updated
+  context.subscriptions.push(
+    officialModelsManager.onDidUpdate(() => {
       chatProvider.handleConfigurationChange();
     }),
   );
@@ -61,6 +75,34 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('unifyChatProvider.manageProviders', () =>
       manageProviders(configStore),
+    ),
+    vscode.commands.registerCommand(
+      'unifyChatProvider.refreshOfficialModels',
+      async () => {
+        const providers = configStore.endpoints;
+        const enabledCount = providers.filter(
+          (p) => p.autoFetchOfficialModels,
+        ).length;
+        if (enabledCount === 0) {
+          vscode.window.showInformationMessage(
+            'No providers have auto-fetch official models enabled.',
+          );
+          return;
+        }
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Refreshing official models...',
+            cancellable: false,
+          },
+          async () => {
+            await officialModelsManager.refreshAll(providers);
+          },
+        );
+        vscode.window.showInformationMessage(
+          `Refreshed official models for ${enabledCount} provider(s).`,
+        );
+      },
     ),
   );
 }

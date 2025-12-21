@@ -32,6 +32,7 @@ export const PROVIDER_CONFIG_KEYS = [
   'extraHeaders',
   'extraBody',
   'timeout',
+  'autoFetchOfficialModels',
 ] as const satisfies ReadonlyArray<keyof ProviderConfig>;
 
 type AssertNever<T extends never> = T;

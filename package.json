@@ -101,6 +101,10 @@
       {
         "command": "unifyChatProvider.manageProviders",
         "title": "Unify Chat Provider: Manage Providers"
+      },
+      {
+        "command": "unifyChatProvider.refreshOfficialModels",
+        "title": "Unify Chat Provider: Refresh All Provider's Official Models"
       }
     ],
     "configuration": {
@@ -185,6 +189,11 @@
                     "default": 120000
                   }
                 }
+              },
+              "autoFetchOfficialModels": {
+                "type": "boolean",
+                "description": "Automatically fetch and sync official models from the provider API.",
+                "default": false
               },
               "models": {
                 "type": "array",

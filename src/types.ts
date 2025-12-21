@@ -22,6 +22,8 @@ export interface ProviderConfig {
   extraBody?: Record<string, unknown>;
   /** Timeout configuration */
   timeout?: TimeoutConfig;
+  /** Whether to auto-fetch official models from the provider API */
+  autoFetchOfficialModels?: boolean;
 }
 
 /**

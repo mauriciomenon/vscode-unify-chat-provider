@@ -8,6 +8,7 @@ out-tests/**
 .env*
 *.ts
 !*.d.ts
+*.vsix
 tsconfig*.json
 AGENTS.md
 .git/**

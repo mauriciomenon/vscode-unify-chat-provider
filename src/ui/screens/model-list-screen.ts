@@ -12,6 +12,7 @@ import {
 import {
   confirmDiscardProviderChanges,
   formatModelDetail,
+  normalizeProviderDraft,
   removeModel,
 } from '../form-utils';
 import type {
@@ -21,11 +22,15 @@ import type {
   UiResume,
 } from '../router/types';
 import { createProvider } from '../../client/utils';
-import { ModelConfig } from '../../types';
+import { ModelConfig, ProviderConfig } from '../../types';
 import {
   buildProviderConfigFromDraft,
   duplicateProvider,
 } from '../provider-ops';
+import {
+  officialModelsManager,
+  OfficialModelsFetchState,
+} from '../../official-models-manager';
 
 type ModelListItem = vscode.QuickPickItem & {
   action?:
@@ -39,8 +44,11 @@ type ModelListItem = vscode.QuickPickItem & {
     | 'provider-delete'
     | 'add-from-official'
     | 'add-from-wellknown'
-    | 'add-from-base64';
+    | 'add-from-base64'
+    | 'toggle-auto-fetch'
+    | 'refresh-official';
   model?: ModelConfig;
+  isOfficial?: boolean;
 };
 
 export async function runModelListScreen(
@@ -58,12 +66,68 @@ export async function runModelListScreen(
       ? `Provider: ${providerName}`
       : `Models (${providerName})`;
   let didSave = false;
+  await updateOfficialModelsDataForRoute(route);
 
   const selection = await pickQuickItem<ModelListItem>({
     title,
     placeholder: 'Select a model to edit, or add a new one',
     ignoreFocusOut: true,
     items: buildModelListItems(route, includeSave),
+    onExternalRefresh: (refreshItems) => {
+      // Subscribe to official models updates to refresh UI when fetch completes
+      const provider = buildProviderConfigForOfficialModels(route);
+      if (!provider) {
+        return { dispose: () => {} };
+      }
+      return officialModelsManager.onDidUpdate((updatedProviderName) => {
+        if (updatedProviderName === provider.name) {
+          const state = officialModelsManager.getProviderState(provider.name);
+          route.officialModelsData = {
+            models: state?.models ?? [],
+            state,
+          };
+          refreshItems(buildModelListItems(route, includeSave));
+        }
+      });
+    },
+    onInlineAction: async (item, qp) => {
+      // Handle toggle-auto-fetch inline without closing the picker
+      if (item.action === 'toggle-auto-fetch') {
+        if (route.draft && route.invocation === 'providerEdit') {
+          const wasEnabled = route.draft.autoFetchOfficialModels ?? false;
+          const nowEnabled = !wasEnabled;
+          route.draft.autoFetchOfficialModels = nowEnabled;
+
+          if (nowEnabled) {
+            if (!triggerOfficialModelsRefresh(route)) {
+              route.officialModelsData = { models: [], state: undefined };
+            }
+          } else {
+            // Disabled: clear all cached state immediately
+            route.officialModelsData = undefined;
+            const namesToClear = new Set<string>();
+            if (route.originalName) namesToClear.add(route.originalName);
+            if (route.draft.name) namesToClear.add(route.draft.name);
+            Promise.all(
+              [...namesToClear].map((name) =>
+                officialModelsManager.clearProviderState(name),
+              ),
+            );
+          }
+          qp.items = buildModelListItems(route, includeSave);
+        }
+        return true;
+      }
+
+      // Handle refresh-official inline without closing the picker
+      if (item.action === 'refresh-official') {
+        triggerOfficialModelsRefresh(route);
+        qp.items = buildModelListItems(route, includeSave);
+        return true;
+      }
+
+      return false;
+    },
     onWillAccept: async (item) => {
       if (item.action !== 'save') return;
       if (!route.onSave) return false;
@@ -73,40 +137,47 @@ export async function runModelListScreen(
     },
     onDidTriggerItemButton: async (event, qp) => {
       const model = event.item.model;
+      const isOfficial = event.item.isOfficial;
       if (!model) return;
 
       const buttonIndex = event.item.buttons?.findIndex(
         (b) => b === event.button,
       );
 
-      if (buttonIndex === 0) {
-        await showCopiedBase64Config(model);
-        return;
-      }
-
-      if (buttonIndex === 1) {
-        const duplicated = duplicateModel(model, route.models);
-        route.models.push(duplicated);
-        vscode.window.showInformationMessage(
-          `Model duplicated as "${duplicated.id}".`,
-        );
-        qp.items = buildModelListItems(route, includeSave);
-        return;
-      }
-
-      if (buttonIndex === 2) {
-        if (mustKeepOne && route.models.length <= 1) {
-          vscode.window.showWarningMessage(
-            'Cannot delete the last model. A provider must have at least one model.',
-          );
+      if (isOfficial) {
+        if (buttonIndex === 0) {
+          await showCopiedBase64Config(model);
+        }
+      } else {
+        if (buttonIndex === 0) {
+          await showCopiedBase64Config(model);
           return;
         }
-        if (route.invocation !== 'providerEdit') {
-          const confirmed = await confirmDelete(model.id, 'model');
-          if (!confirmed) return;
+
+        if (buttonIndex === 1) {
+          const duplicated = duplicateModel(model, route.models);
+          route.models.push(duplicated);
+          vscode.window.showInformationMessage(
+            `Model duplicated as "${duplicated.id}".`,
+          );
+          qp.items = buildModelListItems(route, includeSave);
+          return;
         }
-        removeModel(route.models, model.id);
-        qp.items = buildModelListItems(route, includeSave);
+
+        if (buttonIndex === 2) {
+          if (mustKeepOne && route.models.length <= 1) {
+            vscode.window.showWarningMessage(
+              'Cannot delete the last model. A provider must have at least one model.',
+            );
+            return;
+          }
+          if (route.invocation !== 'providerEdit') {
+            const confirmed = await confirmDelete(model.id, 'model');
+            if (!confirmed) return;
+          }
+          removeModel(route.models, model.id);
+          qp.items = buildModelListItems(route, includeSave);
+        }
       }
     },
   });
@@ -259,6 +330,18 @@ export async function runModelListScreen(
 
   const selectedModel = selection.model;
   if (selectedModel) {
+    if (selection.isOfficial) {
+      return {
+        kind: 'push',
+        route: {
+          kind: 'modelView',
+          model: selectedModel,
+          providerLabel: route.draft?.name ?? route.providerLabel,
+          providerType: route.draft?.type,
+        },
+      };
+    }
+
     return {
       kind: 'push',
       route: {
@@ -313,6 +396,11 @@ function buildModelListItems(
   includeSave: boolean,
 ): ModelListItem[] {
   const models = route.models;
+  const userModelIds = new Set(models.map((m) => m.id));
+  const autoFetchEnabled = route.draft?.autoFetchOfficialModels ?? false;
+  const officialModels = route.officialModelsData?.models ?? [];
+  const fetchState = route.officialModelsData?.state;
+
   const items: ModelListItem[] = [
     { label: '$(arrow-left) Back', action: 'back' },
   ];
@@ -320,11 +408,11 @@ function buildModelListItems(
   items.push(
     { label: '$(add) Add Model...', action: 'add' },
     {
-      label: '$(broadcast) Add From Well-Known Model List...',
+      label: '$(star-empty) Add From Well-Known Model List...',
       action: 'add-from-wellknown',
     },
     {
-      label: '$(cloud-download) Add From Official Model List...',
+      label: '$(broadcast) Add From Official Model List...',
       action: 'add-from-official',
     },
     {
@@ -333,25 +421,73 @@ function buildModelListItems(
     },
   );
 
-  if (models.length > 0) {
+  // Auto-fetch toggle and status section (only for provider edit mode)
+  if (route.invocation === 'providerEdit' && route.draft) {
     items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
-    for (const model of models) {
+
+    // Toggle item
+    items.push({
+      label: `$(globe) Auto-Fetch Official Models`,
+      description: autoFetchEnabled ? 'Enabled' : 'Disabled',
+      action: 'toggle-auto-fetch',
+    });
+
+    // Status item (only shown when enabled)
+    if (autoFetchEnabled) {
       items.push({
-        label: model.name || model.id,
+        ...formatFetchStatus(fetchState),
+        action: 'refresh-official',
+      });
+    }
+  }
+
+  // User-configured models section
+  if (models.length > 0 || (autoFetchEnabled && officialModels.length > 0)) {
+    items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+  }
+
+  // User models
+  for (const model of models) {
+    items.push({
+      label: model.name || model.id,
+      description: model.name ? model.id : undefined,
+      detail: formatModelDetail(model),
+      model,
+      action: 'edit',
+      isOfficial: false,
+      buttons: [
+        {
+          iconPath: new vscode.ThemeIcon('copy'),
+          tooltip: 'Copy as Base64 config',
+        },
+        {
+          iconPath: new vscode.ThemeIcon('files'),
+          tooltip: 'Duplicate model',
+        },
+        { iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete model' },
+      ],
+    });
+  }
+
+  // Official models (when enabled, excluding conflicts)
+  if (autoFetchEnabled) {
+    const filteredOfficialModels = officialModels.filter(
+      (m) => !userModelIds.has(m.id),
+    );
+
+    for (const model of filteredOfficialModels) {
+      items.push({
+        label: `$(globe) ${model.name || model.id}`,
         description: model.name ? model.id : undefined,
         detail: formatModelDetail(model),
         model,
         action: 'edit',
+        isOfficial: true,
         buttons: [
           {
             iconPath: new vscode.ThemeIcon('copy'),
             tooltip: 'Copy as Base64 config',
           },
-          {
-            iconPath: new vscode.ThemeIcon('files'),
-            tooltip: 'Duplicate model',
-          },
-          { iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete model' },
         ],
       });
     }
@@ -385,4 +521,116 @@ function buildModelListItems(
   }
 
   return items;
+}
+
+/**
+ * Format the fetch status for display
+ */
+function formatFetchStatus(state: OfficialModelsFetchState | undefined): {
+  label: string;
+  description?: string;
+  detail?: string;
+} {
+  if (state?.isFetching) {
+    return {
+      label: '$(sync~spin) Fetching...',
+    };
+  }
+
+  if (!state || !state.lastFetchTime) {
+    return {
+      label: '$(refresh) Not fetched yet',
+      description: '(click to fetch)',
+    };
+  }
+
+  const lastFetchDate = new Date(state.lastFetchTime);
+  const timeAgo = formatTimeAgo(lastFetchDate);
+
+  if (state.lastError) {
+    const errorDate = state.lastErrorTime
+      ? new Date(state.lastErrorTime)
+      : lastFetchDate;
+    return {
+      label: `$(warning) Last attempt: ${formatTimeAgo(errorDate)}`,
+      detail: `Error: ${state.lastError}`,
+      description: '(click to fetch)',
+    };
+  }
+
+  return {
+    label: `$(refresh) Last fetched: ${timeAgo}`,
+    description: '(click to fetch)',
+  };
+}
+
+/**
+ * Format a date as a relative time string
+ */
+function formatTimeAgo(date: Date): string {
+  const now = Date.now();
+  const diff = now - date.getTime();
+
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (minutes > 0) return `${minutes}m ago`;
+  return 'just now';
+}
+
+async function updateOfficialModelsDataForRoute(
+  route: ModelListRoute,
+): Promise<void> {
+  if (
+    route.invocation !== 'providerEdit' ||
+    !route.draft?.autoFetchOfficialModels
+  ) {
+    route.officialModelsData = undefined;
+    return;
+  }
+
+  const provider = buildProviderConfigForOfficialModels(route);
+  if (!provider) {
+    route.officialModelsData = { models: [], state: undefined };
+    return;
+  }
+
+  route.officialModelsData = await officialModelsManager.getOfficialModelsData(
+    provider,
+  );
+}
+
+function buildProviderConfigForOfficialModels(
+  route: ModelListRoute,
+): ProviderConfig | undefined {
+  const draft = route.draft;
+  if (!draft?.type) return undefined;
+
+  const name = (draft.name ?? route.originalName ?? route.providerLabel).trim();
+  const baseUrl = draft.baseUrl?.trim();
+  if (!name || !baseUrl) return undefined;
+
+  return normalizeProviderDraft({ ...draft, name, baseUrl });
+}
+
+/**
+ * Trigger a refresh of official models without blocking.
+ * The UI will be updated via the onDidUpdate event.
+ */
+function triggerOfficialModelsRefresh(route: ModelListRoute): boolean {
+  const provider = buildProviderConfigForOfficialModels(route);
+  if (!provider) {
+    return false;
+  }
+
+  // Trigger refresh without awaiting - UI will update via onDidUpdate event
+  officialModelsManager.getOfficialModelsData(provider, {
+    forceFetch: true,
+  });
+
+  return true;
 }

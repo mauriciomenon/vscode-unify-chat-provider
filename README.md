@@ -124,6 +124,15 @@ This includes:
 - Build: `npm run compile`
 - Watch: `npm run watch`
 
+## Release
+
+- Preview (no changes): `pnpm run release:dry`
+- Interactive release: `pnpm run release`
+- Prereqs:
+  - Bun (to run `scripts/release.ts`)
+  - VS Code Marketplace: `vsce` authenticated (via `VSCE_PAT` or `vsce login`)
+  - GitHub Release upload: `gh` authenticated or set `GITHUB_TOKEN` (repo scope)
+
 ## Roadmap
 
 - The `nativeTool` should include a configuration option within `ModelConfig`. In addition to `Default`, `Enable`, and `Disable`, add an `Auto` option that automatically selects the appropriate setting based on the model family. Also, include native tool implementations for various models to force a specific choice. Remove the related `Features`. Add the `Anthropic WebFetchTool` and ensure that citation content is handled correctly (it may not be displayed directly).

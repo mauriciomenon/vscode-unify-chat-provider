@@ -153,8 +153,12 @@ export function buildFormItems<T>(
   schema: FormSchema<T>,
   draft: T,
   options: {
+    /** Whether editing an existing item (controls duplicate/delete buttons) */
     isEditing: boolean;
-    includeActionButtons?: boolean;
+    /** Whether to show confirm/save button (default: true) */
+    hasConfirm?: boolean;
+    /** Whether to show copy button (default: true) */
+    hasCopy?: boolean;
     backLabel?: string;
     saveLabel?: string;
     deleteLabel?: string;
@@ -165,7 +169,8 @@ export function buildFormItems<T>(
 ): FormItem<T>[] {
   const {
     isEditing,
-    includeActionButtons = true,
+    hasConfirm = true,
+    hasCopy = true,
     backLabel = '$(arrow-left) Back',
     saveLabel = '$(check) Save',
     deleteLabel = '$(trash) Delete',
@@ -236,13 +241,18 @@ export function buildFormItems<T>(
     }
   }
 
-  if (includeActionButtons) {
-    // Action buttons
+  // Action buttons
+  const hasActionButtons = hasConfirm || hasCopy || isEditing;
+  if (hasActionButtons) {
     items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
-    items.push({ label: saveLabel, action: 'confirm' });
 
-    if (isEditing) {
+    if (hasConfirm) {
+      items.push({ label: saveLabel, action: 'confirm' });
+    }
+    if (hasCopy) {
       items.push({ label: copyLabel, action: 'copy' });
+    }
+    if (isEditing) {
       items.push({ label: duplicateLabel, action: 'duplicate' });
       items.push({ label: deleteLabel, action: 'delete' });
     }
