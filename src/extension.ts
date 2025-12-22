@@ -10,6 +10,7 @@ import {
   addProvider,
   addProviderFromConfig,
   addProviderFromWellKnownList,
+  exportAllProviders,
   importProviders,
   manageProviders,
   removeProvider,
@@ -88,6 +89,9 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('unifyChatProvider.importProviders', () =>
       importProviders(configStore, apiKeyStore),
+    ),
+    vscode.commands.registerCommand('unifyChatProvider.exportAllProviders', () =>
+      exportAllProviders(configStore, apiKeyStore),
     ),
     vscode.commands.registerCommand('unifyChatProvider.manageProviders', () =>
       manageProviders(configStore, apiKeyStore),

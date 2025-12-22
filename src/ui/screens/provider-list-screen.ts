@@ -1,9 +1,16 @@
 import * as vscode from 'vscode';
 import { confirmDelete, pickQuickItem, showDeletedMessage } from '../component';
 import {
-  promptForBase64Config,
+  ConfigValue,
+  promptForConfigValue,
   showCopiedBase64Config,
 } from '../base64-config';
+import {
+  buildProviderDraftFromConfig,
+  isProviderConfigInput,
+  parseProviderConfigArray,
+  selectProvidersForImport,
+} from '../import-selection';
 import type {
   ProviderListRoute,
   UiContext,
@@ -12,11 +19,11 @@ import type {
 } from '../router/types';
 import { duplicateProvider, saveProviderDraft } from '../provider-ops';
 import { createProviderDraft } from '../form-utils';
-import { ProviderConfig } from '../../types';
 import { getAllModelsForProvider } from '../../utils';
 import {
   deleteProviderApiKeySecretIfUnused,
   resolveApiKeyForExportOrShowError,
+  resolveProvidersForExportOrShowError,
 } from '../../api-key-utils';
 
 type ProviderListItem = vscode.QuickPickItem & {
@@ -24,6 +31,7 @@ type ProviderListItem = vscode.QuickPickItem & {
     | 'add'
     | 'add-from-wellknown'
     | 'add-from-base64'
+    | 'export-all'
     | 'import-from-other-applications'
     | 'provider';
   providerName?: string;
@@ -97,15 +105,67 @@ export async function runProviderListScreen(
   }
 
   if (selection.action === 'add-from-base64') {
-    const config = await promptForBase64Config<Partial<ProviderConfig>>({
-      title: 'Add Provider From Config',
+    const config = await promptForConfigValue({
+      title: 'Import Provider From Config',
       placeholder: 'Paste configuration JSON or Base64 string...',
+      validate: (value: ConfigValue) => {
+        if (Array.isArray(value)) {
+          return parseProviderConfigArray(value)
+            ? null
+            : 'Invalid provider configuration array.';
+        }
+        return isProviderConfigInput(value)
+          ? null
+          : 'Invalid provider configuration.';
+      },
     });
     if (!config) return { kind: 'stay' };
+
+    if (Array.isArray(config)) {
+      const configs = parseProviderConfigArray(config);
+      if (!configs) return { kind: 'stay' };
+
+      const drafts = configs.map(buildProviderDraftFromConfig);
+      const selected = await selectProvidersForImport({
+        ctx,
+        drafts,
+        title: 'Import Providers From Config',
+      });
+      if (!selected) return { kind: 'stay' };
+
+      for (const draft of selected) {
+        await saveProviderDraft({
+          draft,
+          store: ctx.store,
+          apiKeyStore: ctx.apiKeyStore,
+        });
+      }
+
+      return { kind: 'stay' };
+    }
+
+    if (!isProviderConfigInput(config)) return { kind: 'stay' };
+
     return {
       kind: 'push',
       route: { kind: 'providerForm', initialConfig: config },
     };
+  }
+
+  if (selection.action === 'export-all') {
+    const providers = ctx.store.endpoints;
+    if (providers.length === 0) {
+      vscode.window.showInformationMessage('No providers configured.');
+      return { kind: 'stay' };
+    }
+
+    const resolved = await resolveProvidersForExportOrShowError({
+      apiKeyStore: ctx.apiKeyStore,
+      providers,
+    });
+    if (!resolved) return { kind: 'stay' };
+    await showCopiedBase64Config(resolved);
+    return { kind: 'stay' };
   }
 
   if (selection.action === 'import-from-other-applications') {
@@ -168,7 +228,7 @@ async function buildProviderListItems(
       alwaysShow: true,
     },
     {
-      label: '$(file-code) Add From Config...',
+      label: '$(file-code) Import From Config...',
       action: 'add-from-base64',
       alwaysShow: true,
     },
@@ -191,8 +251,8 @@ async function buildProviderListItems(
       providerName: provider.name,
       buttons: [
         {
-          iconPath: new vscode.ThemeIcon('copy'),
-          tooltip: 'Copy as Base64 config',
+          iconPath: new vscode.ThemeIcon('export'),
+          tooltip: 'Export as Base64 config',
         },
         {
           iconPath: new vscode.ThemeIcon('files'),
@@ -205,6 +265,15 @@ async function buildProviderListItems(
       ],
     });
   }
+
+  if (store.endpoints.length > 0) {
+    items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+  }
+  items.push({
+    label: '$(export) Export All Providers...',
+    action: 'export-all',
+    alwaysShow: true,
+  });
 
   return items;
 }

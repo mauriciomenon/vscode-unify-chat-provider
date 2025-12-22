@@ -12,6 +12,7 @@ import {
   isApiKeySecretRef,
 } from '../api-key-secret-store';
 import { resolveApiKeyForExportOrShowError } from '../api-key-utils';
+import { showCopiedBase64Config } from './base64-config';
 import {
   normalizeProviderDraft,
   validateProviderForm,
@@ -173,4 +174,100 @@ export function buildProviderConfigFromDraft(
   const config: Partial<ProviderConfig> = {};
   mergePartialByKeys(config, source, PROVIDER_CONFIG_KEYS);
   return config;
+}
+
+type ProviderExportSection = 'models' | 'settings';
+
+async function promptForProviderExportSections(): Promise<
+  Set<ProviderExportSection> | undefined
+> {
+  return new Promise<Set<ProviderExportSection> | undefined>((resolve) => {
+    const qp = vscode.window.createQuickPick<
+      vscode.QuickPickItem & { section: ProviderExportSection }
+    >();
+    qp.title = 'Export Provider Configuration';
+    qp.placeholder = 'Select what to export';
+    qp.canSelectMany = true;
+    qp.ignoreFocusOut = true;
+    qp.items = [
+      {
+        label: 'Models',
+        detail: 'Export model configuration array',
+        section: 'models',
+        picked: true,
+      },
+      {
+        label: 'Settings',
+        detail: 'Export provider settings without models',
+        section: 'settings',
+        picked: true,
+      },
+    ];
+    qp.selectedItems = qp.items.filter((item) => item.picked);
+
+    let resolved = false;
+    const finish = (value: Set<ProviderExportSection> | undefined) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(value);
+    };
+
+    qp.onDidAccept(() => {
+      const sections = new Set(qp.selectedItems.map((item) => item.section));
+      if (sections.size === 0) {
+        vscode.window.showErrorMessage('Select at least one export option.', {
+          modal: true,
+        });
+        return;
+      }
+      qp.hide();
+      finish(sections);
+    });
+
+    qp.onDidHide(() => {
+      qp.dispose();
+      finish(undefined);
+    });
+
+    qp.show();
+  });
+}
+
+export async function exportProviderConfigFromDraft(options: {
+  draft: ProviderFormDraft;
+  apiKeyStore: ApiKeySecretStore;
+  allowPartial?: boolean;
+}): Promise<void> {
+  const sections = options.allowPartial
+    ? await promptForProviderExportSections()
+    : new Set<ProviderExportSection>(['models', 'settings']);
+
+  if (!sections || sections.size === 0) return;
+
+  if (sections.has('models') && !sections.has('settings')) {
+    await showCopiedBase64Config(options.draft.models);
+    return;
+  }
+
+  const config = buildProviderConfigFromDraft(options.draft);
+
+  if (!sections.has('models')) {
+    const settingsOnly = { ...config };
+    delete settingsOnly.models;
+
+    const ok = await resolveApiKeyForExportOrShowError(
+      options.apiKeyStore,
+      settingsOnly,
+    );
+    if (!ok) return;
+    await showCopiedBase64Config(settingsOnly);
+    return;
+  }
+
+  const ok = await resolveApiKeyForExportOrShowError(
+    options.apiKeyStore,
+    config,
+  );
+  if (!ok) return;
+  await showCopiedBase64Config(config);
 }

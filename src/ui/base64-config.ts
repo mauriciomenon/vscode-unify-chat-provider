@@ -9,8 +9,56 @@ import {
 } from '../config-ops';
 import { ProviderConfig, ModelConfig } from '../types';
 
+export type ConfigArrayItem = Record<string, unknown> | string;
+export type ConfigValue = Record<string, unknown> | ConfigArrayItem[];
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isConfigArray(value: unknown): value is ConfigArrayItem[] {
+  if (!Array.isArray(value)) return false;
+  return value.every((item) => typeof item === 'string' || isObjectRecord(item));
+}
+
+function decodeConfigStringToValue(
+  text: string,
+  options?: { allowArray?: boolean },
+): ConfigValue | undefined {
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+
+  const allowArray = options?.allowArray ?? false;
+
+  // 1) Try raw JSON first.
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (isObjectRecord(parsed)) {
+      return parsed;
+    }
+    if (allowArray && isConfigArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // ignore and fall back to Base64
+  }
+
+  // 2) Fall back to Base64 / Base64-URL
+  const decoded = decodeBase64ToValue(trimmed);
+  if (isObjectRecord(decoded)) {
+    return decoded;
+  }
+  if (allowArray && isConfigArray(decoded)) {
+    return decoded;
+  }
+  return undefined;
+}
+
+function getInvalidConfigMessage(allowArray: boolean): string {
+  if (allowArray) {
+    return 'Invalid configuration. Paste a JSON object or array, or a Base64/Base64-URL encoded JSON object or array.';
+  }
+  return 'Invalid configuration. Paste a JSON object or a Base64/Base64-URL encoded JSON object.';
 }
 
 /**
@@ -23,21 +71,11 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 export function decodeConfigStringToObject<T extends object = object>(
   text: string,
 ): T | undefined {
-  const trimmed = text.trim();
-  if (!trimmed) return undefined;
-
-  // 1) Try raw JSON first.
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (isObjectRecord(parsed)) {
-      return parsed as T;
-    }
-  } catch {
-    // ignore and fall back to Base64
+  const decoded = decodeConfigStringToValue(text, { allowArray: false });
+  if (decoded && isObjectRecord(decoded)) {
+    return decoded as T;
   }
-
-  // 2) Fall back to Base64 / Base64-URL
-  return decodeBase64ToObject<T>(trimmed);
+  return undefined;
 }
 
 /**
@@ -85,6 +123,23 @@ export function decodeBase64ToObject<T = object>(
   }
 }
 
+function decodeBase64ToValue(base64String: string): unknown | undefined {
+  try {
+    let normalized = base64String.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = normalized.length % 4;
+    if (pad === 2) {
+      normalized += '==';
+    } else if (pad === 3) {
+      normalized += '=';
+    }
+
+    const json = Buffer.from(normalized, 'base64').toString('utf-8');
+    return JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Try to get a valid config string from clipboard.
  * Supports JSON object string and Base64/Base64-URL encoded JSON.
@@ -124,7 +179,27 @@ export async function tryGetConfigFromClipboard<
 }
 
 /**
- * Copy a configuration as Base64 string to clipboard.
+ * Try to get a valid config value from clipboard.
+ * Supports JSON object/array string and Base64/Base64-URL encoded JSON.
+ */
+export async function tryGetConfigValueFromClipboard(): Promise<
+  ConfigValue | undefined
+> {
+  try {
+    const clipboardText = await vscode.env.clipboard.readText();
+    if (!clipboardText || clipboardText.length > 100000) {
+      return undefined;
+    }
+    return decodeConfigStringToValue(clipboardText.trim(), {
+      allowArray: true,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Export a configuration as Base64 string to clipboard.
  */
 export async function copyConfigAsBase64(config: object): Promise<void> {
   const base64 = encodeConfigToBase64(config);
@@ -169,8 +244,7 @@ export async function promptForBase64Config<
       }
       const decoded = decodeConfigStringToObject<T>(text.trim());
       if (!decoded) {
-        inputBox.validationMessage =
-          'Invalid configuration. Paste a JSON object or a Base64/Base64-URL encoded JSON object.';
+        inputBox.validationMessage = getInvalidConfigMessage(false);
       } else {
         inputBox.validationMessage = undefined;
       }
@@ -186,8 +260,95 @@ export async function promptForBase64Config<
 
       const decoded = decodeConfigStringToObject<T>(text);
       if (!decoded) {
-        inputBox.validationMessage =
-          'Invalid configuration. Paste a JSON object or a Base64/Base64-URL encoded JSON object.';
+        inputBox.validationMessage = getInvalidConfigMessage(false);
+        return;
+      }
+
+      finish(decoded);
+      inputBox.hide();
+    });
+
+    inputBox.onDidHide(() => {
+      finish(undefined);
+      inputBox.dispose();
+    });
+
+    inputBox.show();
+  });
+}
+
+/**
+ * Show an input dialog to get a config value (object or array).
+ * Pre-fills with clipboard content if it's a valid config.
+ */
+export async function promptForConfigValue(options: {
+  title: string;
+  placeholder?: string;
+  validate?: (value: ConfigValue) => string | null;
+}): Promise<ConfigValue | undefined> {
+  const clipboardConfig = await tryGetConfigValueFromClipboard();
+
+  const inputBox = vscode.window.createInputBox();
+  inputBox.title = options.title;
+  inputBox.placeholder =
+    options.placeholder ?? 'Paste configuration JSON or Base64 string...';
+  inputBox.ignoreFocusOut = true;
+
+  const validateDecoded = (decoded: ConfigValue | undefined): string | null => {
+    if (!decoded) return null;
+    return options.validate ? options.validate(decoded) : null;
+  };
+
+  // Pre-fill with clipboard if valid
+  if (clipboardConfig) {
+    const clipboardText = await vscode.env.clipboard.readText();
+    inputBox.value = clipboardText.trim();
+    const validation = validateDecoded(clipboardConfig);
+    inputBox.validationMessage = validation ?? undefined;
+  }
+
+  return new Promise<ConfigValue | undefined>((resolve) => {
+    let resolved = false;
+
+    const finish = (result: ConfigValue | undefined) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(result);
+    };
+
+    inputBox.onDidChangeValue((text) => {
+      if (!text.trim()) {
+        inputBox.validationMessage = undefined;
+        return;
+      }
+      const decoded = decodeConfigStringToValue(text.trim(), {
+        allowArray: true,
+      });
+      if (!decoded) {
+        inputBox.validationMessage = getInvalidConfigMessage(true);
+      } else {
+        const validation = validateDecoded(decoded);
+        inputBox.validationMessage = validation ?? undefined;
+      }
+    });
+
+    inputBox.onDidAccept(() => {
+      const text = inputBox.value.trim();
+      if (!text) {
+        finish(undefined);
+        inputBox.hide();
+        return;
+      }
+
+      const decoded = decodeConfigStringToValue(text, { allowArray: true });
+      if (!decoded) {
+        inputBox.validationMessage = getInvalidConfigMessage(true);
+        return;
+      }
+
+      const validation = validateDecoded(decoded);
+      if (validation) {
+        inputBox.validationMessage = validation;
         return;
       }
 
@@ -211,12 +372,12 @@ export async function showCopiedBase64Config(config: object): Promise<void> {
   const base64 = encodeConfigToBase64(config);
   await vscode.env.clipboard.writeText(base64);
   vscode.window.showInformationMessage(
-    'Configuration string has been copied to clipboard.',
+    'Configuration string has been exported to clipboard.',
   );
 
   const inputBox = vscode.window.createInputBox();
   inputBox.title = 'Base64 Configuration';
-  inputBox.prompt = 'You can copy and share this configuration string.';
+  inputBox.prompt = 'You can copy and share this exported configuration string.';
   inputBox.value = base64;
   inputBox.ignoreFocusOut = false;
 

@@ -2,10 +2,17 @@ import * as vscode from 'vscode';
 import { WELL_KNOWN_MODELS } from '../../well-known/models';
 import { confirmDelete, pickQuickItem, showDeletedMessage } from '../component';
 import {
+  ConfigValue,
   duplicateModel,
-  promptForBase64Config,
+  mergePartialProviderConfig,
+  promptForConfigValue,
   showCopiedBase64Config,
 } from '../base64-config';
+import {
+  isProviderConfigInput,
+  parseModelConfigArray,
+  selectModelsForImport,
+} from '../import-selection';
 import {
   confirmDiscardProviderChanges,
   formatModelDetail,
@@ -18,13 +25,9 @@ import type {
   UiResume,
 } from '../router/types';
 import { ModelConfig } from '../../types';
-import {
-  buildProviderConfigFromDraft,
-  duplicateProvider,
-} from '../provider-ops';
+import { duplicateProvider, exportProviderConfigFromDraft } from '../provider-ops';
 import {
   deleteProviderApiKeySecretIfUnused,
-  resolveApiKeyForExportOrShowError,
 } from '../../api-key-utils';
 import {
   officialModelsManager,
@@ -260,13 +263,11 @@ export async function runModelListScreen(
 
   if (selection.action === 'provider-copy') {
     if (!route.draft) return { kind: 'stay' };
-    const configToCopy = buildProviderConfigFromDraft(route.draft);
-    const ok = await resolveApiKeyForExportOrShowError(
-      ctx.apiKeyStore,
-      configToCopy,
-    );
-    if (!ok) return { kind: 'stay' };
-    await showCopiedBase64Config(configToCopy);
+    await exportProviderConfigFromDraft({
+      draft: route.draft,
+      apiKeyStore: ctx.apiKeyStore,
+      allowPartial: true,
+    });
     return { kind: 'stay' };
   }
 
@@ -310,17 +311,53 @@ export async function runModelListScreen(
   }
 
   if (selection.action === 'add-from-base64') {
-    const config = await promptForBase64Config<Partial<ModelConfig>>({
-      title: 'Add Model From Config',
+    const config = await promptForConfigValue({
+      title: 'Import From Config',
       placeholder: 'Paste configuration JSON or Base64 string...',
+      validate: (value: ConfigValue) => {
+        if (Array.isArray(value)) {
+          return parseModelConfigArray(value)
+            ? null
+            : 'Invalid model configuration array.';
+        }
+        if (isProviderConfigInput(value)) {
+          return route.draft
+            ? null
+            : 'Provider settings are not available in this context.';
+        }
+        return null;
+      },
     });
     if (!config) return { kind: 'stay' };
+
+    if (Array.isArray(config)) {
+      const models = parseModelConfigArray(config);
+      if (!models) return { kind: 'stay' };
+
+      const selected = await selectModelsForImport({
+        models,
+        existingModels: route.models,
+        providerType: route.draft?.type,
+        title: 'Import Models From Config',
+      });
+      if (!selected) return { kind: 'stay' };
+      route.models.push(...selected);
+      return { kind: 'stay' };
+    }
+
+    if (isProviderConfigInput(config)) {
+      if (!route.draft) return { kind: 'stay' };
+      mergePartialProviderConfig(route.draft, config);
+      route.models = route.draft.models;
+      return { kind: 'stay' };
+    }
+
     return {
       kind: 'push',
       route: {
         kind: 'modelForm',
         models: route.models,
-        initialConfig: config,
+        initialConfig: config as Partial<ModelConfig>,
         providerLabel: route.draft?.name ?? route.providerLabel,
         providerType: route.draft?.type,
       },
@@ -450,7 +487,7 @@ function buildModelListItems(
       action: 'add-from-official',
     },
     {
-      label: '$(file-code) Add From Config...',
+      label: '$(file-code) Import From Config...',
       action: 'add-from-base64',
     },
   );
@@ -491,8 +528,8 @@ function buildModelListItems(
       isOfficial: false,
       buttons: [
         {
-          iconPath: new vscode.ThemeIcon('copy'),
-          tooltip: 'Copy as Base64 config',
+          iconPath: new vscode.ThemeIcon('export'),
+          tooltip: 'Export as Base64 config',
         },
         {
           iconPath: new vscode.ThemeIcon('files'),
@@ -519,8 +556,8 @@ function buildModelListItems(
         isOfficial: true,
         buttons: [
           {
-            iconPath: new vscode.ThemeIcon('copy'),
-            tooltip: 'Copy as Base64 config',
+            iconPath: new vscode.ThemeIcon('export'),
+            tooltip: 'Export as Base64 config',
           },
         ],
       });
@@ -547,7 +584,7 @@ function buildModelListItems(
       items.push({ label: '$(check) Save', action: 'save' });
     }
 
-    items.push({ label: '$(copy) Copy', action: 'provider-copy' });
+    items.push({ label: '$(export) Export', action: 'provider-copy' });
 
     if (route.existing && route.draft) {
       items.push({ label: '$(files) Duplicate', action: 'provider-duplicate' });

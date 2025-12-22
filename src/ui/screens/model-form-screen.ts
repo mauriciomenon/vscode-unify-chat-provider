@@ -100,7 +100,7 @@ export async function runModelFormScreen(
     return { kind: 'pop', resume: { kind: 'modelFormResult', result } };
   }
 
-  if (selection.action === 'copy') {
+  if (selection.action === 'export') {
     await showCopiedBase64Config(draft);
     return { kind: 'stay' };
   }
@@ -152,14 +152,14 @@ export async function runModelViewScreen(
     providerType: route.providerType,
   };
 
-  // Build read-only items (no confirm, no duplicate/delete, only copy)
+  // Build read-only items (no confirm, no duplicate/delete, only export)
   const readOnlyItems = buildFormItems(
     modelFormSchema,
     model,
     {
       isEditing: false,
       hasConfirm: false,
-      hasCopy: true,
+      hasExport: true,
     },
     context,
   );
@@ -177,7 +177,7 @@ export async function runModelViewScreen(
     return { kind: 'pop' };
   }
 
-  if (selection.action === 'copy') {
+  if (selection.action === 'export') {
     await showCopiedBase64Config(model);
     return { kind: 'stay' };
   }

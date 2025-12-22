@@ -3,7 +3,7 @@ import type { ProviderConfig } from './types';
 import type { ApiKeySecretStore } from './api-key-secret-store';
 
 export const MISSING_API_KEY_FOR_COPY_MESSAGE =
-  'APIKey is missing. Please re-enter it before copying the configuration.';
+  'API key is missing. Please re-enter it before exporting the configuration.';
 
 export async function resolveApiKeyForExport(
   apiKeyStore: ApiKeySecretStore,
@@ -31,6 +31,39 @@ export async function resolveApiKeyForExportOrShowError(
   }
   config.apiKey = resolved.apiKey;
   return true;
+}
+
+export async function resolveProvidersForExportOrShowError(options: {
+  apiKeyStore: ApiKeySecretStore;
+  providers: readonly ProviderConfig[];
+  message?: string;
+}): Promise<ProviderConfig[] | undefined> {
+  const resolvedProviders: ProviderConfig[] = [];
+  const missing: string[] = [];
+
+  for (const provider of options.providers) {
+    const resolved = await resolveApiKeyForExport(
+      options.apiKeyStore,
+      provider.apiKey,
+    );
+    if (resolved.kind === 'missing-secret') {
+      missing.push(provider.name);
+      continue;
+    }
+    resolvedProviders.push({ ...provider, apiKey: resolved.apiKey });
+  }
+
+  if (missing.length > 0) {
+    const message =
+      options.message ??
+      `API key is missing for: ${missing.join(
+        ', ',
+      )}. Please re-enter before exporting.`;
+    vscode.window.showErrorMessage(message, { modal: true });
+    return undefined;
+  }
+
+  return resolvedProviders;
 }
 
 export async function deleteProviderApiKeySecretIfUnused(options: {

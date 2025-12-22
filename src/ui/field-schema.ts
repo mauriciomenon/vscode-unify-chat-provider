@@ -142,7 +142,13 @@ export interface FieldContext {
  * Form item with field reference.
  */
 export type FormItem<T> = vscode.QuickPickItem & {
-  action?: 'confirm' | 'cancel' | 'delete' | 'copy' | 'duplicate';
+  action?:
+    | 'confirm'
+    | 'cancel'
+    | 'delete'
+    | 'duplicate'
+    | 'import'
+    | 'export';
   field?: keyof T;
 };
 
@@ -157,12 +163,12 @@ export function buildFormItems<T>(
     isEditing: boolean;
     /** Whether to show confirm/save button (default: true) */
     hasConfirm?: boolean;
-    /** Whether to show copy button (default: true) */
-    hasCopy?: boolean;
+    /** Whether to show export button (default: true) */
+    hasExport?: boolean;
     backLabel?: string;
     saveLabel?: string;
     deleteLabel?: string;
-    copyLabel?: string;
+    exportLabel?: string;
     duplicateLabel?: string;
   },
   context?: FieldContext,
@@ -170,11 +176,11 @@ export function buildFormItems<T>(
   const {
     isEditing,
     hasConfirm = true,
-    hasCopy = true,
+    hasExport = true,
     backLabel = '$(arrow-left) Back',
     saveLabel = '$(check) Save',
     deleteLabel = '$(trash) Delete',
-    copyLabel = '$(copy) Copy',
+    exportLabel = '$(export) Export',
     duplicateLabel = '$(files) Duplicate',
   } = options;
   const items: FormItem<T>[] = [];
@@ -242,15 +248,15 @@ export function buildFormItems<T>(
   }
 
   // Action buttons
-  const hasActionButtons = hasConfirm || hasCopy || isEditing;
+  const hasActionButtons = hasConfirm || hasExport || isEditing;
   if (hasActionButtons) {
     items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
 
     if (hasConfirm) {
       items.push({ label: saveLabel, action: 'confirm' });
     }
-    if (hasCopy) {
-      items.push({ label: copyLabel, action: 'copy' });
+    if (hasExport) {
+      items.push({ label: exportLabel, action: 'export' });
     }
     if (isEditing) {
       items.push({ label: duplicateLabel, action: 'duplicate' });
