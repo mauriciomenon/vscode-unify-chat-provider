@@ -100,8 +100,10 @@ export class AnthropicProvider implements ApiProvider {
   /**
    * Build request headers
    */
-  private buildHeaders(modelConfig?: ModelConfig): Record<string, string> {
-    const headers = mergeHeaders(
+  private buildHeaders(
+    modelConfig?: ModelConfig,
+  ): Record<string, string | null> {
+    const headers: Record<string, string | null> = mergeHeaders(
       this.config.apiKey,
       this.config.extraHeaders,
       modelConfig?.extraHeaders,
@@ -125,6 +127,19 @@ export class AnthropicProvider implements ApiProvider {
     if (this.config.apiKey) {
       headers['x-api-key'] = this.config.apiKey;
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    } else {
+      const hasAuthHeader = Object.keys(headers).some((key) => {
+        const normalized = key.toLowerCase();
+        if (normalized === 'authorization' || normalized === 'x-api-key') {
+          const value = headers[key];
+          return value != null && value !== '';
+        }
+        return false;
+      });
+      if (!hasAuthHeader) {
+        // Explicitly omit auth headers to satisfy Anthropic SDK validation.
+        headers['x-api-key'] = null;
+      }
     }
 
     return headers;

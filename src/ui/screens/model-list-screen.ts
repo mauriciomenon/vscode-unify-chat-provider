@@ -216,7 +216,9 @@ export async function runModelListScreen(
       if (decision === 'discard') {
         // Clean up draft session when discarding changes
         officialModelsManager.clearDraftSession(sessionId);
-        return { kind: 'pop' };
+        return route.invocation === 'addFromWellKnownProvider'
+          ? { kind: 'popToRoot' }
+          : { kind: 'pop' };
       }
       if (decision === 'save') {
         if (!route.onSave) {
@@ -237,7 +239,9 @@ export async function runModelListScreen(
       return { kind: 'stay' };
     }
 
-    return { kind: 'pop' };
+    return route.invocation === 'addFromWellKnownProvider'
+      ? { kind: 'popToRoot' }
+      : { kind: 'pop' };
   }
 
   if (selection.action === 'provider-settings') {

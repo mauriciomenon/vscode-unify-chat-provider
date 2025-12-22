@@ -36,6 +36,7 @@ export async function runWellKnownProviderApiKeyScreen(
       providerLabel: route.draft.name ?? route.provider.name,
       requireAtLeastOne: false,
       draft: route.draft,
+      confirmDiscardOnBack: true,
       onSave: async () =>
         saveProviderDraft({
           draft: route.draft,
