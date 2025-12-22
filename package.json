@@ -464,6 +464,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
+    "count-loc": "bun run scripts/count-loc.ts",
     "release": "bun run scripts/release.ts",
     "release:dry": "bun run scripts/release.ts --dry-run",
     "test:build": "tsc -p tsconfig.tests.json",
