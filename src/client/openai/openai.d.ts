@@ -1,4 +1,5 @@
 import 'openai/resources/chat/completions';
+import 'openai/resources/responses/responses';
 import 'openai/lib/ChatCompletionStream';
 import { ChatCompletionReasoningEffort } from 'openai/resources/chat/completions';
 
@@ -169,6 +170,17 @@ declare module 'openai/resources/chat/completions' {
         reasoning_details?: OpenRouterReasoningDetail[];
       }
     }
+  }
+}
+
+declare module 'openai/resources/responses/responses' {
+  interface ResponseCreateParamsBase {
+    /**
+     * Control whether to enable the thinking process.
+     *
+     * @see https://www.volcengine.com/docs/82379/1569618?lang=zh
+     */
+    thinking?: { type: 'enabled' | 'disabled' | 'auto' };
   }
 }
 

@@ -680,7 +680,8 @@ export class AnthropicProvider implements ApiProvider {
       abortController.abort();
     });
 
-    const thinkingEnabled = model.thinking?.type === 'enabled';
+    const thinkingType = model.thinking?.type;
+    const thinkingEnabled = thinkingType === 'enabled' || thinkingType === 'auto';
     const hasTools = (options.tools && options.tools.length > 0) ?? false;
     const stream = model.stream ?? true;
 
@@ -796,11 +797,11 @@ export class AnthropicProvider implements ApiProvider {
       }
       if (model.thinking !== undefined) {
         const { type, budgetTokens } = model.thinking;
-        if (type === 'enabled') {
+        if (type === 'enabled' || type === 'auto') {
           // With interleaved thinking, budget_tokens can exceed max_tokens
           // For regular thinking, it must be less than max_tokens
           requestBase.thinking = {
-            type,
+            type: 'enabled',
             budget_tokens: this.normalizeThinkingBudget(
               budgetTokens,
               requestBase.max_tokens,

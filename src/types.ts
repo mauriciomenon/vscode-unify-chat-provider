@@ -73,7 +73,7 @@ export interface ModelConfig {
   verbosity?: 'low' | 'medium' | 'high';
   /** Thinking configuration */
   thinking?: {
-    type: 'enabled' | 'disabled';
+    type: 'enabled' | 'disabled' | 'auto';
     budgetTokens?: number;
     /**
      * Thinking effort level. Leave undefined to let the provider decide.

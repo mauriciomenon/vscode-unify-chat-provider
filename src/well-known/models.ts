@@ -13,6 +13,186 @@ interface WellKnownModelConfig extends ModelConfig {
  */
 const _WELL_KNOWN_MODELS = [
   {
+    id: 'doubao-seed-1-8-251215',
+    name: 'Doubao Seed 1.8',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-code-preview-251028',
+    name: 'Doubao Seed Code Preview',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-1-6-lite-251015',
+    name: 'Doubao Seed 1.6 Lite',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-1-6-flash-250828',
+    name: 'Doubao Seed 1.6 Flash',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-1-6-vision-250815',
+    name: 'Doubao Seed 1.6 Vision',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-1-6-251015',
+    name: 'Doubao Seed 1.6',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-1-6-250615',
+    name: 'Doubao Seed 1.6',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-1-6-flash-250615',
+    name: 'Doubao Seed 1.6 Flash',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-translation-250915',
+    name: 'Doubao Seed Translation',
+    maxInputTokens: 4000,
+    maxOutputTokens: 3000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'doubao-1-5-pro-32k-250115',
+    name: 'Doubao 1.5 Pro 32k',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'doubao-1-5-pro-32k-character-250228',
+    name: 'Doubao 1.5 Pro 32k Character',
+    maxInputTokens: 32000,
+    maxOutputTokens: 12000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'doubao-1-5-pro-32k-character-250715',
+    name: 'Doubao 1.5 Pro 32k Character',
+    maxInputTokens: 32000,
+    maxOutputTokens: 12000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'doubao-1-5-lite-32k-250115',
+    name: 'Doubao 1.5 Lite 32k',
+    maxInputTokens: 32000,
+    maxOutputTokens: 12000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'doubao-lite-32k-character-250228',
+    name: 'Doubao Lite 32k Character',
+    maxInputTokens: 32000,
+    maxOutputTokens: 4000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
     id: 'claude-sonnet-4-5',
     alternativeIds: ['claude-sonnet-4.5'],
     name: 'Claude Sonnet 4.5',

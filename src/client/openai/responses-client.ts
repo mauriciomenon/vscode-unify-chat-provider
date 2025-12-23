@@ -6,6 +6,7 @@ import {
 import { createSimpleHttpLogger } from '../../logger';
 import type { ProviderHttpLogger, RequestLogger } from '../../logger';
 import { ThinkingBlockMetadata } from '../types';
+import { FeatureId } from '../definitions';
 import { ApiProvider } from '../interface';
 import OpenAI from 'openai';
 import {
@@ -23,6 +24,7 @@ import {
   createCustomFetch,
   createFirstTokenRecorder,
   estimateTokenCount as sharedEstimateTokenCount,
+  isFeatureSupported,
   mergeHeaders,
   parseToolArguments,
   processUsage as sharedProcessUsage,
@@ -349,21 +351,36 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
   private buildReasoningParams(
     model: ModelConfig,
-  ): Pick<ResponseCreateParamsBase, 'reasoning'> {
+    useThinkingParam2: boolean,
+  ): Pick<ResponseCreateParamsBase, 'reasoning' | 'thinking'> {
     const thinking = model.thinking;
     if (!thinking) {
       return {};
     }
 
-    if (thinking.type === 'disabled') {
-      return {
-        reasoning: { effort: 'none' },
-      };
+    if (useThinkingParam2) {
+      if (thinking.type === 'disabled') {
+        return {
+          thinking: { type: 'disabled' },
+        };
+      } else {
+        return {
+          thinking: { type: thinking.type },
+          // Defaults to 'medium' effort
+          reasoning: { effort: thinking.effort ?? 'medium' },
+        };
+      }
     } else {
-      return {
-        // Defaults to 'medium' effort
-        reasoning: { effort: thinking.effort ?? 'medium' },
-      };
+      if (thinking.type === 'disabled') {
+        return {
+          reasoning: { effort: 'none' },
+        };
+      } else {
+        return {
+          // Defaults to 'medium' effort
+          reasoning: { effort: thinking.effort ?? 'medium' },
+        };
+      }
     }
   }
 
@@ -385,11 +402,16 @@ export class OpenAIResponsesProvider implements ApiProvider {
     const tools = this.convertTools(options.tools);
     const toolChoice = this.convertToolChoice(options.toolMode, tools);
     const streamEnabled = model.stream ?? true;
+    const useThinkingParam2 = isFeatureSupported(
+      FeatureId.OpenAIUseThinkingParam2,
+      this.config,
+      model,
+    );
 
     const baseBody: ResponseCreateParamsBase = {
       model: getBaseModelId(model.id),
       input: convertedMessages,
-      ...this.buildReasoningParams(model),
+      ...this.buildReasoningParams(model, useThinkingParam2),
       ...(model.verbosity ? { text: { verbosity: model.verbosity } } : {}),
       ...(model.maxOutputTokens !== undefined
         ? { max_output_tokens: model.maxOutputTokens }

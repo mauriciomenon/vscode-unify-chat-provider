@@ -60,6 +60,10 @@ export const MIMIC_LABELS: Record<Mimic, string> = {
 
 export enum FeatureId {
   /**
+   * @see https://www.volcengine.com/docs/82379/1569618?lang=zh
+   */
+  AutoThinking = 'auto-thinking',
+  /**
    * Only sends the thought content after the user's last message.
    * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
    * @see https://platform.claude.com/docs/en/build-with-claude/extended-thinking
@@ -92,7 +96,7 @@ export enum FeatureId {
    */
   OpenAICacheControl = 'openai_cache-control',
   /**
-   * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
+   * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
    */
   OpenAIUseReasoningParam = 'openai_use-reasoning-param',
   /**
@@ -100,6 +104,12 @@ export enum FeatureId {
    * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
    */
   OpenAIUseThinkingParam = 'openai_use-thinking-param',
+  /**
+   * Using both the unofficial `thinking` and the `reasoning` fields in the OpenAI Responses API.
+   *
+   * @see https://www.volcengine.com/docs/82379/1569618?lang=zh
+   */
+  OpenAIUseThinkingParam2 = 'openai_use-thinking-param-2',
   /**
    * Thinking reasoning content to be included in the response.
    *
@@ -117,6 +127,12 @@ export enum FeatureId {
 }
 
 export const FEATURES: Record<FeatureId, Feature> = {
+  [FeatureId.AutoThinking]: {
+    supportedProviders: [
+      'ark.cn-beijing.volces.com',
+      'ark.ap-southeast.bytepluses.com',
+    ],
+  },
   [FeatureId.ConciseReasoning]: {
     supportedFamilys: ['deepseek-reasoner'],
   },
@@ -227,6 +243,12 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api.xiaomimimo.com',
       'open.bigmodel.cn',
       'api.z.ai',
+    ],
+  },
+  [FeatureId.OpenAIUseThinkingParam2]: {
+    supportedProviders: [
+      'ark.cn-beijing.volces.com',
+      'ark.ap-southeast.bytepluses.com',
     ],
   },
   [FeatureId.OpenAIUseReasoningContent]: {

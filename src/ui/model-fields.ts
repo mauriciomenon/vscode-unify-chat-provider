@@ -332,7 +332,9 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
       section: 'capabilities',
       edit: async (draft) => {
         const picked = await pickQuickItem<
-          vscode.QuickPickItem & { value: 'enabled' | 'disabled' | undefined }
+          vscode.QuickPickItem & {
+            value: 'enabled' | 'disabled' | 'auto' | undefined;
+          }
         >({
           title: 'Thinking Capability',
           placeholder: 'Select thinking setting',
@@ -346,6 +348,11 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
               label: 'Enabled',
               description: 'Enable thinking',
               value: 'enabled',
+            },
+            {
+              label: 'Auto',
+              description: 'Auto thinking',
+              value: 'auto',
             },
             {
               label: 'Disabled',
@@ -424,7 +431,7 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
           });
 
           draft.thinking = {
-            type: 'enabled',
+            type: picked.value,
             budgetTokens: budgetStr ? Number(budgetStr) : undefined,
             effort: effort ? effort.value : undefined,
           };
@@ -433,6 +440,7 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
       getDescription: (draft) => {
         if (!draft.thinking) return 'default';
         if (draft.thinking.type === 'disabled') return 'disabled';
+        const typeLabel = draft.thinking.type === 'auto' ? 'auto' : 'enabled';
         const details: string[] = [];
         if (draft.thinking.budgetTokens !== undefined) {
           details.push(`${draft.thinking.budgetTokens} tokens`);
@@ -440,7 +448,9 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
         if (draft.thinking.effort) {
           details.push(`${draft.thinking.effort} effort`);
         }
-        return `enabled${details.length > 0 ? ` (${details.join(', ')})` : ''}`;
+        return `${typeLabel}${
+          details.length > 0 ? ` (${details.join(', ')})` : ''
+        }`;
       },
     },
     // Verbosity

@@ -376,6 +376,41 @@
                             {
                               "properties": {
                                 "type": {
+                                  "const": "auto",
+                                  "description": "Auto thinking."
+                                },
+                                "budgetTokens": {
+                                  "type": "integer",
+                                  "description": "Token budget for thinking."
+                                },
+                                "effort": {
+                                  "type": "string",
+                                  "description": "Thinking effort level (leave blank to let the provider decide).",
+                                  "enum": [
+                                    "none",
+                                    "minimal",
+                                    "low",
+                                    "medium",
+                                    "high",
+                                    "xhigh"
+                                  ],
+                                  "enumDescriptions": [
+                                    "No thinking effort.",
+                                    "Minimal thinking effort.",
+                                    "Low thinking effort.",
+                                    "Medium thinking effort.",
+                                    "High thinking effort.",
+                                    "Extra high thinking effort."
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ]
+                            },
+                            {
+                              "properties": {
+                                "type": {
                                   "const": "disabled",
                                   "description": "Disable thinking."
                                 }
