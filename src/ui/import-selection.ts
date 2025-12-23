@@ -1,11 +1,17 @@
 import * as vscode from 'vscode';
 import type { ProviderConfig, ModelConfig } from '../types';
 import type { ProviderType } from '../client/definitions';
-import type { UiContext } from './router/types';
+import type {
+  ModelFormResult,
+  ModelFormRoute,
+  TimeoutFormRoute,
+  UiContext,
+} from './router/types';
 import {
   createProviderDraft,
   formatModelDetail,
   normalizeModelDraft,
+  removeModel,
   type ProviderFormDraft,
   validateProviderForm,
 } from './form-utils';
@@ -18,6 +24,8 @@ import { providerFormSchema, type ProviderFieldContext } from './provider-fields
 import { modelFormSchema, type ModelFieldContext } from './model-fields';
 import { editField } from './field-editors';
 import { pickQuickItem } from './component';
+import { runModelFormScreen } from './screens/model-form-screen';
+import { runTimeoutFormScreen } from './screens/timeout-form-screen';
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -111,13 +119,6 @@ type ModelImportItem = vscode.QuickPickItem & {
   entryId?: number;
 };
 
-const providerImportSchema = {
-  ...providerFormSchema,
-  fields: providerFormSchema.fields.filter(
-    (field) => field.key !== 'models' && field.key !== 'timeout',
-  ),
-};
-
 function getProviderDisplayName(
   draft: ProviderFormDraft,
   fallbackIndex: number,
@@ -158,8 +159,12 @@ async function editProviderDraftInline(
       store: ctx.store,
       apiKeyStatus,
       storeApiKeyInSettings: ctx.store.storeApiKeyInSettings,
-      onEditModels: async () => {},
-      onEditTimeout: async () => {},
+      onEditModels: async (targetDraft) => {
+        await editProviderModelsInline(ctx, targetDraft);
+      },
+      onEditTimeout: async (targetDraft) => {
+        await editProviderTimeoutInline(ctx, targetDraft);
+      },
     };
 
     const selection = await pickQuickItem<FormItem<ProviderFormDraft>>({
@@ -169,7 +174,7 @@ async function editProviderDraftInline(
       placeholder: 'Select a field to edit',
       ignoreFocusOut: true,
       items: buildFormItems(
-        providerImportSchema,
+        providerFormSchema,
         draft,
         {
           isEditing: false,
@@ -186,7 +191,7 @@ async function editProviderDraftInline(
     }
 
     if (selection.field) {
-      await editField(providerImportSchema, draft, selection.field, fieldContext);
+      await editField(providerFormSchema, draft, selection.field, fieldContext);
     }
   }
 }
@@ -231,6 +236,131 @@ async function editModelDraftInline(options: {
     if (selection.field) {
       await editField(modelFormSchema, options.draft, selection.field, fieldContext);
     }
+  }
+}
+
+type ProviderModelItem = vscode.QuickPickItem & {
+  action?: 'back' | 'add' | 'edit';
+  model?: ModelConfig;
+};
+
+async function editProviderModelsInline(
+  ctx: UiContext,
+  draft: ProviderFormDraft,
+): Promise<void> {
+  while (true) {
+    const providerLabel = draft.name?.trim() || 'Provider';
+    const selection = await pickQuickItem<ProviderModelItem>({
+      title: `Models (${providerLabel})`,
+      placeholder: 'Select a model to edit, or add a new one',
+      ignoreFocusOut: true,
+      items: buildProviderModelItems(draft.models),
+    });
+
+    if (!selection || selection.action === 'back') {
+      return;
+    }
+
+    if (selection.action === 'add') {
+      const result = await runModelFormFlow(ctx, {
+        kind: 'modelForm',
+        models: draft.models,
+        providerLabel,
+        providerType: draft.type,
+      });
+      if (result?.kind === 'saved') {
+        draft.models.push(result.model);
+      }
+      continue;
+    }
+
+    if (selection.action === 'edit' && selection.model) {
+      const result = await runModelFormFlow(ctx, {
+        kind: 'modelForm',
+        model: selection.model,
+        models: draft.models,
+        originalId: selection.model.id,
+        providerLabel,
+        providerType: draft.type,
+      });
+      if (result?.kind === 'saved') {
+        const originalId = result.originalId ?? selection.model.id;
+        const idx = draft.models.findIndex((model) => model.id === originalId);
+        if (idx === -1) {
+          draft.models.push(result.model);
+        } else {
+          draft.models[idx] = result.model;
+        }
+      } else if (result?.kind === 'deleted') {
+        removeModel(draft.models, result.modelId);
+      }
+      continue;
+    }
+  }
+}
+
+function buildProviderModelItems(models: ModelConfig[]): ProviderModelItem[] {
+  const items: ProviderModelItem[] = [
+    { label: '$(arrow-left) Back', action: 'back' },
+    { label: '$(add) Add Model...', action: 'add' },
+  ];
+
+  if (models.length > 0) {
+    items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+  }
+
+  for (const model of models) {
+    items.push({
+      label: model.name || model.id || 'Untitled Model',
+      description: model.name ? model.id : undefined,
+      detail: formatModelDetail(model),
+      action: 'edit',
+      model,
+    });
+  }
+
+  return items;
+}
+
+async function runModelFormFlow(
+  ctx: UiContext,
+  route: ModelFormRoute,
+): Promise<ModelFormResult | undefined> {
+  while (true) {
+    const action = await runModelFormScreen(ctx, route, undefined);
+    if (action.kind === 'stay') {
+      continue;
+    }
+    if (action.kind === 'pop') {
+      if (action.resume?.kind === 'modelFormResult') {
+        return action.resume.result;
+      }
+      return undefined;
+    }
+    return undefined;
+  }
+}
+
+async function editProviderTimeoutInline(
+  ctx: UiContext,
+  draft: ProviderFormDraft,
+): Promise<void> {
+  const timeout = draft.timeout ?? {};
+  const route: TimeoutFormRoute = {
+    kind: 'timeoutForm',
+    timeout,
+    draft,
+  };
+
+  while (true) {
+    const action = await runTimeoutFormScreen(ctx, route, undefined);
+    if (action.kind === 'stay') {
+      continue;
+    }
+    if (action.kind === 'pop') {
+      return;
+    }
+    return;
   }
 }
 
@@ -328,6 +458,15 @@ export async function selectProvidersForImport(options: {
       continue;
     }
 
+    const confirmed = await confirmImport(
+      selectedDrafts.length,
+      'provider',
+    );
+    if (!confirmed) {
+      selectedIds = result.selectedIds;
+      continue;
+    }
+
     return selectedDrafts;
   }
 }
@@ -413,6 +552,12 @@ export async function selectModelsForImport(options: {
         )}. Please edit them before importing.`,
         { modal: true },
       );
+      selectedIds = result.selectedIds;
+      continue;
+    }
+
+    const confirmed = await confirmImport(selectedModels.length, 'model');
+    if (!confirmed) {
       selectedIds = result.selectedIds;
       continue;
     }
@@ -615,4 +760,17 @@ function buildModelImportItems(
   }
 
   return items;
+}
+
+async function confirmImport(
+  count: number,
+  itemLabel: string,
+): Promise<boolean> {
+  const label = count === 1 ? itemLabel : `${itemLabel}s`;
+  const result = await vscode.window.showWarningMessage(
+    `Import ${count} ${label}?`,
+    { modal: true },
+    'Import',
+  );
+  return result === 'Import';
 }
