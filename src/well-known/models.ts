@@ -5,7 +5,7 @@ import { ModelConfig } from '../types';
  */
 interface WellKnownModelConfig extends ModelConfig {
   /** Alternative IDs for matching (e.g., aliases or legacy IDs) */
-  alternativeIds?: string[];
+  alternativeIds?: readonly string[];
 }
 
 /**
@@ -14,6 +14,7 @@ interface WellKnownModelConfig extends ModelConfig {
 const _WELL_KNOWN_MODELS = [
   {
     id: 'doubao-seed-1-8-251215',
+    alternativeIds: ['doubao-seed-1.8'],
     name: 'Doubao Seed 1.8',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -29,6 +30,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-code-preview-251028',
+    alternativeIds: ['doubao-seed-code-preview'],
     name: 'Doubao Seed Code Preview',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -44,6 +46,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-1-6-lite-251015',
+    alternativeIds: ['doubao-seed-1.6-lite'],
     name: 'Doubao Seed 1.6 Lite',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -58,6 +61,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-1-6-flash-250828',
+    alternativeIds: ['doubao-seed-1.6-flash'],
     name: 'Doubao Seed 1.6 Flash',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -72,6 +76,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-1-6-vision-250815',
+    alternativeIds: ['doubao-seed-1.6-vision'],
     name: 'Doubao Seed 1.6 Vision',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -86,6 +91,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-1-6-251015',
+    alternativeIds: ['doubao-seed-1.6'],
     name: 'Doubao Seed 1.6',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -100,6 +106,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-1-6-250615',
+    alternativeIds: ['doubao-seed-1.6'],
     name: 'Doubao Seed 1.6',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -114,6 +121,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-1-6-flash-250615',
+    alternativeIds: ['doubao-seed-1.6-flash'],
     name: 'Doubao Seed 1.6 Flash',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -128,6 +136,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-translation-250915',
+    alternativeIds: ['doubao-seed-translation'],
     name: 'Doubao Seed Translation',
     maxInputTokens: 4000,
     maxOutputTokens: 3000,
@@ -139,6 +148,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-1-5-pro-32k-250115',
+    alternativeIds: ['doubao-1.5-pro-32k'],
     name: 'Doubao 1.5 Pro 32k',
     maxInputTokens: 128000,
     maxOutputTokens: 16000,
@@ -150,6 +160,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-1-5-pro-32k-character-250228',
+    alternativeIds: ['doubao-1.5-pro-32k-character'],
     name: 'Doubao 1.5 Pro 32k Character',
     maxInputTokens: 32000,
     maxOutputTokens: 12000,
@@ -161,6 +172,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-1-5-pro-32k-character-250715',
+    alternativeIds: ['doubao-1.5-pro-32k-character'],
     name: 'Doubao 1.5 Pro 32k Character',
     maxInputTokens: 32000,
     maxOutputTokens: 12000,
@@ -172,6 +184,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-1-5-lite-32k-250115',
+    alternativeIds: ['doubao-1.5-lite-32k'],
     name: 'Doubao 1.5 Lite 32k',
     maxInputTokens: 32000,
     maxOutputTokens: 12000,
@@ -183,6 +196,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-lite-32k-character-250228',
+    alternativeIds: ['doubao-lite-32k-character'],
     name: 'Doubao Lite 32k Character',
     maxInputTokens: 32000,
     maxOutputTokens: 4000,
@@ -352,6 +366,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'xhigh',
     },
     capabilities: {
       toolCalling: true,
@@ -366,6 +381,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'xhigh',
     },
     capabilities: {
       toolCalling: true,
@@ -406,6 +422,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'high',
     },
     capabilities: {
       toolCalling: true,
@@ -420,6 +437,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'high',
     },
     capabilities: {
       toolCalling: true,
@@ -462,6 +480,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'high',
     },
     capabilities: {
       toolCalling: true,
@@ -476,6 +495,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'xhigh',
     },
     capabilities: {
       toolCalling: true,
@@ -490,6 +510,7 @@ const _WELL_KNOWN_MODELS = [
     stream: true,
     thinking: {
       type: 'enabled',
+      effort: 'high',
     },
     capabilities: {
       toolCalling: true,
@@ -545,6 +566,337 @@ const _WELL_KNOWN_MODELS = [
     capabilities: {
       toolCalling: true,
       imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16384,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o mini',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16384,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4.1',
+    name: 'GPT-4.1',
+    maxInputTokens: 1047576,
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4.1-mini',
+    name: 'GPT-4.1 mini',
+    maxInputTokens: 1047576,
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4.1-nano',
+    name: 'GPT-4.1 nano',
+    maxInputTokens: 1047576,
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'codex-mini-latest',
+    name: 'Codex mini',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o1',
+    name: 'o1',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o1-pro',
+    name: 'o1 pro',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: false,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o1-mini',
+    name: 'o1 mini',
+    maxInputTokens: 128000,
+    maxOutputTokens: 65536,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'o1-preview',
+    name: 'o1 preview',
+    maxInputTokens: 128000,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'o3',
+    name: 'o3',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o3-mini',
+    name: 'o3 mini',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'o3-pro',
+    name: 'o3 pro',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: false,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o3-deep-research',
+    name: 'o3 Deep Research',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o4-mini',
+    name: 'o4 mini',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'o4-mini-deep-research',
+    name: 'o4 mini Deep Research',
+    maxInputTokens: 200000,
+    maxOutputTokens: 100000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4o-search-preview',
+    name: 'GPT-4o Search Preview',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16384,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'gpt-4o-mini-search-preview',
+    name: 'GPT-4o mini Search Preview',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16384,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'computer-use-preview',
+    name: 'Computer Use Preview',
+    maxInputTokens: 8192,
+    maxOutputTokens: 1024,
+    stream: false,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4.5-preview',
+    name: 'GPT-4.5 Preview',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16384,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4-turbo',
+    name: 'GPT-4 Turbo',
+    maxInputTokens: 128000,
+    maxOutputTokens: 4096,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-4-turbo-preview',
+    name: 'GPT-4 Turbo Preview',
+    maxInputTokens: 128000,
+    maxOutputTokens: 4096,
+    stream: false,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'gpt-4',
+    name: 'GPT-4',
+    maxInputTokens: 8192,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'gpt-3.5-turbo',
+    name: 'GPT-3.5 Turbo',
+    maxInputTokens: 16385,
+    maxOutputTokens: 4096,
+    stream: false,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'gpt-3.5-turbo-instruct',
+    name: 'GPT-3.5 Turbo Instruct',
+    maxInputTokens: 4096,
+    maxOutputTokens: 4096,
+    stream: false,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'babbage-002',
+    name: 'babbage-002',
+    maxOutputTokens: 16384,
+    stream: false,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'davinci-002',
+    name: 'davinci-002',
+    maxOutputTokens: 16384,
+    stream: false,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
     },
   },
   {
@@ -651,6 +1003,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'kimi-k2-0905-preview',
+    alternativeIds: ['kimi-k2'],
     name: 'Kimi K2 0905 Preview',
     maxInputTokens: 256000,
     maxOutputTokens: 128000,
@@ -688,6 +1041,863 @@ const _WELL_KNOWN_MODELS = [
       imageInput: false,
     },
     temperature: 0.6,
+  },
+  {
+    id: 'qwen3-max',
+    name: 'Qwen3-Max',
+    maxInputTokens: 262144,
+    maxOutputTokens: 65536,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-plus',
+    name: 'Qwen-Plus',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-flash',
+    name: 'Qwen-Flash',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-turbo',
+    name: 'Qwen-Turbo',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-max',
+    name: 'Qwen-Max',
+    maxInputTokens: 32768,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen3-coder-plus',
+    name: 'Qwen3-Coder-Plus',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 65536,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen3-coder-flash',
+    name: 'Qwen3-Coder-Flash',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 65536,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwq-plus',
+    name: 'QwQ-Plus',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qvq-max',
+    name: 'QVQ-Max',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-plus',
+    name: 'Qwen3-VL-Plus',
+    maxInputTokens: 262144,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-flash',
+    name: 'Qwen3-VL-Flash',
+    maxInputTokens: 262144,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-32b-instruct',
+    name: 'Qwen3-VL-32B-Instruct',
+    maxInputTokens: 131072,
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-vl-ocr',
+    name: 'Qwen-VL-OCR',
+    maxInputTokens: 34096,
+    maxOutputTokens: 4096,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-vl-max',
+    name: 'Qwen-VL-Max',
+    maxInputTokens: 131072,
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-vl-plus',
+    name: 'Qwen-VL-Plus',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-plus-character-ja',
+    name: 'Qwen-Plus Character (JA)',
+    maxInputTokens: 8192,
+    maxOutputTokens: 512,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-mt-plus',
+    name: 'Qwen-MT-Plus',
+    maxInputTokens: 4096,
+    maxOutputTokens: 2048,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-mt-flash',
+    name: 'Qwen-MT-Flash',
+    maxInputTokens: 16384,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-mt-lite',
+    name: 'Qwen-MT-Lite',
+    maxInputTokens: 16384,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-mt-turbo',
+    name: 'Qwen-MT-Turbo',
+    maxInputTokens: 4096,
+    maxOutputTokens: 2048,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen3-max-preview',
+    name: 'Qwen3-Max Preview',
+    maxInputTokens: 81920,
+    maxOutputTokens: 65536,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-long-latest',
+    name: 'Qwen-Long',
+    maxInputTokens: 10000000,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-doc-turbo',
+    name: 'Qwen-Doc-Turbo',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-deep-research',
+    name: 'Qwen Deep Research',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-math-plus',
+    name: 'Qwen-Math-Plus',
+    maxInputTokens: 4096,
+    maxOutputTokens: 3072,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-math-turbo',
+    name: 'Qwen-Math-Turbo',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qvq-plus',
+    name: 'QVQ-Plus',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-coder-plus',
+    name: 'Qwen-Coder-Plus',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen-coder-turbo',
+    name: 'Qwen-Coder-Turbo',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwq-32b',
+    name: 'QwQ 32B',
+    maxInputTokens: 131072,
+    maxOutputTokens: 8192,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwq-32b-preview',
+    name: 'QwQ 32B Preview',
+    maxInputTokens: 32768,
+    maxOutputTokens: 16384,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qvq-72b-preview',
+    name: 'QVQ 72B Preview',
+    maxInputTokens: 32768,
+    maxOutputTokens: 16384,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen1.5-7b-chat',
+    name: 'Qwen1.5 7B Chat',
+    stream: true,
+  },
+  {
+    id: 'qwen1.5-14b-chat',
+    name: 'Qwen1.5 14B Chat',
+    stream: true,
+  },
+  {
+    id: 'qwen1.5-32b-chat',
+    name: 'Qwen1.5 32B Chat',
+    stream: true,
+  },
+  {
+    id: 'qwen1.5-72b-chat',
+    name: 'Qwen1.5 72B Chat',
+    stream: true,
+  },
+  {
+    id: 'qwen1.5-110b-chat',
+    name: 'Qwen1.5 110B Chat',
+    stream: true,
+  },
+  {
+    id: 'qwen2-7b-instruct',
+    name: 'Qwen2 7B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2-72b-instruct',
+    name: 'Qwen2 72B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2-57b-a14b-instruct',
+    name: 'Qwen2 57B A14B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2-vl-72b-instruct',
+    name: 'Qwen2-VL 72B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen2.5-0.5b-instruct',
+    name: 'Qwen2.5 0.5B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-1.5b-instruct',
+    name: 'Qwen2.5 1.5B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-3b-instruct',
+    name: 'Qwen2.5 3B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-7b-instruct',
+    name: 'Qwen2.5 7B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-7b-instruct-1m',
+    name: 'Qwen2.5 7B Instruct (1M)',
+    maxInputTokens: 1000000,
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-14b-instruct',
+    name: 'Qwen2.5 14B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-14b-instruct-1m',
+    name: 'Qwen2.5 14B Instruct (1M)',
+    maxInputTokens: 1000000,
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-32b-instruct',
+    name: 'Qwen2.5 32B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-72b-instruct',
+    name: 'Qwen2.5 72B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-coder-0.5b-instruct',
+    name: 'Qwen2.5 Coder 0.5B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-coder-1.5b-instruct',
+    name: 'Qwen2.5 Coder 1.5B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-coder-3b-instruct',
+    name: 'Qwen2.5 Coder 3B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-coder-7b-instruct',
+    name: 'Qwen2.5 Coder 7B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-coder-14b-instruct',
+    name: 'Qwen2.5 Coder 14B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-coder-32b-instruct',
+    name: 'Qwen2.5 Coder 32B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-math-1.5b-instruct',
+    name: 'Qwen2.5 Math 1.5B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-math-7b-instruct',
+    name: 'Qwen2.5 Math 7B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-math-72b-instruct',
+    name: 'Qwen2.5 Math 72B Instruct',
+    stream: true,
+  },
+  {
+    id: 'qwen2.5-vl-3b-instruct',
+    name: 'Qwen2.5-VL 3B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen2.5-vl-7b-instruct',
+    name: 'Qwen2.5-VL 7B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen2.5-vl-32b-instruct',
+    name: 'Qwen2.5-VL 32B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-0.6b',
+    name: 'Qwen3 0.6B',
+    maxInputTokens: 30720,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-1.7b',
+    name: 'Qwen3 1.7B',
+    maxInputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-4b',
+    name: 'Qwen3 4B',
+    maxInputTokens: 129024,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-8b',
+    name: 'Qwen3 8B',
+    maxInputTokens: 129024,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-14b',
+    name: 'Qwen3 14B',
+    maxInputTokens: 129024,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-32b',
+    name: 'Qwen3 32B',
+    maxInputTokens: 129024,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-30b-a3b',
+    name: 'Qwen3 30B A3B',
+    maxInputTokens: 129024,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-235b-a22b',
+    name: 'Qwen3 235B A22B',
+    maxInputTokens: 129024,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-next-80b-a3b-thinking',
+    name: 'Qwen3 Next 80B A3B Thinking',
+    maxInputTokens: 131072,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-next-80b-a3b-instruct',
+    name: 'Qwen3 Next 80B A3B Instruct',
+    maxInputTokens: 129024,
+    stream: true,
+  },
+  {
+    id: 'qwen3-235b-a22b-thinking-2507',
+    name: 'Qwen3 235B A22B Thinking 2507',
+    maxInputTokens: 126976,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-235b-a22b-instruct-2507',
+    name: 'Qwen3 235B A22B Instruct 2507',
+    maxInputTokens: 129024,
+    stream: true,
+  },
+  {
+    id: 'qwen3-30b-a3b-thinking-2507',
+    name: 'Qwen3 30B A3B Thinking 2507',
+    maxInputTokens: 126976,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+  },
+  {
+    id: 'qwen3-30b-a3b-instruct-2507',
+    name: 'Qwen3 30B A3B Instruct 2507',
+    maxInputTokens: 129024,
+    stream: true,
+  },
+  {
+    id: 'qwen3-coder-480b-a35b-instruct',
+    name: 'Qwen3 Coder 480B A35B Instruct',
+    maxInputTokens: 262144,
+    maxOutputTokens: 65536,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen3-coder-30b-a3b-instruct',
+    name: 'Qwen3 Coder 30B A3B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen3-vl-235b-a22b-thinking',
+    name: 'Qwen3-VL 235B A22B Thinking',
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-235b-a22b-instruct',
+    name: 'Qwen3-VL 235B A22B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-32b-thinking',
+    name: 'Qwen3-VL 32B Thinking',
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-30b-a3b-thinking',
+    name: 'Qwen3-VL 30B A3B Thinking',
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-30b-a3b-instruct',
+    name: 'Qwen3-VL 30B A3B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-8b-thinking',
+    name: 'Qwen3-VL 8B Thinking',
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-vl-8b-instruct',
+    name: 'Qwen3-VL 8B Instruct',
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-omni-flash',
+    name: 'Qwen3-Omni-Flash',
+    maxInputTokens: 65536,
+    maxOutputTokens: 16384,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-omni-flash-realtime',
+    name: 'Qwen3-Omni-Flash-Realtime',
+    maxInputTokens: 65536,
+    maxOutputTokens: 8192,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3-omni-30b-a3b-captioner',
+    name: 'Qwen3-Omni 30B A3B Captioner',
+    maxOutputTokens: 32768,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'qwen2.5-omni-7b',
+    name: 'Qwen2.5-Omni-7B',
+    maxInputTokens: 32768,
+    maxOutputTokens: 2048,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-omni-turbo',
+    name: 'Qwen-Omni-Turbo',
+    maxInputTokens: 32768,
+    maxOutputTokens: 2048,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen-omni-turbo-realtime',
+    name: 'Qwen-Omni-Turbo-Realtime',
+    maxInputTokens: 32768,
+    maxOutputTokens: 2048,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
   },
   {
     id: 'mimo-v2-flash',
@@ -953,9 +2163,21 @@ const _WELL_KNOWN_MODELS = [
       imageInput: false,
     },
   },
-] as const satisfies WellKnownModelConfig[];
-export const WELL_KNOWN_MODELS: WellKnownModelConfig[] = _WELL_KNOWN_MODELS;
-export type WellKnownModelId = (typeof _WELL_KNOWN_MODELS)[number]['id'];
+] as const satisfies readonly WellKnownModelConfig[];
+export const WELL_KNOWN_MODELS: readonly WellKnownModelConfig[] =
+  _WELL_KNOWN_MODELS;
+
+type WellKnownModelPrimaryId = (typeof _WELL_KNOWN_MODELS)[number]['id'];
+type WellKnownModelAlternativeId =
+  (typeof _WELL_KNOWN_MODELS)[number] extends infer M
+    ? M extends { alternativeIds: readonly (infer AltId)[] }
+      ? AltId
+      : never
+    : never;
+
+export type WellKnownModelId =
+  | WellKnownModelPrimaryId
+  | WellKnownModelAlternativeId;
 
 /**
  * Check if two IDs match using includes-based comparison
@@ -1064,4 +2286,10 @@ export function mergeWithWellKnownModels(
   apiModels: ModelConfig[],
 ): ModelConfig[] {
   return apiModels.map((model) => mergeWithWellKnownModel(model));
+}
+
+export function normalizeWellKnownConfigs(
+  models: readonly WellKnownModelConfig[],
+): ModelConfig[] {
+  return models.map(({ alternativeIds, ...config }) => config);
 }

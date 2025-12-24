@@ -448,7 +448,12 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
   private buildReasoningParams(
     model: ModelConfig,
-    type: 'reasoning' | 'thinking' | 'official',
+    type:
+      | 'reasoning'
+      | 'thinking'
+      | 'official'
+      | 'enable_thinking'
+      | 'enable_thinking_with_budget',
   ): Partial<ChatCompletionCreateParamsBase> {
     const thinking = model.thinking;
     if (!thinking) {
@@ -460,6 +465,8 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         ? { reasoning: { enabled: false } }
         : type === 'thinking'
         ? { thinking: { type: 'disabled' } }
+        : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
+        ? { enable_thinking: false }
         : { reasoning_effort: 'none' };
     }
 
@@ -475,6 +482,13 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
           }
         : type === 'thinking'
         ? { thinking: { type: 'enabled' } }
+        : type === 'enable_thinking_with_budget'
+        ? {
+            enable_thinking: true,
+            thinking_budget: thinking.budgetTokens,
+          }
+        : type === 'enable_thinking'
+        ? { enable_thinking: true }
         : // Defaults to 'medium' effort if budget is set
           { reasoning_effort: 'medium' };
     }
@@ -484,6 +498,8 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         ? { reasoning: { effort: thinking.effort } }
         : type === 'thinking'
         ? { thinking: { type: 'enabled' } }
+        : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
+        ? { enable_thinking: true }
         : { reasoning_effort: thinking.effort };
     }
 
@@ -491,6 +507,8 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       ? { reasoning: { enabled: true } }
       : type === 'thinking'
       ? { thinking: { type: 'enabled' } }
+      : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
+      ? { enable_thinking: true }
       : // Defaults to 'medium' effort if not set effort or budget
         { reasoning_effort: 'medium' };
   }
@@ -534,6 +552,26 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       this.config,
       model,
     );
+    const useTopK = isFeatureSupported(
+      FeatureId.OpenAIUseTopK,
+      this.config,
+      model,
+    );
+    const useMaxInputTokens = isFeatureSupported(
+      FeatureId.OpenAIUseMaxInputTokens,
+      this.config,
+      model,
+    );
+    const useThinkingParam3 = isFeatureSupported(
+      FeatureId.OpenAIUseThinkingParam3,
+      this.config,
+      model,
+    );
+    const useThinkingBudgetParam = isFeatureSupported(
+      FeatureId.OpenAIUseThinkingBudgetParam,
+      this.config,
+      model,
+    );
     const useReasoningDetails = isFeatureSupported(
       FeatureId.OpenAIUseReasoningDetails,
       this.config,
@@ -544,13 +582,26 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       this.config,
       model,
     );
+    const useClearThinking = isFeatureSupported(
+      FeatureId.OpenAIUseClearThinking,
+      this.config,
+      model,
+    );
 
-    const thinkingParamType: 'reasoning' | 'thinking' | 'official' =
-      useReasoningParam
-        ? 'reasoning'
-        : useThinkingParam
-        ? 'thinking'
-        : 'official';
+    const thinkingParamType:
+      | 'reasoning'
+      | 'thinking'
+      | 'official'
+      | 'enable_thinking'
+      | 'enable_thinking_with_budget' = useReasoningParam
+      ? 'reasoning'
+      : useThinkingParam
+      ? 'thinking'
+      : useThinkingParam3
+      ? useThinkingBudgetParam
+        ? 'enable_thinking_with_budget'
+        : 'enable_thinking'
+      : 'official';
     const reasoningType: 'content' | 'details' | 'none' = useReasoningDetails
       ? 'details'
       : useReasoningContent
@@ -568,13 +619,19 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     const streamEnabled = model.stream ?? true;
 
     const headers = this.buildHeaders(model);
+
     const baseBody: ChatCompletionCreateParamsBase = {
       model: getBaseModelId(model.id),
       messages: convertedMessages,
       ...this.buildReasoningParams(model, thinkingParamType),
+      ...(useTopK && model.topK !== undefined ? { top_k: model.topK } : {}),
+      ...(useClearThinking ? { clear_thinking: false } : {}),
+      ...(useMaxInputTokens && model.maxInputTokens !== undefined
+        ? { max_input_tokens: model.maxInputTokens }
+        : {}),
       ...(model.maxOutputTokens !== undefined
         ? isFeatureSupported(
-            FeatureId.OpenAIOnlyUseMaxCompletionTokens,
+            FeatureId.OpenAIOnlyMaxCompletionTokens,
             this.config,
             model,
           )

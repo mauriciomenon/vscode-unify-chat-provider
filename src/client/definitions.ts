@@ -90,7 +90,7 @@ export enum FeatureId {
   /**
    * @see https://community.openai.com/t/developer-role-not-accepted-for-o1-o1-mini-o3-mini/1110750/7
    */
-  OpenAIOnlyUseMaxCompletionTokens = 'openai_only-use-max-completion-tokens',
+  OpenAIOnlyMaxCompletionTokens = 'openai_only-max-completion-tokens',
   /**
    * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
    */
@@ -111,6 +111,30 @@ export enum FeatureId {
    */
   OpenAIUseThinkingParam2 = 'openai_use-thinking-param-2',
   /**
+   * Use `top_k` parameter in OpenAI-compatible Chat Completion APIs.
+   *
+   * @see https://modelstudio.console.alibabacloud.com/?tab=api#/api/?type=model&url=2712576
+   */
+  OpenAIUseTopK = 'openai_use-top-k',
+  /**
+   * Use `max_input_tokens` parameter in OpenAI-compatible Chat Completion APIs.
+   *
+   * @see https://modelstudio.console.alibabacloud.com/?tab=api#/api/?type=model&url=2712576
+   */
+  OpenAIUseMaxInputTokens = 'openai_use-max-input-tokens',
+  /**
+   * Use `enable_thinking` parameter in OpenAI-compatible Chat Completion APIs.
+   *
+   * @see https://modelstudio.console.alibabacloud.com/?tab=api#/api/?type=model&url=2712576
+   */
+  OpenAIUseThinkingParam3 = 'openai_use-thinking-param-3',
+  /**
+   * Use `thinking_budget` parameter in OpenAI-compatible Chat Completion APIs.
+   *
+   * @see https://modelstudio.console.alibabacloud.com/?tab=api#/api/?type=model&url=2712576
+   */
+  OpenAIUseThinkingBudgetParam = 'openai_use-thinking-budget-param',
+  /**
    * Thinking reasoning content to be included in the response.
    *
    * @see https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
@@ -124,6 +148,10 @@ export enum FeatureId {
    * @see https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#preserving-reasoning-blocks
    */
   OpenAIUseReasoningDetails = 'openai_use-reasoning-details',
+  /**
+   * @see https://docs.bigmodel.cn/cn/guide/capabilities/thinking-mode
+   */
+  OpenAIUseClearThinking = 'openai_use-clear-thinking',
 }
 
 export const FEATURES: Record<FeatureId, Feature> = {
@@ -180,7 +208,7 @@ export const FEATURES: Record<FeatureId, Feature> = {
   [FeatureId.AnthropicFineGrainedToolStreaming]: {
     supportedFamilys: ['claude-'],
   },
-  [FeatureId.OpenAIOnlyUseMaxCompletionTokens]: {
+  [FeatureId.OpenAIOnlyMaxCompletionTokens]: {
     supportedFamilys: [
       'codex-mini-latest',
       'gpt-5.1',
@@ -251,6 +279,30 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'ark.ap-southeast.bytepluses.com',
     ],
   },
+  [FeatureId.OpenAIUseTopK]: {
+    supportedProviders: [
+      'dashscope.aliyuncs.com',
+      'dashscope-intl.aliyuncs.com',
+    ],
+  },
+  [FeatureId.OpenAIUseMaxInputTokens]: {
+    supportedProviders: [
+      'dashscope.aliyuncs.com',
+      'dashscope-intl.aliyuncs.com',
+    ],
+  },
+  [FeatureId.OpenAIUseThinkingParam3]: {
+    supportedProviders: [
+      'dashscope.aliyuncs.com',
+      'dashscope-intl.aliyuncs.com',
+    ],
+  },
+  [FeatureId.OpenAIUseThinkingBudgetParam]: {
+    supportedProviders: [
+      'dashscope-intl.aliyuncs.com',
+      'dashscope-intl.aliyuncs.com',
+    ],
+  },
   [FeatureId.OpenAIUseReasoningContent]: {
     supportedProviders: [
       'api.deepseek.com',
@@ -260,6 +312,11 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api.moonshot.cn',
       'api.moonshot.ai',
       'api.kimi.com',
+      'dashscope-intl.aliyuncs.com',
+      'dashscope-intl.aliyuncs.com',
     ],
+  },
+  [FeatureId.OpenAIUseClearThinking]: {
+    supportedProviders: ['open.bigmodel.cn', 'api.z.ai'],
   },
 };

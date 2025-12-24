@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
-import { WELL_KNOWN_MODELS } from '../../well-known/models';
+import {
+  normalizeWellKnownConfigs,
+  WELL_KNOWN_MODELS,
+} from '../../well-known/models';
 import { confirmDelete, pickQuickItem, showDeletedMessage } from '../component';
 import { duplicateModel, showCopiedBase64Config } from '../base64-config';
-import {
-  promptForModelImportConfig,
-} from '../import-from-config';
+import { promptForModelImportConfig } from '../import-from-config';
 import {
   confirmDiscardProviderChanges,
   formatModelDetail,
@@ -362,7 +363,7 @@ export async function runModelListScreen(
         kind: 'modelSelection',
         title: 'Add From Well-Known Model List',
         existingModels: route.models,
-        fetchModels: async () => WELL_KNOWN_MODELS,
+        fetchModels: async () => normalizeWellKnownConfigs(WELL_KNOWN_MODELS),
       },
     };
   }

@@ -1,7 +1,63 @@
 import { ProviderConfig, ModelConfig } from '../types';
-import { WellKnownModelId, WELL_KNOWN_MODELS } from './models';
+import {
+  WellKnownModelId,
+  WELL_KNOWN_MODELS,
+  normalizeWellKnownConfigs,
+} from './models';
 
 export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
+  {
+    name: 'Anthropic',
+    type: 'anthropic',
+    baseUrl: 'https://api.anthropic.com',
+    models: wellKnowns(
+      'claude-opus-4-5',
+      'claude-sonnet-4-5',
+      'claude-haiku-4-5',
+    ),
+  },
+  {
+    name: 'Open AI',
+    type: 'openai-responses',
+    baseUrl: 'https://api.openai.com',
+    models: wellKnowns(
+      'gpt-5.2',
+      'gpt-5.1',
+      'gpt-5',
+      'gpt-5-mini',
+      'gpt-5.2-pro',
+      'gpt-5-nano',
+      'gpt-4.1',
+    ),
+  },
+  {
+    name: 'Alibaba Cloud Model Studio (China)',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    models: wellKnowns(
+      'qwen3-max',
+      'qwen-plus',
+      'qwen3-coder-plus',
+      'qwen3-coder-flash',
+    ),
+  },
+  {
+    name: 'Alibaba Cloud Model Studio (International)',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+    models: wellKnowns(
+      'qwen3-max',
+      'qwen-plus',
+      'qwen3-coder-plus',
+      'qwen3-coder-flash',
+    ),
+  },
+  {
+    name: 'Model Scope (API-Inference)',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://api-inference.modelscope.cn/v1',
+    models: [],
+  },
   {
     name: 'Volcano Engine',
     type: 'openai-responses',
@@ -35,16 +91,6 @@ export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
     models: wellKnowns('deepseek-chat', 'deepseek-reasoner'),
   },
   {
-    name: 'Anthropic',
-    type: 'anthropic',
-    baseUrl: 'https://api.anthropic.com',
-    models: wellKnowns(
-      'claude-opus-4-5',
-      'claude-sonnet-4-5',
-      'claude-haiku-4-5',
-    ),
-  },
-  {
     name: 'Xiaomi MIMO',
     type: 'openai-chat-completion',
     baseUrl: 'https://api.xiaomimimo.com/v1',
@@ -55,6 +101,7 @@ export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
     type: 'ollama',
     baseUrl: 'http://localhost:11434',
     models: [],
+    autoFetchOfficialModels: true,
   },
   {
     name: 'ZhiPu AI',
@@ -123,9 +170,13 @@ export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
 ];
 
 function wellKnowns(...ids: WellKnownModelId[]): ModelConfig[] {
-  return WELL_KNOWN_MODELS.filter((m) =>
-    ids.includes(m.id as WellKnownModelId),
-  ).map((m) => ({
-    ...m,
-  }));
+  const idSet = new Set<string>(ids);
+  return normalizeWellKnownConfigs(
+    WELL_KNOWN_MODELS.filter((m) => {
+      if (idSet.has(m.id)) {
+        return true;
+      }
+      return m.alternativeIds?.some((altId) => idSet.has(altId)) ?? false;
+    }),
+  );
 }
