@@ -7,7 +7,7 @@ Unify Chat Provider
 </h1>
 
 <p align="center">
-使用 Language Model API，将多个大语言模型 API 提供商集成到 VS Code 的 GitHub Copilot Chat 中。
+使用 Language Model API，将多个大语言模型 API 提供商集成到 VS Code 的 Github Copilot Chat 中。
 </p>
 
 <!-- <br>
