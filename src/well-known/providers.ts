@@ -68,7 +68,6 @@ export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
       'doubao-seed-1-6-lite-251015',
       'doubao-seed-1-6-flash-250828',
       'doubao-seed-1-6-vision-250815',
-      'doubao-seed-translation-250915',
     ),
   },
   {
@@ -81,7 +80,16 @@ export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
       'doubao-seed-1-6-lite-251015',
       'doubao-seed-1-6-flash-250828',
       'doubao-seed-1-6-vision-250815',
-      'doubao-seed-translation-250915',
+    ),
+  },
+  {
+    name: 'Tencent Cloud (China)',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1',
+    models: wellKnowns(
+      'hunyuan-2.0-thinking-20251109',
+      'hunyuan-2.0-instruct-20251111',
+      'hunyuan-vision-1.5-instruct',
     ),
   },
   {

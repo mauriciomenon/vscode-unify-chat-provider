@@ -135,18 +135,6 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
-    id: 'doubao-seed-translation-250915',
-    alternativeIds: ['doubao-seed-translation'],
-    name: 'Doubao Seed Translation',
-    maxInputTokens: 4000,
-    maxOutputTokens: 3000,
-    stream: true,
-    capabilities: {
-      toolCalling: false,
-      imageInput: false,
-    },
-  },
-  {
     id: 'doubao-1-5-pro-32k-250115',
     alternativeIds: ['doubao-1.5-pro-32k'],
     name: 'Doubao 1.5 Pro 32k',
@@ -1240,50 +1228,6 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
-    id: 'qwen-mt-plus',
-    name: 'Qwen-MT-Plus',
-    maxInputTokens: 4096,
-    maxOutputTokens: 2048,
-    stream: true,
-    capabilities: {
-      toolCalling: false,
-      imageInput: false,
-    },
-  },
-  {
-    id: 'qwen-mt-flash',
-    name: 'Qwen-MT-Flash',
-    maxInputTokens: 16384,
-    maxOutputTokens: 8192,
-    stream: true,
-    capabilities: {
-      toolCalling: false,
-      imageInput: false,
-    },
-  },
-  {
-    id: 'qwen-mt-lite',
-    name: 'Qwen-MT-Lite',
-    maxInputTokens: 16384,
-    maxOutputTokens: 8192,
-    stream: true,
-    capabilities: {
-      toolCalling: false,
-      imageInput: false,
-    },
-  },
-  {
-    id: 'qwen-mt-turbo',
-    name: 'Qwen-MT-Turbo',
-    maxInputTokens: 4096,
-    maxOutputTokens: 2048,
-    stream: true,
-    capabilities: {
-      toolCalling: false,
-      imageInput: false,
-    },
-  },
-  {
     id: 'qwen3-max-preview',
     name: 'Qwen3-Max Preview',
     maxInputTokens: 81920,
@@ -2161,6 +2105,41 @@ const _WELL_KNOWN_MODELS = [
     capabilities: {
       toolCalling: true,
       imageInput: false,
+    },
+  },
+  {
+    id: 'hunyuan-2.0-thinking-20251109',
+    alternativeIds: ['hunyuan-2.0-think'],
+    name: 'HY 2.0 Think',
+    maxInputTokens: 128000,
+    maxOutputTokens: 64000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'hunyuan-2.0-instruct-20251111',
+    alternativeIds: ['hunyuan-2.0-instruct'],
+    name: 'HY 2.0 Instruct',
+    maxInputTokens: 128000,
+    maxOutputTokens: 16000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'hunyuan-vision-1.5-instruct',
+    name: 'HY Vision 1.5 Instruct',
+    maxInputTokens: 24000,
+    maxOutputTokens: 16000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
     },
   },
 ] as const satisfies readonly WellKnownModelConfig[];
