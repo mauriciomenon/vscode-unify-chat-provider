@@ -59,7 +59,7 @@ export class AnthropicProvider implements ApiProvider {
     "You are Claude Code, Anthropic's official CLI for Claude.";
 
   constructor(private readonly config: ProviderConfig) {
-    this.baseUrl = buildBaseUrl(config.baseUrl, { stripPattern: /\/v\d+$/i });
+    this.baseUrl = buildBaseUrl(config.baseUrl, { stripPattern: /\/v1$/i });
   }
 
   /**
@@ -681,7 +681,8 @@ export class AnthropicProvider implements ApiProvider {
     });
 
     const thinkingType = model.thinking?.type;
-    const thinkingEnabled = thinkingType === 'enabled' || thinkingType === 'auto';
+    const thinkingEnabled =
+      thinkingType === 'enabled' || thinkingType === 'auto';
     const hasTools = (options.tools && options.tools.length > 0) ?? false;
     const stream = model.stream ?? true;
 
