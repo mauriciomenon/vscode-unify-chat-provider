@@ -30,7 +30,10 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'doubao-seed-code-preview-251028',
-    alternativeIds: ['doubao-seed-code-preview'],
+    alternativeIds: [
+      'doubao-seed-code-preview',
+      'doubao-seed-code-preview-latest',
+    ],
     name: 'Doubao Seed Code Preview',
     maxInputTokens: 256000,
     maxOutputTokens: 32000,
@@ -348,7 +351,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gpt-5.2-codex',
-    name: 'GPT-5.2 Codex',
+    name: 'GPT-5.2-Codex',
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
@@ -462,7 +465,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gpt-5.1-codex',
-    name: 'GPT-5.1 Codex',
+    name: 'GPT-5.1-Codex',
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
@@ -507,7 +510,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gpt-5.1-codex-mini',
-    name: 'GPT-5.1 Codex mini',
+    name: 'GPT-5.1-Codex-mini',
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
@@ -609,6 +612,36 @@ const _WELL_KNOWN_MODELS = [
     capabilities: {
       toolCalling: true,
       imageInput: true,
+    },
+  },
+  {
+    id: 'gpt-oss-120b',
+    name: 'GPT-OSS 120B',
+    maxInputTokens: 131072,
+    maxOutputTokens: 131072,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'gpt-oss-20b',
+    name: 'GPT-OSS 20B',
+    maxInputTokens: 131072,
+    maxOutputTokens: 131072,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
     },
   },
   {
@@ -956,6 +989,220 @@ const _WELL_KNOWN_MODELS = [
     capabilities: {
       toolCalling: true,
       imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3.2',
+    alternativeIds: ['ark-code-latest'],
+    name: 'DeepSeek V3.2',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3.2-exp',
+    name: 'DeepSeek V3.2 Exp',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3.2-speciale',
+    name: 'DeepSeek V3.2 Speciale',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3.1',
+    name: 'DeepSeek V3.1',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3.1-terminus',
+    name: 'DeepSeek V3.1 Terminus',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3',
+    name: 'DeepSeek V3',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v3-0324',
+    name: 'DeepSeek V3 (0324)',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-r1',
+    name: 'DeepSeek R1',
+    maxInputTokens: 128000,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 0.6,
+  },
+  {
+    id: 'deepseek-r1-0528',
+    name: 'DeepSeek R1 (0528)',
+    maxInputTokens: 128000,
+    maxOutputTokens: 32768,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 0.6,
+  },
+  {
+    id: 'deepseek-v2',
+    name: 'DeepSeek V2',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-v2.5',
+    name: 'DeepSeek V2.5',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-coder',
+    name: 'DeepSeek Coder',
+    maxInputTokens: 16384,
+    maxOutputTokens: 4096,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-coder-v2',
+    name: 'DeepSeek Coder V2',
+    maxInputTokens: 128000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-math-v2',
+    name: 'DeepSeek Math V2',
+    maxInputTokens: 4096,
+    maxOutputTokens: 4096,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+    temperature: 0.0,
+  },
+  {
+    id: 'deepseek-vl',
+    name: 'DeepSeek VL',
+    maxInputTokens: 4096,
+    maxOutputTokens: 4096,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+    temperature: 1.0,
+  },
+  {
+    id: 'deepseek-vl2',
+    name: 'DeepSeek VL2',
+    maxInputTokens: 4096,
+    maxOutputTokens: 4096,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
     },
     temperature: 1.0,
   },
