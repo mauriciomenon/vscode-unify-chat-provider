@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0.1 - 2025-12-30
+
+### Chores
+- update release scripts (98fe150, SmallMain)
+- update docs (0a9a4e1, SmallMain)
+
 ## v2.0.0 - 2025-12-30
 
 ### Breaking Changes
