@@ -95,11 +95,10 @@ Applications or extensions supported for one-click migration:
    <img src="assets/screenshot-3.png" width="600" />
    </div>
 
-> **Note**: The following applications only support migration when using custom Base URL and API Key:
+> **Note**:
 >
-> - Claude Code
-> - Codex
-> - Gemini CLI
+> - Claude Code and Codex only support migration when using custom Base URL and API Key.
+> - Gemini CLI migration supports `GEMINI_API_KEY`, `GOOGLE_API_KEY`, and `GOOGLE_APPLICATION_CREDENTIALS` authentication. Other auth methods are not supported.
 
 ### One-Click Configuration
 

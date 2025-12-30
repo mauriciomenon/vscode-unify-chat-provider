@@ -524,11 +524,11 @@ Google Cloud Vertex AI 共有三种身份验证方式：
 
 以下列出的供应商均支持 [一键迁移](#一键迁移)。
 
-| 应用                                                  | 备注                                            |
-| :---------------------------------------------------- | :---------------------------------------------- |
-| [Claude Code](https://claude.com/product/claude-code) | 仅在使用自定义 Base URL 和 API Key 时支持迁移。 |
-| [CodeX](https://openai.com/codex/)                    | 仅在使用自定义 Base URL 和 API Key 时支持迁移。 |
-| [Gemini CLI](https://geminicli.com/)                  | 仅在使用自定义 Base URL 和 API Key 时支持迁移。 |
+| 应用                                                  | 备注                                                                                                         |
+| :---------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| [Claude Code](https://claude.com/product/claude-code) | 仅在使用自定义 Base URL 和 API Key 时支持迁移。                                                              |
+| [CodeX](https://openai.com/codex/)                    | 仅在使用自定义 Base URL 和 API Key 时支持迁移。                                                              |
+| [Gemini CLI](https://geminicli.com/)                  | 仅在使用 `GEMINI_API_KEY`、`GOOGLE_API_KEY`、`GOOGLE_APPLICATION_CREDENTIALS` 这三种身份验证方式时支持迁移。 |
 
 ## 贡献
 

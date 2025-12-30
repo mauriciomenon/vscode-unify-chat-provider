@@ -26,6 +26,7 @@ export class VertexAIProvider extends GoogleAIStudioProvider {
   private readonly vertexProject: string | undefined;
   private readonly vertexLocation: string | undefined;
   private readonly vertexBaseDomain: string | undefined;
+  private readonly vertexApiVersion: string | undefined;
 
   constructor(config: ProviderConfig) {
     super(config);
@@ -34,12 +35,31 @@ export class VertexAIProvider extends GoogleAIStudioProvider {
     this.isServiceAccountAuth = detected.isServiceAccount;
     this.serviceAccountPath = detected.filePath;
 
+    this.vertexApiVersion = this.parseApiVersionFromUrl(config.baseUrl);
+
     // Parse project and location from baseUrl
     // Expected format: https://{location}-aiplatform.googleapis.com/{version}/projects/{project}/locations/{location}
     const parsed = this.parseVertexUrl(config.baseUrl);
     this.vertexProject = parsed.project;
     this.vertexLocation = parsed.location;
     this.vertexBaseDomain = parsed.baseDomain;
+  }
+
+  private parseApiVersionFromUrl(baseUrl: string): string | undefined {
+    try {
+      const url = new URL(baseUrl);
+      const pathname = url.pathname.replace(/\/+$/, '');
+
+      const endMatch = pathname.match(/\/(v\d+(?:alpha|beta)?\d*)$/i);
+      if (endMatch) return endMatch[1];
+
+      const startMatch = pathname.match(/^\/(v\d+(?:alpha|beta)?\d*)(?:\/|$)/i);
+      if (startMatch) return startMatch[1];
+    } catch {
+      // ignore invalid URL
+    }
+
+    return undefined;
   }
 
   /**
@@ -136,7 +156,7 @@ export class VertexAIProvider extends GoogleAIStudioProvider {
         googleAuthOptions: {
           keyFilename: this.serviceAccountPath,
         },
-        apiVersion: this.apiVersion,
+        apiVersion: this.vertexApiVersion,
         httpOptions,
       });
     } else {
@@ -144,7 +164,7 @@ export class VertexAIProvider extends GoogleAIStudioProvider {
       return new GoogleGenAI({
         vertexai: true,
         apiKey: this.config.apiKey,
-        apiVersion: this.apiVersion,
+        apiVersion: this.vertexApiVersion,
         httpOptions,
       });
     }
