@@ -394,12 +394,14 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&apiKe
 
 ## API 格式支持表
 
-| API                                                                                          | ID                       | 典型端点               | 备注                                      |
-| :------------------------------------------------------------------------------------------- | :----------------------- | :--------------------- | :---------------------------------------- |
-| [OpenAI Chat Completion API](https://platform.openai.com/docs/api-reference/chat)            | `openai-chat-completion` | `/v1/chat/completions` | 若非版本号后缀，则会自动追加 `/v1` 后缀。 |
-| [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses)             | `openai-responses`       | `/v1/responses`        | 若非版本号后缀，则会自动追加 `/v1` 后缀。 |
-| [Anthropic Messages API](https://platform.claude.com/docs/en/api/typescript/messages/create) | `anthropic`              | `/v1/messages`         | 自动移除重复的 `/v1` 后缀。               |
-| [Ollama Chat API](https://docs.ollama.com/api/chat)                                          | `ollama`                 | `/api/chat`            | 自动移除重复的 `/api` 后缀。              |
+| API                                                                                          | ID                       | 典型端点                         | 备注                                                                     |
+| :------------------------------------------------------------------------------------------- | :----------------------- | :------------------------------- | :----------------------------------------------------------------------- |
+| [OpenAI Chat Completion API](https://platform.openai.com/docs/api-reference/chat)            | `openai-chat-completion` | `/v1/chat/completions`           | 若非版本号后缀，则会自动追加 `/v1` 后缀。                                |
+| [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses)             | `openai-responses`       | `/v1/responses`                  | 若非版本号后缀，则会自动追加 `/v1` 后缀。                                |
+| [Google AI Studio (Gemini API)](https://ai.google.dev/aistudio)                              | `google-ai-studio`       | `/v1beta/models:generateContent` | 自动检测并处理版本号后缀。                                               |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                       | `google-vertex-ai`       | `/v1beta/models:generateContent` | 根据 [身份验证](#google-vertex-ai-身份验证) 的要求，提供不同的基础 URL。 |
+| [Anthropic Messages API](https://platform.claude.com/docs/en/api/typescript/messages/create) | `anthropic`              | `/v1/messages`                   | 自动移除重复的 `/v1` 后缀。                                              |
+| [Ollama Chat API](https://docs.ollama.com/api/chat)                                          | `ollama`                 | `/api/chat`                      | 自动移除重复的 `/api` 后缀。                                             |
 
 ## 供应商支持表
 
@@ -413,7 +415,7 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&apiKe
 | :---------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | [Open AI](https://openai.com/)                                                                  |
 | [Google AI Studio](https://aistudio.google.com/)                                                |                                                          |
-| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>[Auth](#google-vertex-ai-身份验证)                   |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>[Authentication](#google-vertex-ai-身份验证)         |
 | [Anthropic](https://www.anthropic.com/)                                                         | <li>InterleavedThinking <li>FineGrainedToolStreaming     |
 | [xAI](https://docs.x.ai/)                                                                       |
 | [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers)           |
