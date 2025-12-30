@@ -178,7 +178,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
       out.thinkingBudget = thinking.budgetTokens;
     } else if (thinking.effort) {
       out.thinkingLevel = this.mapThinkingEffortToLevel(thinking.effort);
-    } else if (thinking.type === 'auto') {
+    } else {
       if (useThinkingLevel) {
         // use Default level
       } else {
