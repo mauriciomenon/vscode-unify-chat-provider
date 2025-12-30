@@ -10,12 +10,15 @@ import type {
   UiNavAction,
   UiResume,
 } from '../router/types';
-import { duplicateProvider, saveProviderDraft } from '../provider-ops';
+import {
+  duplicateProvider,
+  exportProviderConfigFromDraft,
+  saveProviderDraft,
+} from '../provider-ops';
 import { createProviderDraft } from '../form-utils';
 import { getAllModelsForProvider } from '../../utils';
 import {
   deleteProviderApiKeySecretIfUnused,
-  resolveApiKeyForExportOrShowError,
   resolveProvidersForExportOrShowError,
 } from '../../api-key-utils';
 
@@ -25,6 +28,7 @@ type ProviderListItem = vscode.QuickPickItem & {
     | 'add-from-wellknown'
     | 'add-from-base64'
     | 'export-all'
+    | 'export-provider'
     | 'import-from-other-applications'
     | 'provider';
   providerName?: string;
@@ -47,17 +51,7 @@ export async function runProviderListScreen(
       const buttonIndex = item.buttons?.findIndex((b) => b === event.button);
 
       if (buttonIndex === 0) {
-        const provider = ctx.store.getProvider(item.providerName);
-        if (provider) {
-          const exportProvider = { ...provider };
-          const ok = await resolveApiKeyForExportOrShowError(
-            ctx.apiKeyStore,
-            exportProvider,
-          );
-          if (!ok) return;
-          await showCopiedBase64Config(exportProvider);
-        }
-        return;
+        return { ...item, action: 'export-provider' };
       }
 
       if (buttonIndex === 1) {
@@ -84,10 +78,32 @@ export async function runProviderListScreen(
         showDeletedMessage(item.providerName, 'Provider');
         qp.items = await buildProviderListItems(ctx.store);
       }
+
+      return;
     },
   });
 
   if (!selection) return { kind: 'pop' };
+
+  if (selection.action === 'export-provider') {
+    if (!selection.providerName) return { kind: 'stay' };
+
+    const provider = ctx.store.getProvider(selection.providerName);
+    if (!provider) {
+      vscode.window.showErrorMessage(
+        `Provider "${selection.providerName}" not found.`,
+      );
+      return { kind: 'stay' };
+    }
+
+    const draft = createProviderDraft(provider);
+    await exportProviderConfigFromDraft({
+      draft,
+      apiKeyStore: ctx.apiKeyStore,
+      allowPartial: true,
+    });
+    return { kind: 'stay' };
+  }
 
   if (selection.action === 'add') {
     return { kind: 'push', route: { kind: 'providerForm' } };

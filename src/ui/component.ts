@@ -17,7 +17,7 @@ export interface QuickPickConfig<T extends vscode.QuickPickItem> {
   onDidTriggerItemButton?: (
     event: vscode.QuickPickItemButtonEvent<T>,
     quickPick: vscode.QuickPick<T>,
-  ) => void | Promise<void>;
+  ) => void | T | Promise<void | T>;
   /**
    * Handle inline actions that should not close the picker.
    * Return true to keep the picker open (action was handled inline).
@@ -49,6 +49,7 @@ export async function pickQuickItem<T extends vscode.QuickPickItem>(
   qp.items = [...config.items];
 
   let resolved = false;
+  let accepting = false;
 
   return new Promise<T | undefined>((resolve) => {
     const finish = (value: T | undefined) => {
@@ -60,6 +61,8 @@ export async function pickQuickItem<T extends vscode.QuickPickItem>(
     const accept = async (item?: T) => {
       let shouldClose = true;
       if (!item) return;
+      if (accepting) return;
+      accepting = true;
       try {
         // Check for inline action first
         if (config.onInlineAction) {
@@ -82,6 +85,8 @@ export async function pickQuickItem<T extends vscode.QuickPickItem>(
         }
       } catch {
         // ignore and allow further interaction
+      } finally {
+        accepting = false;
       }
     };
 
@@ -90,7 +95,15 @@ export async function pickQuickItem<T extends vscode.QuickPickItem>(
 
     if (config.onDidTriggerItemButton) {
       qp.onDidTriggerItemButton(async (event) => {
-        await config.onDidTriggerItemButton?.(event, qp);
+        try {
+          const result = await config.onDidTriggerItemButton?.(event, qp);
+          if (result !== undefined) {
+            finish(result);
+            qp.hide();
+          }
+        } catch {
+          // ignore and allow further interaction
+        }
       });
     }
 

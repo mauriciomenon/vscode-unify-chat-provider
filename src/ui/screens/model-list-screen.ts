@@ -69,6 +69,7 @@ type ModelListItem = vscode.QuickPickItem & {
     | 'add'
     | 'back'
     | 'edit'
+    | 'export-model'
     | 'save'
     | 'provider-settings'
     | 'provider-copy'
@@ -166,41 +167,40 @@ export async function runModelListScreen(
         (b) => b === event.button,
       );
 
-      if (isOfficial) {
-        if (buttonIndex === 0) {
-          await showCopiedBase64Config(model);
-        }
-      } else {
-        if (buttonIndex === 0) {
-          await showCopiedBase64Config(model);
-          return;
-        }
-
-        if (buttonIndex === 1) {
-          const duplicated = duplicateModel(model, route.models);
-          route.models.push(duplicated);
-          vscode.window.showInformationMessage(
-            `Model duplicated as "${duplicated.id}".`,
-          );
-          qp.items = buildModelListItems(route, includeSave);
-          return;
-        }
-
-        if (buttonIndex === 2) {
-          if (mustKeepOne && route.models.length <= 1) {
-            vscode.window.showWarningMessage(
-              'Cannot delete the last model. A provider must have at least one model.',
-            );
-            return;
-          }
-          if (route.invocation !== 'providerEdit') {
-            const confirmed = await confirmDelete(model.id, 'model');
-            if (!confirmed) return;
-          }
-          removeModel(route.models, model.id);
-          qp.items = buildModelListItems(route, includeSave);
-        }
+      if (buttonIndex === 0) {
+        return { ...event.item, action: 'export-model' };
       }
+
+      if (isOfficial) {
+        return;
+      }
+
+      if (buttonIndex === 1) {
+        const duplicated = duplicateModel(model, route.models);
+        route.models.push(duplicated);
+        vscode.window.showInformationMessage(
+          `Model duplicated as "${duplicated.id}".`,
+        );
+        qp.items = buildModelListItems(route, includeSave);
+        return;
+      }
+
+      if (buttonIndex === 2) {
+        if (mustKeepOne && route.models.length <= 1) {
+          vscode.window.showWarningMessage(
+            'Cannot delete the last model. A provider must have at least one model.',
+          );
+          return;
+        }
+        if (route.invocation !== 'providerEdit') {
+          const confirmed = await confirmDelete(model.id, 'model');
+          if (!confirmed) return;
+        }
+        removeModel(route.models, model.id);
+        qp.items = buildModelListItems(route, includeSave);
+      }
+
+      return;
     },
   });
 
@@ -239,6 +239,12 @@ export async function runModelListScreen(
     return route.invocation === 'addFromWellKnownProvider'
       ? { kind: 'popToRoot' }
       : { kind: 'pop' };
+  }
+
+  if (selection.action === 'export-model') {
+    if (!selection.model) return { kind: 'stay' };
+    await showCopiedBase64Config(selection.model);
+    return { kind: 'stay' };
   }
 
   if (selection.action === 'provider-settings') {
