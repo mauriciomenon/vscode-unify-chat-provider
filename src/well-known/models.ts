@@ -616,6 +616,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gpt-oss-120b',
+    alternativeIds: ['gpt-oss:120b'],
     name: 'GPT-OSS 120B',
     maxInputTokens: 131072,
     maxOutputTokens: 131072,
@@ -631,6 +632,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gpt-oss-20b',
+    alternativeIds: ['gpt-oss:20b', 'gpt-oss:latest'],
     name: 'GPT-OSS 20B',
     maxInputTokens: 131072,
     maxOutputTokens: 131072,
@@ -1575,6 +1577,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwq-32b',
+    alternativeIds: ['qwq:32b', 'qwq:latest'],
     name: 'QwQ 32B',
     maxInputTokens: 131072,
     maxOutputTokens: 8192,
@@ -1617,36 +1620,43 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen1.5-7b-chat',
+    alternativeIds: ['qwen:7b'],
     name: 'Qwen1.5 7B Chat',
     stream: true,
   },
   {
     id: 'qwen1.5-14b-chat',
+    alternativeIds: ['qwen:14b'],
     name: 'Qwen1.5 14B Chat',
     stream: true,
   },
   {
     id: 'qwen1.5-32b-chat',
+    alternativeIds: ['qwen:32b'],
     name: 'Qwen1.5 32B Chat',
     stream: true,
   },
   {
     id: 'qwen1.5-72b-chat',
+    alternativeIds: ['qwen:72b'],
     name: 'Qwen1.5 72B Chat',
     stream: true,
   },
   {
     id: 'qwen1.5-110b-chat',
+    alternativeIds: ['qwen:110b'],
     name: 'Qwen1.5 110B Chat',
     stream: true,
   },
   {
     id: 'qwen2-7b-instruct',
+    alternativeIds: ['qwen2:7b'],
     name: 'Qwen2 7B Instruct',
     stream: true,
   },
   {
     id: 'qwen2-72b-instruct',
+    alternativeIds: ['qwen2:72b'],
     name: 'Qwen2 72B Instruct',
     stream: true,
   },
@@ -1657,6 +1667,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2-vl-72b-instruct',
+    alternativeIds: ['qwen2-vl:72b'],
     name: 'Qwen2-VL 72B Instruct',
     stream: true,
     capabilities: {
@@ -1666,21 +1677,25 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-0.5b-instruct',
+    alternativeIds: ['qwen2.5:0.5b'],
     name: 'Qwen2.5 0.5B Instruct',
     stream: true,
   },
   {
     id: 'qwen2.5-1.5b-instruct',
+    alternativeIds: ['qwen2.5:1.5b'],
     name: 'Qwen2.5 1.5B Instruct',
     stream: true,
   },
   {
     id: 'qwen2.5-3b-instruct',
+    alternativeIds: ['qwen2.5:3b'],
     name: 'Qwen2.5 3B Instruct',
     stream: true,
   },
   {
     id: 'qwen2.5-7b-instruct',
+    alternativeIds: ['qwen2.5:7b', 'qwen2.5:latest'],
     name: 'Qwen2.5 7B Instruct',
     stream: true,
   },
@@ -1692,6 +1707,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-14b-instruct',
+    alternativeIds: ['qwen2.5:14b'],
     name: 'Qwen2.5 14B Instruct',
     stream: true,
   },
@@ -1703,16 +1719,19 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-32b-instruct',
+    alternativeIds: ['qwen2.5:32b'],
     name: 'Qwen2.5 32B Instruct',
     stream: true,
   },
   {
     id: 'qwen2.5-72b-instruct',
+    alternativeIds: ['qwen2.5:72b'],
     name: 'Qwen2.5 72B Instruct',
     stream: true,
   },
   {
     id: 'qwen2.5-coder-0.5b-instruct',
+    alternativeIds: ['qwen2.5-coder:0.5b'],
     name: 'Qwen2.5 Coder 0.5B Instruct',
     stream: true,
     capabilities: {
@@ -1722,6 +1741,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-coder-1.5b-instruct',
+    alternativeIds: ['qwen2.5-coder:1.5b'],
     name: 'Qwen2.5 Coder 1.5B Instruct',
     stream: true,
     capabilities: {
@@ -1731,6 +1751,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-coder-3b-instruct',
+    alternativeIds: ['qwen2.5-coder:3b'],
     name: 'Qwen2.5 Coder 3B Instruct',
     stream: true,
     capabilities: {
@@ -1740,6 +1761,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-coder-7b-instruct',
+    alternativeIds: ['qwen2.5-coder:7b'],
     name: 'Qwen2.5 Coder 7B Instruct',
     stream: true,
     capabilities: {
@@ -1749,6 +1771,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-coder-14b-instruct',
+    alternativeIds: ['qwen2.5-coder:14b'],
     name: 'Qwen2.5 Coder 14B Instruct',
     stream: true,
     capabilities: {
@@ -1758,6 +1781,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-coder-32b-instruct',
+    alternativeIds: ['qwen2.5-coder:32b'],
     name: 'Qwen2.5 Coder 32B Instruct',
     stream: true,
     capabilities: {
@@ -1782,6 +1806,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-vl-3b-instruct',
+    alternativeIds: ['qwen2.5vl:3b', 'qwen2.5-vl:3b'],
     name: 'Qwen2.5-VL 3B Instruct',
     stream: true,
     capabilities: {
@@ -1791,6 +1816,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-vl-7b-instruct',
+    alternativeIds: ['qwen2.5vl:7b', 'qwen2.5-vl:7b'],
     name: 'Qwen2.5-VL 7B Instruct',
     stream: true,
     capabilities: {
@@ -1800,6 +1826,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen2.5-vl-32b-instruct',
+    alternativeIds: ['qwen2.5vl:32b', 'qwen2.5-vl:32b'],
     name: 'Qwen2.5-VL 32B Instruct',
     stream: true,
     capabilities: {
@@ -1809,6 +1836,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-0.6b',
+    alternativeIds: ['qwen3:0.6b'],
     name: 'Qwen3 0.6B',
     maxInputTokens: 30720,
     stream: true,
@@ -1818,6 +1846,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-1.7b',
+    alternativeIds: ['qwen3:1.7b'],
     name: 'Qwen3 1.7B',
     maxInputTokens: 32768,
     stream: true,
@@ -1827,6 +1856,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-4b',
+    alternativeIds: ['qwen3:4b'],
     name: 'Qwen3 4B',
     maxInputTokens: 129024,
     stream: true,
@@ -1836,6 +1866,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-8b',
+    alternativeIds: ['qwen3:8b', 'qwen3:latest'],
     name: 'Qwen3 8B',
     maxInputTokens: 129024,
     stream: true,
@@ -1845,6 +1876,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-14b',
+    alternativeIds: ['qwen3:14b'],
     name: 'Qwen3 14B',
     maxInputTokens: 129024,
     stream: true,
@@ -1854,6 +1886,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-32b',
+    alternativeIds: ['qwen3:32b'],
     name: 'Qwen3 32B',
     maxInputTokens: 129024,
     stream: true,
@@ -1863,6 +1896,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-30b-a3b',
+    alternativeIds: ['qwen3:30b'],
     name: 'Qwen3 30B A3B',
     maxInputTokens: 129024,
     stream: true,
@@ -1872,6 +1906,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-235b-a22b',
+    alternativeIds: ['qwen3:235b'],
     name: 'Qwen3 235B A22B',
     maxInputTokens: 129024,
     stream: true,
@@ -1891,6 +1926,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-next-80b-a3b-instruct',
+    alternativeIds: ['qwen3-next:80b'],
     name: 'Qwen3 Next 80B A3B Instruct',
     maxInputTokens: 129024,
     stream: true,
@@ -1929,6 +1965,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-coder-480b-a35b-instruct',
+    alternativeIds: ['qwen3-coder:480b'],
     name: 'Qwen3 Coder 480B A35B Instruct',
     maxInputTokens: 262144,
     maxOutputTokens: 65536,
@@ -1940,6 +1977,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-coder-30b-a3b-instruct',
+    alternativeIds: ['qwen3-coder:30b', 'qwen3-coder:latest'],
     name: 'Qwen3 Coder 30B A3B Instruct',
     stream: true,
     capabilities: {
@@ -1961,6 +1999,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-vl-235b-a22b-instruct',
+    alternativeIds: ['qwen3-vl:235b'],
     name: 'Qwen3-VL 235B A22B Instruct',
     stream: true,
     capabilities: {
@@ -1970,6 +2009,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-vl-32b-thinking',
+    alternativeIds: ['qwen3-vl:32b'],
     name: 'Qwen3-VL 32B Thinking',
     stream: true,
     thinking: {
@@ -1994,6 +2034,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-vl-30b-a3b-instruct',
+    alternativeIds: ['qwen3-vl:30b'],
     name: 'Qwen3-VL 30B A3B Instruct',
     stream: true,
     capabilities: {
@@ -2015,6 +2056,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-vl-8b-instruct',
+    alternativeIds: ['qwen3-vl:8b', 'qwen3-vl:latest'],
     name: 'Qwen3-VL 8B Instruct',
     stream: true,
     capabilities: {
