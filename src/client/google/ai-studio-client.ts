@@ -174,16 +174,22 @@ export class GoogleAIStudioProvider implements ApiProvider {
       includeThoughts: true,
     };
 
-    if (thinking.budgetTokens !== undefined) {
-      out.thinkingBudget = thinking.budgetTokens;
-    } else if (thinking.effort) {
+    if (thinking.effort) {
       out.thinkingLevel = this.mapThinkingEffortToLevel(thinking.effort);
     } else {
-      if (useThinkingLevel) {
-        // use Default level
-      } else {
-        out.thinkingBudget = -1;
-      }
+      // use Default level
+    }
+
+    if (thinking.budgetTokens !== undefined) {
+      out.thinkingBudget = thinking.budgetTokens;
+    } else {
+      out.thinkingBudget = -1;
+    }
+
+    if (useThinkingLevel) {
+      delete out.thinkingBudget;
+    } else {
+      delete out.thinkingLevel;
     }
 
     return { thinkingConfig: out };
