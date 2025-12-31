@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.1 - 2025-12-31
+
+### Chores
+- update docs (dddf86c, SmallMain)
+
 ## v2.1.0 - 2025-12-31
 
 ### Features
