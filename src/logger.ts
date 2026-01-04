@@ -530,4 +530,6 @@ export function createSimpleHttpLogger(context: {
   return new SimpleHttpLogger(id, context);
 }
 
-getChannel().info('Initialized.');
+if (isVerboseEnabled()) {
+  getChannel().info('Initialized.');
+}
