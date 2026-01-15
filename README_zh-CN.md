@@ -410,36 +410,36 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 >
 > 即使是非支持的供应商，也可以通过 [手动配置](#手动配置) 使用。
 
-| 供应商                                                                                          | 支持特性                                                 |
-| :---------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| [Open AI](https://openai.com/)                                                                  |
-| [Google AI Studio](https://aistudio.google.com/)                                                |                                                          |
-| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>[Authentication](#google-vertex-ai-身份验证)         |
-| [Anthropic](https://www.anthropic.com/)                                                         | <li>InterleavedThinking <li>FineGrainedToolStreaming     |
-| [xAI](https://docs.x.ai/)                                                                       |
-| [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers)           |
-| [OpenRouter](https://openrouter.ai/)                                                            | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails |
-| [Alibaba Cloud Model Studio (China)](https://www.aliyun.com/product/bailian)                    | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Alibaba Cloud Model Studio (Coding Plan)](https://www.aliyun.com/product/bailian)              | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Alibaba Cloud Model Studio (International)](https://www.alibabacloud.com/help/en/model-studio) | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Model Scope (API-Inference)](https://modelscope.cn/)                                           | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Volcano Engine](https://www.volcengine.com/product/ark)                                        | <li>AutoThinking <li>ThinkingParam2                      |
-| [Volcano Engine (Coding Plan)](https://www.volcengine.com/activity/codingplan)                  | <li>AutoThinking <li>ThinkingParam2                      |
-| [Byte Plus](https://www.byteplus.com/en/product/modelark)                                       | <li>AutoThinking <li>ThinkingParam2                      |
-| [Tencent Cloud (China)](https://cloud.tencent.com/product/hunyuan)                              |
-| [DeepSeek](https://www.deepseek.com/)                                                           | <li>ThinkingParam <li>ReasoningContent                   |
-| [Xiaomi MIMO](https://mimo.xiaomi.com/)                                                         | <li>ThinkingParam <li>ReasoningContent                   |
-| [Ollama Local](https://ollama.com/)                                                             |
-| [Ollama Cloud](https://ollama.com/)                                                             |
-| [ZhiPu AI](https://open.bigmodel.cn/)                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [ZhiPu AI (Coding Plan)](https://open.bigmodel.cn/)                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [Z.AI](https://z.ai/)                                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [Z.AI (Coding Plan)](https://z.ai/)                                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [MiniMax (China)](https://www.minimaxi.com/)                                                    | <li>ReasoningDetails                                     |
-| [MiniMax (International)](https://www.minimax.io/)                                              | <li>ReasoningDetails                                     |
-| [Moonshot AI (China)](https://www.moonshot.cn/)                                                 | <li>ReasoningContent                                     |
-| [Moonshot AI (International)](https://www.moonshot.ai/)                                         | <li>ReasoningContent                                     |
-| [Moonshot AI (Coding Plan)](https://www.kimi.com/coding)                                        | <li>ReasoningContent                                     |
+| 供应商                                                                                | 支持特性                                                 |
+| :------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| [Open AI](https://openai.com/)                                                        |
+| [Google AI Studio](https://aistudio.google.com/)                                      |                                                          |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                | <li>[Authentication](#google-vertex-ai-身份验证)         |
+| [Anthropic](https://www.anthropic.com/)                                               | <li>InterleavedThinking <li>FineGrainedToolStreaming     |
+| [xAI](https://docs.x.ai/)                                                             |
+| [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers) |
+| [OpenRouter](https://openrouter.ai/)                                                  | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails |
+| [阿里云百炼平台 (中国站)](https://www.aliyun.com/product/bailian)                     | <li>ThinkingParam3 <li>ReasoningContent                  |
+| [阿里云百炼平台 (Coding Plan)](https://www.aliyun.com/product/bailian)                | <li>ThinkingParam3 <li>ReasoningContent                  |
+| [阿里云百炼平台 (国际站)](https://www.alibabacloud.com/help/en/model-studio)          | <li>ThinkingParam3 <li>ReasoningContent                  |
+| [魔搭社区 (API-Inference)](https://modelscope.cn/)                                    | <li>ThinkingParam3 <li>ReasoningContent                  |
+| [火山引擎](https://www.volcengine.com/product/ark)                                    | <li>AutoThinking <li>ThinkingParam2                      |
+| [火山引擎 (Coding Plan)](https://www.volcengine.com/activity/codingplan)              | <li>AutoThinking <li>ThinkingParam2                      |
+| [Byte Plus](https://www.byteplus.com/en/product/modelark)                             | <li>AutoThinking <li>ThinkingParam2                      |
+| [腾讯云 (中国站)](https://cloud.tencent.com/product/hunyuan)                          |
+| [DeepSeek](https://www.deepseek.com/)                                                 | <li>ThinkingParam <li>ReasoningContent                   |
+| [Xiaomi MIMO](https://mimo.xiaomi.com/)                                               | <li>ThinkingParam <li>ReasoningContent                   |
+| [Ollama Local](https://ollama.com/)                                                   |
+| [Ollama Cloud](https://ollama.com/)                                                   |
+| [智谱 AI](https://open.bigmodel.cn/)                                                  | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
+| [智谱 AI (Coding Plan)](https://open.bigmodel.cn/)                                    | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
+| [Z.AI](https://z.ai/)                                                                 | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
+| [Z.AI (Coding Plan)](https://z.ai/)                                                   | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
+| [MiniMax (中国站)](https://www.minimaxi.com/)                                         | <li>ReasoningDetails                                     |
+| [MiniMax (国际站)](https://www.minimax.io/)                                           | <li>ReasoningDetails                                     |
+| [Moonshot AI (中国站)](https://www.moonshot.cn/)                                      | <li>ReasoningContent                                     |
+| [Moonshot AI (国际站)](https://www.moonshot.ai/)                                      | <li>ReasoningContent                                     |
+| [Moonshot AI (Coding Plan)](https://www.kimi.com/coding)                              | <li>ReasoningContent                                     |
 
 ### Google Vertex AI 身份验证
 
