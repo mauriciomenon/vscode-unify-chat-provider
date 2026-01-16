@@ -197,7 +197,7 @@ export class ApiKeyAuthProvider implements AuthProvider {
   async getCredential(): Promise<AuthCredential | undefined> {
     const apiKey = this.config?.apiKey;
     if (!apiKey) {
-      return undefined;
+      return { value: '' };
     }
 
     // Check if it's a secret reference
