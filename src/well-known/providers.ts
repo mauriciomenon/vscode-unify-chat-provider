@@ -319,6 +319,40 @@ export const WELL_KNOWN_PROVIDERS: ProviderConfig[] = [
     baseUrl: 'https://api.kimi.com/coding',
     models: wellKnowns('kimi-for-coding'),
   },
+  {
+    name: 'StreamLake Vanchin (China)',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints',
+    models: wellKnowns(
+      'kat-coder-pro-v1',
+      'kat-coder-exp-72b-1010',
+      'kat-coder-air-v1',
+    ),
+  },
+  {
+    name: 'StreamLake Vanchin (China, Coding Plan)',
+    type: 'anthropic',
+    baseUrl:
+      'https://wanqing.streamlakeapi.com/api/gateway/coding/kat-coder-pro-v1/claude-code-proxy',
+    models: wellKnowns('kat-coder-pro-v1'),
+  },
+  {
+    name: 'StreamLake Vanchin (International)',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://vanchin.streamlake.ai/api/gateway/v1/endpoints',
+    models: wellKnowns(
+      'kat-coder-pro-v1',
+      'kat-coder-exp-72b-1010',
+      'kat-coder-air-v1',
+    ),
+  },
+  {
+    name: 'StreamLake Vanchin (International, Coding Plan)',
+    type: 'anthropic',
+    baseUrl:
+      'https://vanchin.streamlake.ai/api/gateway/coding/kat-coder-pro-v1/claude-code-proxy',
+    models: wellKnowns('kat-coder-pro-v1'),
+  },
 ];
 
 function wellKnowns(...ids: WellKnownModelId[]): ModelConfig[] {

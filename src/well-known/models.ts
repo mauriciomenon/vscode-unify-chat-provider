@@ -2694,6 +2694,39 @@ const _WELL_KNOWN_MODELS = [
       imageInput: false,
     },
   },
+  {
+    id: 'kat-coder-pro-v1',
+    name: 'KAT-Coder-Pro V1',
+    maxInputTokens: 256000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'kat-coder-exp-72b-1010',
+    name: 'KAT-Coder-Exp-72B-1010',
+    maxInputTokens: 128000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'kat-coder-air-v1',
+    name: 'KAT-Coder-Air V1',
+    maxInputTokens: 128000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
 ] as const satisfies readonly WellKnownModelConfig[];
 export const WELL_KNOWN_MODELS: readonly WellKnownModelConfig[] =
   _WELL_KNOWN_MODELS;
