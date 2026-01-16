@@ -2839,7 +2839,8 @@ export function mergeWithWellKnownModel(apiModel: ModelConfig): ModelConfig {
   const filteredApiModel = Object.fromEntries(
     Object.entries(apiModel).filter(([, value]) => value !== undefined),
   ) as ModelConfig;
-  return Object.assign({}, wellKnown ?? {}, filteredApiModel);
+  const defaultCapabilities = { capabilities: { toolCalling: true } };
+  return Object.assign(defaultCapabilities, wellKnown ?? {}, filteredApiModel);
 }
 
 /**
