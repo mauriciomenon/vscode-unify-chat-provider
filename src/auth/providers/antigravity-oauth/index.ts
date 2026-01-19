@@ -18,6 +18,7 @@ import {
 import type { AntigravityOAuthConfig, AuthCredential, OAuth2TokenData } from '../../types';
 import { exchangeAntigravity, refreshAccessToken } from './oauth-client';
 import { performAntigravityAuthorization } from './screens/authorize-screen';
+import { authLog } from '../../../logger';
 
 function toPersistableConfig(
   config: AntigravityOAuthConfig | undefined,
@@ -306,25 +307,31 @@ export class AntigravityOAuthProvider implements AuthProvider {
   }
 
   async getCredential(): Promise<AuthCredential | undefined> {
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Getting credential');
     const token = await this.resolveTokenData();
     if (!token) {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'No token data available');
       return undefined;
     }
 
     const bufferMs = this.getExpiryBufferMs();
     if (this.context.secretStore.isOAuth2TokenExpired(token, bufferMs)) {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Token expired or about to expire, attempting refresh');
       const refreshed = await this.refresh();
       if (!refreshed) {
+        authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Token refresh failed, firing expired status');
         this._onDidChangeStatus.fire({ status: 'expired' });
         return undefined;
       }
 
       const newToken = await this.resolveTokenData();
       if (!newToken) {
+        authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Failed to resolve new token after refresh');
         this._onDidChangeStatus.fire({ status: 'expired' });
         return undefined;
       }
 
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Token refreshed successfully');
       return {
         value: newToken.accessToken,
         tokenType: newToken.tokenType,
@@ -332,6 +339,7 @@ export class AntigravityOAuthProvider implements AuthProvider {
       };
     }
 
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, `Credential obtained (expires: ${token.expiresAt ? new Date(token.expiresAt).toISOString() : 'never'})`);
     return {
       value: token.accessToken,
       tokenType: token.tokenType,
@@ -357,6 +365,7 @@ export class AntigravityOAuthProvider implements AuthProvider {
   }
 
   async configure(): Promise<AuthConfigureResult> {
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Starting Antigravity OAuth configuration');
     const projectId =
       this.config?.projectId?.trim() ??
       (await vscode.window.showInputBox({
@@ -366,34 +375,40 @@ export class AntigravityOAuthProvider implements AuthProvider {
       }))?.trim() ??
       '';
 
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, `Initiating authorization (projectId: ${projectId || 'auto-detect'})`);
     const authorization = await import('./oauth-client').then((m) =>
       m.authorizeAntigravity(projectId),
     );
 
     const callbackResult = await performAntigravityAuthorization(authorization.url);
     if (!callbackResult) {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Authorization cancelled by user');
       return { success: false, error: t('Authorization failed or was cancelled') };
     }
 
     if (callbackResult.type === 'error') {
+      authLog.error(`${this.context.providerId}:antigravity-oauth`, `Authorization callback error: ${callbackResult.error}`);
       return {
         success: false,
         error: t('Authorization failed: {0}', callbackResult.error),
       };
     }
 
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Exchanging authorization code for tokens');
     const exchanged = await exchangeAntigravity({
       code: callbackResult.code,
       state: callbackResult.state,
     });
 
     if (exchanged.type === 'failed') {
+      authLog.error(`${this.context.providerId}:antigravity-oauth`, `Token exchange failed: ${exchanged.error}`);
       return {
         success: false,
         error: t('Authorization failed: {0}', exchanged.error),
       };
     }
 
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Token exchange successful, storing tokens');
     const tokenRef = createSecretRef();
     await this.context.secretStore.setOAuth2Token(tokenRef, {
       accessToken: exchanged.accessToken,
@@ -416,26 +431,32 @@ export class AntigravityOAuthProvider implements AuthProvider {
     await this.persistConfig(nextConfig);
     this._onDidChangeStatus.fire({ status: 'valid' });
 
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, `Configuration successful (email: ${exchanged.email}, tier: ${exchanged.tier})`);
     return { success: true, config: nextConfig };
   }
 
   async refresh(): Promise<boolean> {
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Starting token refresh');
     const token = await this.resolveTokenData();
     if (!token?.refreshToken) {
+      authLog.error(`${this.context.providerId}:antigravity-oauth`, 'No refresh token available');
       return false;
     }
 
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Calling refresh API');
     const refreshed = await refreshAccessToken({
       refreshToken: token.refreshToken,
     });
 
     if (!refreshed) {
+      authLog.error(`${this.context.providerId}:antigravity-oauth`, 'Refresh API returned null');
       this._onDidChangeStatus.fire({ status: 'error', error: new Error('Refresh failed') });
       return false;
     }
 
     const raw = this.config?.token?.trim();
     if (!raw) {
+      authLog.error(`${this.context.providerId}:antigravity-oauth`, 'No token reference in config');
       return false;
     }
 
@@ -447,22 +468,28 @@ export class AntigravityOAuthProvider implements AuthProvider {
     };
 
     if (isSecretRef(raw)) {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Storing refreshed token in secret storage');
       await this.context.secretStore.setOAuth2Token(raw, nextToken);
     } else {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Storing refreshed token in config');
       await this.persistConfig({ ...toPersistableConfig(this.config), token: JSON.stringify(nextToken) });
     }
 
     this._onDidChangeStatus.fire({ status: 'valid' });
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Token refresh successful');
     return true;
   }
 
   async revoke(): Promise<void> {
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Revoking tokens');
     if (!this.config) {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'No config to revoke');
       return;
     }
 
     const tokenRaw = this.config.token?.trim();
     if (tokenRaw && isSecretRef(tokenRaw)) {
+      authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Deleting token from secret storage');
       await this.context.secretStore.deleteOAuth2Token(tokenRaw);
     }
 
@@ -474,6 +501,7 @@ export class AntigravityOAuthProvider implements AuthProvider {
     });
 
     this._onDidChangeStatus.fire({ status: 'revoked' });
+    authLog.verbose(`${this.context.providerId}:antigravity-oauth`, 'Tokens revoked successfully');
   }
 
   dispose(): void {

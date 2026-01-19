@@ -17,6 +17,7 @@ import type {
   AntigravityTokenExchangeResult,
   AntigravityTier,
 } from './types';
+import { authLog } from '../../../logger';
 
 function base64UrlEncode(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64url');
@@ -86,6 +87,7 @@ type UserInfo = { email?: string };
 export async function fetchAccountInfo(
   accessToken: string,
 ): Promise<AntigravityAccountInfo> {
+  authLog.verbose('antigravity-client', 'Fetching account info');
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
@@ -96,6 +98,7 @@ export async function fetchAccountInfo(
 
   for (const baseEndpoint of CODE_ASSIST_ENDPOINT_FALLBACKS) {
     try {
+      authLog.verbose('antigravity-client', `Trying endpoint: ${baseEndpoint}`);
       const response = await fetch(`${baseEndpoint}/v1internal:loadCodeAssist`, {
         method: 'POST',
         headers,
@@ -109,6 +112,7 @@ export async function fetchAccountInfo(
       });
 
       if (!response.ok) {
+        authLog.verbose('antigravity-client', `Endpoint ${baseEndpoint} returned ${response.status}, trying next`);
         continue;
       }
 
@@ -171,13 +175,16 @@ export async function fetchAccountInfo(
       }
 
       if (projectId) {
+        authLog.verbose('antigravity-client', `Account info fetched (projectId: ${projectId}, tier: ${detectedTier})`);
         return { projectId, tier: detectedTier };
       }
-    } catch {
+    } catch (error) {
+      authLog.verbose('antigravity-client', `Endpoint ${baseEndpoint} failed with error, trying next`);
       continue;
     }
   }
 
+  authLog.verbose('antigravity-client', `Account info fetch completed (projectId: empty, tier: ${detectedTier})`);
   return { projectId: '', tier: detectedTier };
 }
 
@@ -185,9 +192,11 @@ export async function exchangeAntigravity(options: {
   code: string;
   state: string;
 }): Promise<AntigravityTokenExchangeResult> {
+  authLog.verbose('antigravity-client', 'Exchanging authorization code for tokens');
   try {
     const decoded = decodeState(options.state);
 
+    authLog.verbose('antigravity-client', `Token exchange request to ${GOOGLE_OAUTH_TOKEN_URL}`);
     const tokenResponse = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -205,6 +214,7 @@ export async function exchangeAntigravity(options: {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text().catch(() => '');
+      authLog.error('antigravity-client', `Token exchange failed (status: ${tokenResponse.status})`, errorText);
       return { type: 'failed', error: errorText || 'Token exchange failed' };
     }
 
@@ -214,10 +224,12 @@ export async function exchangeAntigravity(options: {
     const refreshToken = tokenPayload.refresh_token;
 
     if (typeof accessToken !== 'string' || accessToken.trim() === '') {
+      authLog.error('antigravity-client', 'Missing access token in response');
       return { type: 'failed', error: 'Missing access token in response' };
     }
 
     if (typeof refreshToken !== 'string' || refreshToken.trim() === '') {
+      authLog.error('antigravity-client', 'Missing refresh token in response');
       return { type: 'failed', error: 'Missing refresh token in response' };
     }
 
@@ -226,6 +238,7 @@ export async function exchangeAntigravity(options: {
         ? Date.now() + tokenPayload.expires_in * 1000
         : undefined;
 
+    authLog.verbose('antigravity-client', 'Fetching user info');
     const userInfoResponse = await fetch(GOOGLE_USERINFO_URL, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -240,6 +253,7 @@ export async function exchangeAntigravity(options: {
 
     const projectId = decoded.projectId || accountInfo.projectId;
 
+    authLog.verbose('antigravity-client', `Token exchange successful (email: ${userInfo.email}, projectId: ${projectId})`);
     return {
       type: 'success',
       accessToken,
@@ -250,6 +264,7 @@ export async function exchangeAntigravity(options: {
       tier: accountInfo.tier,
     };
   } catch (error) {
+    authLog.error('antigravity-client', 'Token exchange failed with exception', error);
     return {
       type: 'failed',
       error: error instanceof Error ? error.message : String(error),
@@ -260,6 +275,7 @@ export async function exchangeAntigravity(options: {
 export async function refreshAccessToken(options: {
   refreshToken: string;
 }): Promise<{ accessToken: string; expiresAt?: number; tokenType?: string } | null> {
+  authLog.verbose('antigravity-client', 'Refreshing access token');
   try {
     const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
       method: 'POST',
@@ -275,12 +291,14 @@ export async function refreshAccessToken(options: {
     });
 
     if (!response.ok) {
+      authLog.error('antigravity-client', `Token refresh failed (status: ${response.status})`);
       return null;
     }
 
     const payload = (await response.json()) as TokenResponse;
     const accessToken = payload.access_token;
     if (typeof accessToken !== 'string' || accessToken.trim() === '') {
+      authLog.error('antigravity-client', 'Missing access token in refresh response');
       return null;
     }
 
@@ -291,8 +309,10 @@ export async function refreshAccessToken(options: {
 
     const tokenType = typeof payload.token_type === 'string' ? payload.token_type : undefined;
 
+    authLog.verbose('antigravity-client', `Token refresh successful (expiresAt: ${expiresAt ? new Date(expiresAt).toISOString() : 'never'})`);
     return { accessToken, expiresAt, tokenType };
-  } catch {
+  } catch (error) {
+    authLog.error('antigravity-client', 'Token refresh failed with exception', error);
     return null;
   }
 }

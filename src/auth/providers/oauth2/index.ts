@@ -22,6 +22,7 @@ import { t } from '../../../i18n';
 import { OAuth2Error } from './errors';
 import { withRetry, withTimeout } from './retry';
 import { createSecretRef, isSecretRef, type SecretStore } from '../../../secret';
+import { authLog } from '../../../logger';
 
 /**
  * OAuth 2.0 authentication provider implementation
@@ -553,19 +554,23 @@ export class OAuth2AuthProvider implements AuthProvider {
    * Get valid access token (handles refresh automatically)
    */
   async getCredential(): Promise<AuthCredential | undefined> {
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'Getting credential');
     const token = await this.resolveTokenData();
     if (!token) {
+      authLog.verbose(`${this.context.providerId}:oauth2`, 'No token data available');
       return undefined;
     }
 
     // Check if token is expired or about to expire
     const bufferMs = this.getExpiryBufferMs();
     if (this.context.secretStore.isOAuth2TokenExpired(token, bufferMs)) {
+      authLog.verbose(`${this.context.providerId}:oauth2`, 'Token expired or about to expire, attempting refresh');
       try {
         const refreshed = await this.refresh();
         if (refreshed) {
           const newToken = await this.resolveTokenData();
           if (newToken?.accessToken) {
+            authLog.verbose(`${this.context.providerId}:oauth2`, 'Token refreshed successfully');
             return {
               value: newToken.accessToken,
               tokenType: newToken.tokenType,
@@ -573,14 +578,16 @@ export class OAuth2AuthProvider implements AuthProvider {
             };
           }
         }
-      } catch {
-        // handled below
+      } catch (error) {
+        authLog.error(`${this.context.providerId}:oauth2`, 'Failed to refresh token during getCredential', error);
       }
 
+      authLog.verbose(`${this.context.providerId}:oauth2`, 'Token refresh failed, firing expired status');
       this._onDidChangeStatus.fire({ status: 'expired' });
       return undefined;
     }
 
+    authLog.verbose(`${this.context.providerId}:oauth2`, `Credential obtained (expires: ${token.expiresAt ? new Date(token.expiresAt).toISOString() : 'never'})`);
     return {
       value: token.accessToken,
       tokenType: token.tokenType,
@@ -629,26 +636,31 @@ export class OAuth2AuthProvider implements AuthProvider {
    * Configure OAuth 2.0
    */
   async configure(): Promise<AuthConfigureResult> {
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'Starting OAuth2 configuration');
     const oauthConfig: OAuth2Config | undefined = await showOAuth2ConfigScreen(
       this.config?.oauth,
     );
 
     if (!oauthConfig) {
+      authLog.verbose(`${this.context.providerId}:oauth2`, 'Configuration cancelled by user');
       return { success: false };
     }
 
+    authLog.verbose(`${this.context.providerId}:oauth2`, `Performing authorization (grantType: ${oauthConfig.grantType})`);
     // Perform authorization flow
     const token = await performAuthorization(
       oauthConfig,
       this.context.uriHandler,
     );
     if (!token) {
+      authLog.error(`${this.context.providerId}:oauth2`, 'Authorization failed or was cancelled');
       return {
         success: false,
         error: t('Authorization failed or was cancelled'),
       };
     }
 
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'Authorization successful, storing token');
     const tokenRef = createSecretRef();
     await this.context.secretStore.setOAuth2Token(tokenRef, token);
 
@@ -657,6 +669,7 @@ export class OAuth2AuthProvider implements AuthProvider {
     if (oauthConfig.grantType === 'authorization_code') {
       const clientSecret = oauthConfig.clientSecret?.trim() || undefined;
       if (clientSecret) {
+        authLog.verbose(`${this.context.providerId}:oauth2`, 'Storing client secret');
         const ref = createSecretRef();
         await this.context.secretStore.setOAuth2ClientSecret(ref, clientSecret);
         storedOAuthConfig = { ...oauthConfig, clientSecret: ref };
@@ -665,6 +678,7 @@ export class OAuth2AuthProvider implements AuthProvider {
       }
     } else if (oauthConfig.grantType === 'client_credentials') {
       const clientSecret = oauthConfig.clientSecret.trim();
+      authLog.verbose(`${this.context.providerId}:oauth2`, 'Storing client secret for client_credentials');
       const ref = createSecretRef();
       await this.context.secretStore.setOAuth2ClientSecret(ref, clientSecret);
       storedOAuthConfig = { ...oauthConfig, clientSecret: ref };
@@ -682,6 +696,7 @@ export class OAuth2AuthProvider implements AuthProvider {
     await this.persistConfig(nextConfig);
     this._onDidChangeStatus.fire({ status: 'valid' });
 
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'OAuth2 configured successfully');
     return {
       success: true,
       config: nextConfig,
@@ -692,9 +707,11 @@ export class OAuth2AuthProvider implements AuthProvider {
    * Refresh the access token with retry and exponential backoff
    */
   async refresh(): Promise<boolean> {
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'Starting token refresh');
     try {
       const oauth = await this.resolveOAuthConfig();
       if (!oauth) {
+        authLog.error(`${this.context.providerId}:oauth2`, 'Failed to resolve OAuth config for refresh');
         return false;
       }
 
@@ -705,8 +722,10 @@ export class OAuth2AuthProvider implements AuthProvider {
       if (oauth.grantType === 'authorization_code') {
         const token = await this.resolveTokenData();
         if (!token?.refreshToken) {
+          authLog.error(`${this.context.providerId}:oauth2`, 'No refresh token available for authorization_code flow');
           return false;
         }
+        authLog.verbose(`${this.context.providerId}:oauth2`, 'Refreshing token using refresh_token grant');
         const storedRefreshToken = token.refreshToken;
         const newToken = await withRetry(
           (signal) => refreshToken(oauth, storedRefreshToken, signal),
@@ -717,23 +736,28 @@ export class OAuth2AuthProvider implements AuthProvider {
         }
         await this.storeTokenData(newToken);
         this._onDidChangeStatus.fire({ status: 'valid' });
+        authLog.verbose(`${this.context.providerId}:oauth2`, 'Token refresh successful (authorization_code)');
         return true;
       }
 
       if (oauth.grantType === 'client_credentials') {
+        authLog.verbose(`${this.context.providerId}:oauth2`, 'Refreshing token using client_credentials grant');
         const newToken = await withRetry(
           (signal) => getClientCredentialsToken(oauth, signal),
           shouldRetry,
         );
         await this.storeTokenData(newToken);
         this._onDidChangeStatus.fire({ status: 'valid' });
+        authLog.verbose(`${this.context.providerId}:oauth2`, 'Token refresh successful (client_credentials)');
         return true;
       }
 
+      authLog.verbose(`${this.context.providerId}:oauth2`, `Unsupported grant type for refresh: ${oauth.grantType}`);
       return false;
     } catch (error) {
       const errorType: AuthErrorType =
         error instanceof OAuth2Error ? error.type : 'unknown_error';
+      authLog.error(`${this.context.providerId}:oauth2`, `Token refresh failed (${errorType})`, error);
       this._onDidChangeStatus.fire({
         status: 'error',
         error: error as Error,
@@ -747,10 +771,12 @@ export class OAuth2AuthProvider implements AuthProvider {
    * Revoke/clear OAuth tokens
    */
   async revoke(): Promise<void> {
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'Revoking OAuth tokens');
     const token = await this.resolveTokenData();
     const oauth = await this.resolveOAuthConfig();
 
     if (token && oauth?.revocationUrl) {
+      authLog.verbose(`${this.context.providerId}:oauth2`, 'Attempting remote token revocation');
       // Best-effort remote revocation before clearing local tokens.
       const attempt = async (
         tokenValue: string,
@@ -764,23 +790,27 @@ export class OAuth2AuthProvider implements AuthProvider {
 
       if (token.refreshToken) {
         try {
+          authLog.verbose(`${this.context.providerId}:oauth2`, 'Revoking refresh token');
           await attempt(token.refreshToken, 'refresh_token');
-        } catch {
-          // ignore
+        } catch (error) {
+          authLog.error(`${this.context.providerId}:oauth2`, 'Failed to revoke refresh token (ignored)', error);
         }
       }
 
       if (token.accessToken) {
         try {
+          authLog.verbose(`${this.context.providerId}:oauth2`, 'Revoking access token');
           await attempt(token.accessToken, 'access_token');
-        } catch {
-          // ignore
+        } catch (error) {
+          authLog.error(`${this.context.providerId}:oauth2`, 'Failed to revoke access token (ignored)', error);
         }
       }
     }
 
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'Clearing local token data');
     await this.clearTokenData();
     this._onDidChangeStatus.fire({ status: 'revoked' });
+    authLog.verbose(`${this.context.providerId}:oauth2`, 'OAuth tokens revoked successfully');
   }
 
   dispose(): void {

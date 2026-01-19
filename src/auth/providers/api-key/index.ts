@@ -16,6 +16,7 @@ import {
   isSecretRef,
   type SecretStore,
 } from '../../../secret';
+import { authLog } from '../../../logger';
 
 /**
  * API Key authentication provider implementation
@@ -196,20 +197,27 @@ export class ApiKeyAuthProvider implements AuthProvider {
    */
   async getCredential(): Promise<AuthCredential | undefined> {
     const apiKey = this.config?.apiKey;
+    authLog.verbose(`${this.context.providerId}:api-key`, `Getting credential (hasApiKey: ${!!apiKey})`);
+
     if (!apiKey) {
+      authLog.verbose(`${this.context.providerId}:api-key`, 'No API key configured, returning empty credential');
       return { value: '' };
     }
 
     // Check if it's a secret reference
     if (isSecretRef(apiKey)) {
+      authLog.verbose(`${this.context.providerId}:api-key`, 'Resolving secret reference');
       const stored = await this.context.secretStore.getApiKey(apiKey);
       if (!stored) {
+        authLog.error(`${this.context.providerId}:api-key`, 'Failed to resolve secret reference - API key not found in secret storage');
         return undefined;
       }
+      authLog.verbose(`${this.context.providerId}:api-key`, 'Secret reference resolved successfully');
       return { value: stored };
     }
 
     // Plain text API key
+    authLog.verbose(`${this.context.providerId}:api-key`, 'Using plain text API key');
     return { value: apiKey };
   }
 
@@ -229,6 +237,7 @@ export class ApiKeyAuthProvider implements AuthProvider {
    * Configure API key - shows input box
    */
   async configure(): Promise<AuthConfigureResult> {
+    authLog.verbose(`${this.context.providerId}:api-key`, 'Starting API key configuration');
     const currentValue = await this.getCredential();
 
     const apiKey = await showInput({
@@ -242,13 +251,16 @@ export class ApiKeyAuthProvider implements AuthProvider {
 
     if (apiKey === undefined) {
       // User cancelled
+      authLog.verbose(`${this.context.providerId}:api-key`, 'Configuration cancelled by user');
       return { success: false };
     }
 
     const trimmed = apiKey.trim();
     if (!trimmed) {
+      authLog.verbose(`${this.context.providerId}:api-key`, 'Empty API key provided, clearing configuration');
       const existingRef = this.config?.apiKey;
       if (existingRef && isSecretRef(existingRef)) {
+        authLog.verbose(`${this.context.providerId}:api-key`, 'Deleting existing secret reference');
         await this.context.secretStore.deleteApiKey(existingRef);
       }
 
@@ -263,9 +275,11 @@ export class ApiKeyAuthProvider implements AuthProvider {
       await this.context.persistAuthConfig?.(next);
       this._onDidChangeStatus.fire({ status: 'revoked' });
 
+      authLog.verbose(`${this.context.providerId}:api-key`, 'API key cleared successfully');
       return { success: true, config: next };
     }
 
+    authLog.verbose(`${this.context.providerId}:api-key`, 'Storing new API key in secret storage');
     const secretRef = createSecretRef();
     await this.context.secretStore.setApiKey(secretRef, trimmed);
 
@@ -280,6 +294,7 @@ export class ApiKeyAuthProvider implements AuthProvider {
     await this.context.persistAuthConfig?.(next);
     this._onDidChangeStatus.fire({ status: 'valid' });
 
+    authLog.verbose(`${this.context.providerId}:api-key`, 'API key configured successfully');
     return { success: true, config: next };
   }
 
@@ -287,8 +302,10 @@ export class ApiKeyAuthProvider implements AuthProvider {
    * Revoke/clear the API key
    */
   async revoke(): Promise<void> {
+    authLog.verbose(`${this.context.providerId}:api-key`, 'Revoking API key');
     const apiKey = this.config?.apiKey;
     if (apiKey && isSecretRef(apiKey)) {
+      authLog.verbose(`${this.context.providerId}:api-key`, 'Deleting API key from secret storage');
       await this.context.secretStore.deleteApiKey(apiKey);
     }
     const next: ApiKeyAuthConfig = {
@@ -300,6 +317,7 @@ export class ApiKeyAuthProvider implements AuthProvider {
     this.config = next;
     await this.context.persistAuthConfig?.(next);
     this._onDidChangeStatus.fire({ status: 'revoked' });
+    authLog.verbose(`${this.context.providerId}:api-key`, 'API key revoked successfully');
   }
 
   dispose(): void {

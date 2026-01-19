@@ -10,6 +10,7 @@ import {
   SECRET_KEY_PREFIXES,
 } from './constants';
 import type { OAuth2TokenData } from '../auth/types';
+import { authLog } from '../logger';
 
 /**
  * API key storage status
@@ -54,9 +55,15 @@ export class SecretStore {
   async getApiKey(ref: string): Promise<string | undefined> {
     const key = buildApiKeyStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid API key secret reference: ${ref}`);
       return undefined;
     }
-    return this.secrets.get(key);
+    authLog.verbose('secret-store', `Getting API key (key: ${key})`);
+    const value = await this.secrets.get(key);
+    if (!value) {
+      authLog.verbose('secret-store', `API key not found (key: ${key})`);
+    }
+    return value;
   }
 
   /**
@@ -65,8 +72,10 @@ export class SecretStore {
   async setApiKey(ref: string, apiKey: string): Promise<void> {
     const key = buildApiKeyStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid API key secret reference: ${ref}`);
       throw new Error(`Invalid secret reference: ${ref}`);
     }
+    authLog.verbose('secret-store', `Storing API key (key: ${key})`);
     await this.secrets.store(key, apiKey);
   }
 
@@ -76,8 +85,10 @@ export class SecretStore {
   async deleteApiKey(ref: string): Promise<void> {
     const key = buildApiKeyStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid API key secret reference for deletion: ${ref}`);
       return;
     }
+    authLog.verbose('secret-store', `Deleting API key (key: ${key})`);
     await this.secrets.delete(key);
   }
 
@@ -123,17 +134,21 @@ export class SecretStore {
   async getOAuth2Token(ref: string): Promise<OAuth2TokenData | null> {
     const key = buildOAuth2TokenStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid OAuth2 token secret reference: ${ref}`);
       return null;
     }
 
+    authLog.verbose('secret-store', `Getting OAuth2 token (key: ${key})`);
     const data = await this.secrets.get(key);
     if (!data) {
+      authLog.verbose('secret-store', `OAuth2 token not found (key: ${key})`);
       return null;
     }
 
     try {
       return JSON.parse(data) as OAuth2TokenData;
-    } catch {
+    } catch (error) {
+      authLog.error('secret-store', `Failed to parse OAuth2 token data (key: ${key})`, error);
       return null;
     }
   }
@@ -141,16 +156,20 @@ export class SecretStore {
   async setOAuth2Token(ref: string, token: OAuth2TokenData): Promise<void> {
     const key = buildOAuth2TokenStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid OAuth2 token secret reference: ${ref}`);
       throw new Error(`Invalid secret reference: ${ref}`);
     }
+    authLog.verbose('secret-store', `Storing OAuth2 token (key: ${key})`);
     await this.secrets.store(key, JSON.stringify(token));
   }
 
   async deleteOAuth2Token(ref: string): Promise<void> {
     const key = buildOAuth2TokenStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid OAuth2 token secret reference for deletion: ${ref}`);
       return;
     }
+    authLog.verbose('secret-store', `Deleting OAuth2 token (key: ${key})`);
     await this.secrets.delete(key);
   }
 
@@ -177,9 +196,15 @@ export class SecretStore {
   async getOAuth2ClientSecret(ref: string): Promise<string | undefined> {
     const key = buildOAuth2ClientSecretStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid OAuth2 client secret reference: ${ref}`);
       return undefined;
     }
-    return this.secrets.get(key);
+    authLog.verbose('secret-store', `Getting OAuth2 client secret (key: ${key})`);
+    const value = await this.secrets.get(key);
+    if (!value) {
+      authLog.verbose('secret-store', `OAuth2 client secret not found (key: ${key})`);
+    }
+    return value;
   }
 
   /**
@@ -188,8 +213,10 @@ export class SecretStore {
   async setOAuth2ClientSecret(ref: string, secret: string): Promise<void> {
     const key = buildOAuth2ClientSecretStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid OAuth2 client secret reference: ${ref}`);
       throw new Error(`Invalid secret reference: ${ref}`);
     }
+    authLog.verbose('secret-store', `Storing OAuth2 client secret (key: ${key})`);
     await this.secrets.store(key, secret);
   }
 
@@ -199,8 +226,10 @@ export class SecretStore {
   async deleteOAuth2ClientSecret(ref: string): Promise<void> {
     const key = buildOAuth2ClientSecretStorageKey(ref);
     if (!key) {
+      authLog.error('secret-store', `Invalid OAuth2 client secret reference for deletion: ${ref}`);
       return;
     }
+    authLog.verbose('secret-store', `Deleting OAuth2 client secret (key: ${key})`);
     await this.secrets.delete(key);
   }
 

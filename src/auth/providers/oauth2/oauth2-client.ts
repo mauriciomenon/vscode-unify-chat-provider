@@ -18,6 +18,7 @@ import {
   createOAuth2ErrorFromResponse,
   createOAuth2ErrorFromNetworkError,
 } from './errors';
+import { authLog } from '../../../logger';
 
 /**
  * Generate a random state string for OAuth
@@ -75,6 +76,7 @@ export async function exchangeCodeForToken(
   code: string,
   state: OAuth2AuthState,
 ): Promise<OAuth2TokenData> {
+  authLog.verbose('oauth2-client', `Exchanging authorization code for token (tokenUrl: ${config.tokenUrl})`);
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: config.clientId,
@@ -100,10 +102,12 @@ export async function exchangeCodeForToken(
 
   if (!response.ok) {
     const error = await response.text();
+    authLog.error('oauth2-client', `Token exchange failed (status: ${response.status})`, error);
     throw new Error(t('Token exchange failed: {0}', error));
   }
 
   const data = (await response.json()) as TokenResponse;
+  authLog.verbose('oauth2-client', 'Token exchange successful');
   return tokenResponseToData(data);
 }
 
@@ -114,6 +118,7 @@ export async function getClientCredentialsToken(
   config: OAuth2ClientCredentialsConfig,
   signal?: AbortSignal,
 ): Promise<OAuth2TokenData> {
+  authLog.verbose('oauth2-client', `Getting token using client_credentials (tokenUrl: ${config.tokenUrl})`);
   const params = new URLSearchParams({
     grant_type: 'client_credentials',
     client_id: config.clientId,
@@ -135,17 +140,21 @@ export async function getClientCredentialsToken(
       signal,
     });
   } catch (error) {
+    authLog.error('oauth2-client', 'Network error during client_credentials token request', error);
     throw createOAuth2ErrorFromNetworkError(error);
   }
 
   if (!response.ok) {
-    throw await createOAuth2ErrorFromResponse(
+    const oauth2Error = await createOAuth2ErrorFromResponse(
       response,
       t('Token request failed'),
     );
+    authLog.error('oauth2-client', `Client credentials token request failed (status: ${response.status})`, oauth2Error);
+    throw oauth2Error;
   }
 
   const data = (await response.json()) as TokenResponse;
+  authLog.verbose('oauth2-client', 'Client credentials token request successful');
   return tokenResponseToData(data);
 }
 
@@ -155,6 +164,7 @@ export async function getClientCredentialsToken(
 export async function startDeviceCodeFlow(
   config: OAuth2DeviceCodeConfig,
 ): Promise<DeviceCodeResponse> {
+  authLog.verbose('oauth2-client', `Starting device code flow (deviceAuthorizationUrl: ${config.deviceAuthorizationUrl})`);
   const params = new URLSearchParams({
     client_id: config.clientId,
   });
@@ -173,10 +183,12 @@ export async function startDeviceCodeFlow(
 
   if (!response.ok) {
     const error = await response.text();
+    authLog.error('oauth2-client', `Device authorization failed (status: ${response.status})`, error);
     throw new Error(t('Device authorization failed: {0}', error));
   }
 
   const data = await response.json();
+  authLog.verbose('oauth2-client', `Device code flow started (userCode: ${data.user_code})`);
   return {
     deviceCode: data.device_code,
     userCode: data.user_code,
@@ -195,6 +207,7 @@ export async function pollDeviceCodeToken(
   deviceCode: string,
   token: vscode.CancellationToken,
 ): Promise<OAuth2TokenData | null> {
+  authLog.verbose('oauth2-client', 'Polling for device code token');
   const params = new URLSearchParams({
     grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
     client_id: config.clientId,
@@ -210,6 +223,7 @@ export async function pollDeviceCodeToken(
   });
 
   if (token.isCancellationRequested) {
+    authLog.verbose('oauth2-client', 'Device code polling cancelled');
     return null;
   }
 
@@ -219,26 +233,32 @@ export async function pollDeviceCodeToken(
 
     if (error === 'authorization_pending') {
       // User hasn't completed authorization yet
+      authLog.verbose('oauth2-client', 'Device code authorization pending');
       return null;
     }
 
     if (error === 'slow_down') {
       // Need to slow down polling
+      authLog.verbose('oauth2-client', 'Device code polling: slow_down received');
       return null;
     }
 
     if (error === 'expired_token') {
+      authLog.error('oauth2-client', 'Device code expired');
       throw new Error(t('Device code expired. Please try again.'));
     }
 
     if (error === 'access_denied') {
+      authLog.error('oauth2-client', 'Device code authorization was denied');
       throw new Error(t('Authorization was denied.'));
     }
 
+    authLog.error('oauth2-client', `Device code token request failed: ${error}`, data.error_description);
     throw new Error(t('Token request failed: {0}', data.error_description || error));
   }
 
   const data = (await response.json()) as TokenResponse;
+  authLog.verbose('oauth2-client', 'Device code token obtained successfully');
   return tokenResponseToData(data);
 }
 
@@ -250,7 +270,9 @@ export async function refreshToken(
   refreshTokenValue: string,
   signal?: AbortSignal,
 ): Promise<OAuth2TokenData> {
+  authLog.verbose('oauth2-client', `Refreshing access token (tokenUrl: ${config.tokenUrl})`);
   if (config.grantType === 'device_code') {
+    authLog.error('oauth2-client', 'Device code flow does not support refresh tokens');
     throw new Error('Device code flow does not support refresh tokens');
   }
 
@@ -278,17 +300,21 @@ export async function refreshToken(
       signal,
     });
   } catch (error) {
+    authLog.error('oauth2-client', 'Network error during token refresh', error);
     throw createOAuth2ErrorFromNetworkError(error);
   }
 
   if (!response.ok) {
-    throw await createOAuth2ErrorFromResponse(
+    const oauth2Error = await createOAuth2ErrorFromResponse(
       response,
       t('Token refresh failed'),
     );
+    authLog.error('oauth2-client', `Token refresh failed (status: ${response.status})`, oauth2Error);
+    throw oauth2Error;
   }
 
   const data = (await response.json()) as TokenResponse;
+  authLog.verbose('oauth2-client', 'Token refresh successful');
   return tokenResponseToData(data);
 }
 
@@ -306,9 +332,11 @@ export async function revokeToken(
 ): Promise<void> {
   const revocationUrl = config.revocationUrl;
   if (!revocationUrl) {
+    authLog.verbose('oauth2-client', 'No revocation URL configured, skipping remote revocation');
     return;
   }
 
+  authLog.verbose('oauth2-client', `Revoking token (revocationUrl: ${revocationUrl}, hint: ${hint})`);
   const params = new URLSearchParams({
     token: tokenValue,
     token_type_hint: hint,
@@ -333,15 +361,20 @@ export async function revokeToken(
       signal,
     });
   } catch (error) {
+    authLog.error('oauth2-client', 'Network error during token revocation', error);
     throw createOAuth2ErrorFromNetworkError(error);
   }
 
   if (!response.ok) {
-    throw await createOAuth2ErrorFromResponse(
+    const oauth2Error = await createOAuth2ErrorFromResponse(
       response,
       t('Token revocation failed'),
     );
+    authLog.error('oauth2-client', `Token revocation failed (status: ${response.status})`, oauth2Error);
+    throw oauth2Error;
   }
+
+  authLog.verbose('oauth2-client', 'Token revocation successful');
 }
 
 /**

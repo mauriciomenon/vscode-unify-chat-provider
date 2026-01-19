@@ -9,6 +9,7 @@ import { AuthConfig, AuthCredential, AuthMethod } from './types';
 import { createAuthProvider } from './create-auth-provider';
 import type { EventedUriHandler } from '../uri-handler';
 import type { SecretStore } from '../secret';
+import { authLog } from '../logger';
 
 /**
  * Stored error information for a provider
@@ -133,6 +134,7 @@ export class AuthManager implements vscode.Disposable {
     auth: AuthConfig,
   ): AuthProvider | undefined {
     if (auth.method === 'none') {
+      authLog.verbose(`${providerName}:none`, 'Skipping provider with no auth method');
       return undefined;
     }
 
@@ -144,12 +146,14 @@ export class AuthManager implements vscode.Disposable {
     const existing = this.providers.get(cacheKeyValue);
     const existingSignature = this.providerConfigSignatures.get(cacheKeyValue);
     if (existing && existingSignature !== signature) {
+      authLog.verbose(`${providerName}:${auth.method}`, 'Config changed, recreating provider');
       this.disposeProviderByCacheKey(cacheKeyValue);
     }
 
     let provider = this.providers.get(cacheKeyValue);
 
     if (!provider) {
+      authLog.verbose(`${providerName}:${auth.method}`, 'Creating new auth provider');
       const context = this.createContext(providerName);
       const created = createAuthProvider(context, auth);
       if (created) {
@@ -157,6 +161,7 @@ export class AuthManager implements vscode.Disposable {
         provider = providerInstance;
         this.providers.set(cacheKeyValue, providerInstance);
         this.providerConfigSignatures.set(cacheKeyValue, signature);
+        authLog.verbose(`${providerName}:${auth.method}`, 'Auth provider created successfully');
 
         // Subscribe to status changes
         const subscription = providerInstance.onDidChangeStatus((change) => {
@@ -164,12 +169,16 @@ export class AuthManager implements vscode.Disposable {
             return;
           }
 
+          authLog.verbose(`${providerName}:${auth.method}`, `Status changed to: ${change.status}`);
+
           if (change.status === 'expired' || change.status === 'error') {
             // Store error silently instead of firing event
-            this.lastErrors.set(cacheKeyValue, {
+            const errorInfo: AuthErrorInfo = {
               error: change.error ?? new Error('Authentication expired'),
               errorType: change.errorType ?? 'unknown_error',
-            });
+            };
+            this.lastErrors.set(cacheKeyValue, errorInfo);
+            authLog.error(`${providerName}:${auth.method}`, `Auth ${change.status}: ${errorInfo.error.message}`);
             this.cancelRefreshByCacheKey(cacheKeyValue);
             return;
           }
@@ -189,6 +198,8 @@ export class AuthManager implements vscode.Disposable {
           }
         });
         this.providerStatusSubscriptions.set(cacheKeyValue, subscription);
+      } else {
+        authLog.error(`${providerName}:${auth.method}`, 'Failed to create auth provider');
       }
     }
 
@@ -202,8 +213,10 @@ export class AuthManager implements vscode.Disposable {
     providerName: string,
     auth: AuthConfig,
   ): Promise<AuthCredential | undefined> {
+    authLog.verbose(`${providerName}:${auth.method}`, 'Getting credential');
     const provider = this.getProvider(providerName, auth);
     if (!provider) {
+      authLog.verbose(`${providerName}:${auth.method}`, 'No provider available, returning undefined');
       return undefined;
     }
 
@@ -211,6 +224,7 @@ export class AuthManager implements vscode.Disposable {
 
     const inFlight = this.credentialInFlight.get(cacheKeyValue);
     if (inFlight) {
+      authLog.verbose(`${providerName}:${auth.method}`, 'Credential request already in flight, waiting');
       return inFlight;
     }
 
@@ -231,10 +245,17 @@ export class AuthManager implements vscode.Disposable {
     providerName: string,
     provider: AuthProvider,
   ): Promise<AuthCredential | undefined> {
+    const parsed = parseCacheKey(cacheKeyValue);
+    const method = parsed?.method ?? 'unknown';
+
+    authLog.verbose(`${providerName}:${method}`, 'Fetching credential from provider');
     const credential = await provider.getCredential();
     if (!credential) {
+      authLog.verbose(`${providerName}:${method}`, 'Provider returned no credential');
       return undefined;
     }
+
+    authLog.verbose(`${providerName}:${method}`, `Credential obtained (expires: ${credential.expiresAt ? new Date(credential.expiresAt).toISOString() : 'never'})`);
 
     if (credential.expiresAt !== undefined) {
       this.scheduleRefresh(
@@ -297,7 +318,11 @@ export class AuthManager implements vscode.Disposable {
       return;
     }
 
+    const parsed = parseCacheKey(cacheKeyValue);
+    const method = parsed?.method ?? 'unknown';
+
     if (!provider.refresh) {
+      authLog.verbose(`${providerName}:${method}`, 'Provider does not support refresh');
       this.cancelRefreshByCacheKey(cacheKeyValue);
       return;
     }
@@ -307,6 +332,8 @@ export class AuthManager implements vscode.Disposable {
     const delay = Math.max(0, refreshAt - Date.now());
 
     this.cancelRefreshByCacheKey(cacheKeyValue);
+
+    authLog.verbose(`${providerName}:${method}`, `Scheduling refresh in ${Math.round(delay / 1000)}s (buffer: ${bufferMs}ms)`);
 
     const generationAtSchedule = expected;
 
@@ -379,26 +406,36 @@ export class AuthManager implements vscode.Disposable {
     provider: AuthProvider,
     expectedGeneration: number,
   ): Promise<void> {
+    const parsed = parseCacheKey(cacheKeyValue);
+    const method = parsed?.method ?? 'unknown';
+
     if (!provider.refresh) {
       return;
     }
 
     if (this.getRefreshGeneration(cacheKeyValue) !== expectedGeneration) {
+      authLog.verbose(`${providerName}:${method}`, 'Refresh cancelled: generation mismatch');
       return;
     }
 
     if (this.providers.get(cacheKeyValue) !== provider) {
+      authLog.verbose(`${providerName}:${method}`, 'Refresh cancelled: provider changed');
       return;
     }
 
     if (this.refreshInFlight.has(cacheKeyValue)) {
+      authLog.verbose(`${providerName}:${method}`, 'Refresh already in flight, skipping');
       return;
     }
     this.refreshInFlight.add(cacheKeyValue);
+
+    authLog.verbose(`${providerName}:${method}`, 'Starting token refresh');
+
     try {
       const success = await provider.refresh();
       if (!success) {
         // Error is already stored by the status change handler
+        authLog.error(`${providerName}:${method}`, 'Token refresh failed (provider returned false)');
         if (this.providers.get(cacheKeyValue) === provider) {
           this.cancelRefreshByCacheKey(cacheKeyValue);
         }
@@ -415,6 +452,7 @@ export class AuthManager implements vscode.Disposable {
 
       // Clear any stored error on success
       this.lastErrors.delete(cacheKeyValue);
+      authLog.verbose(`${providerName}:${method}`, 'Token refresh successful');
 
       const credential = await provider.getCredential();
       if (this.getRefreshGeneration(cacheKeyValue) !== expectedGeneration) {
@@ -435,8 +473,9 @@ export class AuthManager implements vscode.Disposable {
       } else {
         this.cancelRefreshByCacheKey(cacheKeyValue);
       }
-    } catch {
+    } catch (error) {
       // Error is already stored by the status change handler
+      authLog.error(`${providerName}:${method}`, 'Token refresh failed with exception', error);
       if (this.providers.get(cacheKeyValue) === provider) {
         this.cancelRefreshByCacheKey(cacheKeyValue);
       }
@@ -466,16 +505,20 @@ export class AuthManager implements vscode.Disposable {
    * Manually trigger a refresh retry (for active user action)
    */
   async retryRefresh(providerName: string, auth: AuthConfig): Promise<boolean> {
+    authLog.verbose(`${providerName}:${auth.method}`, 'Manual refresh retry requested');
     const provider = this.getProvider(providerName, auth);
     if (!provider?.refresh) {
+      authLog.verbose(`${providerName}:${auth.method}`, 'Provider does not support refresh');
       return false;
     }
 
     const cacheKeyValue = cacheKey(providerName, auth.method);
     try {
+      authLog.verbose(`${providerName}:${auth.method}`, 'Attempting manual refresh');
       const success = await provider.refresh();
       if (success) {
         this.lastErrors.delete(cacheKeyValue);
+        authLog.verbose(`${providerName}:${auth.method}`, 'Manual refresh successful');
 
         // Re-schedule refresh if credential has expiry
         const credential = await provider.getCredential();
@@ -487,10 +530,13 @@ export class AuthManager implements vscode.Disposable {
             credential.expiresAt,
           );
         }
+      } else {
+        authLog.error(`${providerName}:${auth.method}`, 'Manual refresh failed (provider returned false)');
       }
       return success;
-    } catch {
+    } catch (error) {
       // Error is already stored by the status change handler
+      authLog.error(`${providerName}:${auth.method}`, 'Manual refresh failed with exception', error);
       return false;
     }
   }

@@ -540,6 +540,156 @@ export function createSimpleHttpLogger(context: {
   return new SimpleHttpLogger(id, context);
 }
 
+/**
+ * Logger for authentication and authorization flows.
+ * Helps debug authentication issues by logging key steps.
+ *
+ * Logging rules:
+ * - Errors that are silently handled (not re-thrown) are always logged
+ * - Verbose messages are only logged when verbose mode is enabled
+ */
+export class AuthLogger {
+  private static nextAuthLogId = 1;
+  private readonly ch = getChannel();
+  public readonly id: string;
+
+  constructor(
+    private readonly context: {
+      providerName: string;
+      method: string;
+    },
+  ) {
+    this.id = `auth-${AuthLogger.nextAuthLogId++}`;
+  }
+
+  private get prefix(): string {
+    return `[${this.id}] [Auth:${this.context.providerName}:${this.context.method}]`;
+  }
+
+  /**
+   * Log verbose information. Only logged when verbose is enabled.
+   */
+  verbose(message: string, data?: unknown): void {
+    if (!isVerboseEnabled()) {
+      return;
+    }
+    if (data !== undefined) {
+      this.ch.info(`${this.prefix} ${message}: ${stringifyForLog(data)}`);
+    } else {
+      this.ch.info(`${this.prefix} ${message}`);
+    }
+  }
+
+  /**
+   * Log an error that is silently handled (not re-thrown).
+   * Always logged regardless of verbose setting.
+   */
+  error(message: string, error?: unknown): void {
+    if (error !== undefined) {
+      this.ch.error(`${this.prefix} ${message}:`);
+      this.ch.error(error instanceof Error ? error : String(error));
+    } else {
+      this.ch.error(`${this.prefix} ${message}`);
+    }
+  }
+
+  /**
+   * Log a warning. Always logged regardless of verbose setting.
+   */
+  warn(message: string): void {
+    this.ch.warn(`${this.prefix} ${message}`);
+  }
+}
+
+/**
+ * Logger for secret storage operations.
+ */
+export class SecretLogger {
+  private static nextSecretLogId = 1;
+  private readonly ch = getChannel();
+  public readonly id: string;
+
+  constructor() {
+    this.id = `secret-${SecretLogger.nextSecretLogId++}`;
+  }
+
+  private get prefix(): string {
+    return `[${this.id}] [Secret]`;
+  }
+
+  /**
+   * Log verbose information. Only logged when verbose is enabled.
+   */
+  verbose(message: string): void {
+    if (!isVerboseEnabled()) {
+      return;
+    }
+    this.ch.info(`${this.prefix} ${message}`);
+  }
+
+  /**
+   * Log an error that is silently handled.
+   * Always logged regardless of verbose setting.
+   */
+  error(message: string, error?: unknown): void {
+    if (error !== undefined) {
+      this.ch.error(`${this.prefix} ${message}:`);
+      this.ch.error(error instanceof Error ? error : String(error));
+    } else {
+      this.ch.error(`${this.prefix} ${message}`);
+    }
+  }
+}
+
+/**
+ * Create a new AuthLogger for authentication flows.
+ */
+export function createAuthLogger(context: {
+  providerName: string;
+  method: string;
+}): AuthLogger {
+  return new AuthLogger(context);
+}
+
+/**
+ * Create a new SecretLogger for secret storage operations.
+ */
+export function createSecretLogger(): SecretLogger {
+  return new SecretLogger();
+}
+
+/**
+ * Global auth log function for one-off messages.
+ * For verbose messages, only logged when verbose is enabled.
+ * For error messages, always logged.
+ */
+export const authLog = {
+  verbose(context: string, message: string, data?: unknown): void {
+    if (!isVerboseEnabled()) {
+      return;
+    }
+    const ch = getChannel();
+    if (data !== undefined) {
+      ch.info(`[Auth:${context}] ${message}: ${stringifyForLog(data)}`);
+    } else {
+      ch.info(`[Auth:${context}] ${message}`);
+    }
+  },
+  error(context: string, message: string, error?: unknown): void {
+    const ch = getChannel();
+    if (error !== undefined) {
+      ch.error(`[Auth:${context}] ${message}:`);
+      ch.error(error instanceof Error ? error : String(error));
+    } else {
+      ch.error(`[Auth:${context}] ${message}`);
+    }
+  },
+  warn(context: string, message: string): void {
+    const ch = getChannel();
+    ch.warn(`[Auth:${context}] ${message}`);
+  },
+};
+
 if (isVerboseEnabled()) {
   getChannel().info('Initialized.');
 }
