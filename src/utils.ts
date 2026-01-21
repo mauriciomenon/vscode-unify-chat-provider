@@ -35,10 +35,10 @@ export const DEFAULT_RETRY_CONFIG = {
  * Default timeout configuration for HTTP requests and SSE streams.
  */
 export const DEFAULT_TIMEOUT_CONFIG = {
-  /** Connection timeout in milliseconds (20 seconds) */
-  connection: 20_000,
-  /** Response/idle timeout in milliseconds (2 minutes) */
-  response: 120_000,
+  /** Connection timeout in milliseconds */
+  connection: 60_000,
+  /** Response/idle timeout in milliseconds */
+  response: 300_000,
 } as const;
 
 export interface RetryConfig {
@@ -195,10 +195,7 @@ function throwIfAborted(signal: AbortSignal | null | undefined): void {
   }
 }
 
-function delay(
-  ms: number,
-  abortSignal?: AbortSignal | null,
-): Promise<void> {
+function delay(ms: number, abortSignal?: AbortSignal | null): Promise<void> {
   if (ms <= 0) {
     return Promise.resolve();
   }
@@ -473,7 +470,10 @@ export async function* withIdleTimeout<T>(
 
         if (result.kind === 'timeout') {
           throw new Error(
-            t('Response timeout: No data received for {0}ms', responseTimeoutMs),
+            t(
+              'Response timeout: No data received for {0}ms',
+              responseTimeoutMs,
+            ),
           );
         }
 

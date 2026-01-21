@@ -25,6 +25,7 @@ import {
 import {
   ANTIGRAVITY_DEFAULT_PROJECT_ID,
   ANTIGRAVITY_SYSTEM_INSTRUCTION,
+  CODE_ASSIST_ENDPOINT_FALLBACKS,
   CODE_ASSIST_HEADERS,
 } from '../../auth/providers/antigravity-oauth/constants';
 import { getBaseModelId } from '../../model-id-utils';
@@ -77,6 +78,43 @@ function sanitizeAntigravityToolName(name: string): string {
   }
 
   return sanitized;
+}
+
+function sleepWithAbortSignal(
+  ms: number,
+  abortSignal: AbortSignal,
+): Promise<void> {
+  if (ms <= 0 || abortSignal.aborted) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const cleanup = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      abortSignal.removeEventListener('abort', onAbort);
+    };
+
+    const onAbort = (): void => {
+      cleanup();
+      resolve();
+    };
+
+    abortSignal.addEventListener('abort', onAbort, { once: true });
+    timeoutId = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+  });
 }
 
 function cleanJsonSchemaForAntigravity(schema: unknown): unknown {
@@ -540,6 +578,8 @@ type AntigravityTool = {
 };
 
 export class GoogleAntigravityProvider extends GoogleAIStudioProvider {
+  private activeEndpointBaseUrl: string | undefined;
+
   private assertAntigravityAuth(): void {
     if (this.config.auth?.method !== 'antigravity-oauth') {
       throw new Error(
@@ -548,9 +588,61 @@ export class GoogleAntigravityProvider extends GoogleAIStudioProvider {
     }
   }
 
-  private resolveEndpointBaseUrl(): string {
-    const trimmed = this.baseUrl.replace(/\/+$/, '');
+  private normalizeEndpointBaseUrl(raw: string): string {
+    const trimmed = raw.trim().replace(/\/+$/, '');
     return trimmed.replace(/\/v1internal(?::.*)?$/i, '');
+  }
+
+  private resolveEndpointBaseUrl(): string {
+    return this.normalizeEndpointBaseUrl(this.baseUrl);
+  }
+
+  private resolveEndpointCandidates(): string[] {
+    const primary = this.resolveEndpointBaseUrl();
+    const active = this.activeEndpointBaseUrl
+      ? this.normalizeEndpointBaseUrl(this.activeEndpointBaseUrl)
+      : undefined;
+
+    const canonical: string[] = [];
+    const canonicalSeen = new Set<string>();
+    for (const endpoint of CODE_ASSIST_ENDPOINT_FALLBACKS) {
+      const normalized = this.normalizeEndpointBaseUrl(endpoint);
+      if (!canonicalSeen.has(normalized)) {
+        canonicalSeen.add(normalized);
+        canonical.push(normalized);
+      }
+    }
+
+    const start = active ?? primary;
+    const startIndex = canonical.indexOf(start);
+
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    const pushEndpoint = (endpoint: string): void => {
+      const normalized = this.normalizeEndpointBaseUrl(endpoint);
+      if (!normalized) {
+        return;
+      }
+      if (seen.has(normalized)) {
+        return;
+      }
+      seen.add(normalized);
+      ordered.push(normalized);
+    };
+
+    if (startIndex >= 0) {
+      for (let i = 0; i < canonical.length; i++) {
+        pushEndpoint(canonical[(startIndex + i) % canonical.length]);
+      }
+    } else {
+      pushEndpoint(start);
+      for (const endpoint of canonical) {
+        pushEndpoint(endpoint);
+      }
+    }
+
+    pushEndpoint(primary);
+    return ordered;
   }
 
   private resolveProjectId(): string {
@@ -1118,29 +1210,109 @@ export class GoogleAntigravityProvider extends GoogleAIStudioProvider {
     const fetcher = createCustomFetch({
       connectionTimeoutMs: requestTimeoutMs,
       logger,
+      retryConfig: { maxRetries: 0 },
     });
-
-    const endpointBase = this.resolveEndpointBaseUrl();
-    const endpoint = `${endpointBase}/v1internal:${streamEnabled ? 'streamGenerateContent' : 'generateContent'}${streamEnabled ? '?alt=sse' : ''}`;
 
     performanceTrace.ttf = Date.now() - performanceTrace.tts;
 
     try {
-      const response = await fetcher(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: abortController.signal,
-      });
+      const endpointBases = this.resolveEndpointCandidates();
+      const firstRetryDelayMs = 1_000;
+      const maxBackoffMs = 60_000;
 
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(
-          `Antigravity request failed (${response.status}): ${
-            text || response.statusText || 'Unknown error'
-          }`,
-        );
+      let rateLimitAttempts = 0;
+      let response: Response | undefined;
+      let responseEndpointBase: string | undefined;
+      let lastError: Error | undefined;
+
+      for (let i = 0; i < endpointBases.length; i++) {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        const endpointBase = endpointBases[i];
+        const endpoint = `${endpointBase}/v1internal:${streamEnabled ? 'streamGenerateContent' : 'generateContent'}${streamEnabled ? '?alt=sse' : ''}`;
+
+        try {
+          const attemptResponse = await fetcher(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+            signal: abortController.signal,
+          });
+
+          if (attemptResponse.status === 429) {
+            rateLimitAttempts += 1;
+
+            if (rateLimitAttempts === 1 && i < endpointBases.length - 1) {
+              await attemptResponse.body?.cancel().catch(() => {});
+              await sleepWithAbortSignal(
+                firstRetryDelayMs,
+                abortController.signal,
+              );
+              continue;
+            }
+
+            const backoffMs = Math.min(
+              firstRetryDelayMs *
+                Math.pow(2, Math.max(rateLimitAttempts - 1, 0)),
+              maxBackoffMs,
+            );
+
+            await sleepWithAbortSignal(backoffMs, abortController.signal);
+            if (abortController.signal.aborted) {
+              return;
+            }
+
+            const text = await attemptResponse.text().catch(() => '');
+            lastError = new Error(
+              `Antigravity request failed (${attemptResponse.status}): ${
+                text || attemptResponse.statusText || 'Unknown error'
+              }`,
+            );
+            break;
+          }
+
+          const shouldRetryEndpoint =
+            attemptResponse.status === 403 ||
+            attemptResponse.status === 404 ||
+            attemptResponse.status >= 500;
+
+          if (!attemptResponse.ok) {
+            if (shouldRetryEndpoint && i < endpointBases.length - 1) {
+              await attemptResponse.body?.cancel().catch(() => {});
+              continue;
+            }
+
+            const text = await attemptResponse.text().catch(() => '');
+            lastError = new Error(
+              `Antigravity request failed (${attemptResponse.status}): ${
+                text || attemptResponse.statusText || 'Unknown error'
+              }`,
+            );
+            break;
+          }
+
+          response = attemptResponse;
+          responseEndpointBase = endpointBase;
+          break;
+        } catch (error) {
+          if (abortController.signal.aborted) {
+            return;
+          }
+
+          lastError = error instanceof Error ? error : new Error(String(error));
+          if (i < endpointBases.length - 1) {
+            continue;
+          }
+        }
       }
+
+      if (!response || !responseEndpointBase) {
+        throw lastError ?? new Error('All Antigravity endpoints failed');
+      }
+
+      this.activeEndpointBaseUrl = responseEndpointBase;
 
       if (streamEnabled) {
         const responseTimeoutMs =
@@ -1177,5 +1349,17 @@ export class GoogleAntigravityProvider extends GoogleAIStudioProvider {
     } finally {
       cancellationListener.dispose();
     }
+  }
+
+  override async getAvailableModels(
+    _credential: AuthTokenInfo,
+  ): Promise<ModelConfig[]> {
+    this.assertAntigravityAuth();
+    return [
+      { id: 'gemini-3-pro' },
+      { id: 'gemini-3-flash' },
+      { id: 'claude-sonnet-4-5' },
+      { id: 'claude-opus-4-5' },
+    ];
   }
 }

@@ -9,6 +9,7 @@ import {
   fetchWithRetry,
   headersInitToRecord,
   normalizeBaseUrlInput,
+  type RetryConfig,
 } from '../utils';
 import { FeatureId, FEATURES, PROVIDER_TYPES } from './definitions';
 import { ApiProvider } from './interface';
@@ -382,6 +383,7 @@ export interface CreateCustomFetchOptions {
   connectionTimeoutMs: number;
   logger?: ProviderHttpLogger;
   urlTransformer?: (url: string) => string;
+  retryConfig?: RetryConfig;
 }
 
 /**
@@ -390,7 +392,7 @@ export interface CreateCustomFetchOptions {
 export function createCustomFetch(
   options: CreateCustomFetchOptions,
 ): typeof fetch {
-  const { connectionTimeoutMs, logger, urlTransformer } = options;
+  const { connectionTimeoutMs, logger, urlTransformer, retryConfig } = options;
 
   return async (
     input: RequestInfo | URL,
@@ -415,7 +417,7 @@ export function createCustomFetch(
     const response = await fetchWithRetry(url, {
       ...init,
       logger,
-      retryConfig: DEFAULT_RETRY_CONFIG,
+      retryConfig: retryConfig ?? DEFAULT_RETRY_CONFIG,
       connectionTimeoutMs,
     });
 
