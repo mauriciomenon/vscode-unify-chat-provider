@@ -567,6 +567,14 @@ type AntigravityTool = {
 };
 
 export class GoogleAntigravityProvider extends GoogleAIStudioProvider {
+  private assertAntigravityAuth(): void {
+    if (this.config.auth?.method !== 'antigravity-oauth') {
+      throw new Error(
+        'Google Antigravity provider requires auth method "antigravity-oauth".',
+      );
+    }
+  }
+
   private resolveEndpointBaseUrl(): string {
     const trimmed = this.baseUrl.replace(/\/+$/, '');
     return trimmed.replace(/\/v1internal(?::.*)?$/i, '');
@@ -979,6 +987,8 @@ export class GoogleAntigravityProvider extends GoogleAIStudioProvider {
     logger: RequestLogger,
     credential: AuthTokenInfo,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
+    this.assertAntigravityAuth();
+
     const abortController = new AbortController();
     const cancellationListener = token.onCancellationRequested(() => {
       abortController.abort();
