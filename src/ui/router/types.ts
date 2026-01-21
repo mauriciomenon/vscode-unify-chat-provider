@@ -1,6 +1,7 @@
 import type { ConfigStore } from '../../config-store';
 import type { ProviderType } from '../../client/definitions';
 import { ProviderConfig, ModelConfig, TimeoutConfig } from '../../types';
+import type { WellKnownProviderConfig } from '../../well-known/providers';
 import type { OfficialModelsFetchState } from '../../official-models-manager';
 import type { SecretStore } from '../../secret';
 import type { EventedUriHandler } from '../../uri-handler';
@@ -32,13 +33,13 @@ export interface WellKnownProviderListRoute {
 
 export interface WellKnownProviderNameRoute {
   kind: 'wellKnownProviderName';
-  provider: ProviderConfig;
+  provider: WellKnownProviderConfig;
   draft: ProviderFormDraft;
 }
 
 export interface WellKnownProviderAuthRoute {
   kind: 'wellKnownProviderAuth';
-  provider: ProviderConfig;
+  provider: WellKnownProviderConfig;
   draft: ProviderFormDraft;
 }
 

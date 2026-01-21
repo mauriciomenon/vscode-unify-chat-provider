@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { WELL_KNOWN_PROVIDERS } from '../../well-known/providers';
+import { WELL_KNOWN_PROVIDERS, type WellKnownProviderConfig } from '../../well-known/providers';
 import { pickQuickItem } from '../component';
 import { createProviderDraft, validateProviderNameUnique } from '../form-utils';
 import type {
@@ -8,12 +8,11 @@ import type {
   UiResume,
   WellKnownProviderListRoute,
 } from '../router/types';
-import { ProviderConfig } from '../../types';
 import { t } from '../../i18n';
 
 type WellKnownProviderItem = vscode.QuickPickItem & {
   action?: 'back';
-  provider?: ProviderConfig;
+  provider?: WellKnownProviderConfig;
 };
 
 export async function runWellKnownProviderListScreen(
@@ -43,7 +42,8 @@ export async function runWellKnownProviderListScreen(
     return { kind: 'pop' };
   }
 
-  const draft = createProviderDraft(picked.provider);
+  const { authTypes: _authTypes, ...providerConfig } = picked.provider;
+  const draft = createProviderDraft(providerConfig);
   const suggestedName = draft.name ?? picked.provider.name;
   if (validateProviderNameUnique(suggestedName, ctx.store) === null) {
     draft.name = suggestedName.trim();

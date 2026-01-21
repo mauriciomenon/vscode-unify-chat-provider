@@ -1,7 +1,7 @@
 import type { AuthConfig, AuthMethod } from '../auth/types';
 
 export type WellKnownAuthPreset = {
-  id: string;
+  id: never;
   method: Exclude<AuthMethod, 'none'>;
   label: string;
   description?: string;
@@ -9,3 +9,5 @@ export type WellKnownAuthPreset = {
 };
 
 export const WELL_KNOWN_AUTH_PRESETS: WellKnownAuthPreset[] = [];
+
+export type WellKnownAuthPresetId = WellKnownAuthPreset['id'];
