@@ -12,3 +12,4 @@
 - Commit message generate support.
 - Automatic configuration update: It is possible to configure a URL (which will be automatically set when importing from the URL) and a switch. Once the switch is turned on, the latest configuration will be fetched periodically.
 - OpenCode / ClaudeCode (agent client support)
+- Return the precise token count to VSCode.
