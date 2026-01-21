@@ -365,7 +365,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
       return 'required';
     }
 
-    return undefined;
+    return 'auto';
   }
 
   private buildReasoningParams(
@@ -432,6 +432,11 @@ export class OpenAIResponsesProvider implements ApiProvider {
       this.config,
       model,
     );
+    const stripIncludeParam = isFeatureSupported(
+      FeatureId.OpenAIStripIncludeParam,
+      this.config,
+      model,
+    );
 
     const baseBody: ResponseCreateParamsBase = {
       model: getBaseModelId(model.id),
@@ -451,7 +456,9 @@ export class OpenAIResponsesProvider implements ApiProvider {
       ...(tools !== undefined ? { tools } : {}),
       ...(toolChoice !== undefined ? { tool_choice: toolChoice } : {}),
       stream: streamEnabled,
-      include: ['reasoning.encrypted_content'],
+      ...(stripIncludeParam
+        ? {}
+        : { include: ['reasoning.encrypted_content'] }),
     };
 
     Object.assign(baseBody, this.config.extraBody, model.extraBody);

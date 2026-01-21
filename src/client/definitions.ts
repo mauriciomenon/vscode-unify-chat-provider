@@ -135,6 +135,12 @@ export enum FeatureId {
    */
   OpenAIUseThinkingParam2 = 'openai_use-thinking-param-2',
   /**
+   * Strip `include` from OpenAI Responses API requests.
+   *
+   * @see https://www.volcengine.com/docs/82379/1569618?lang=zh
+   */
+  OpenAIStripIncludeParam = 'openai_strip-include-param',
+  /**
    * Use `top_k` parameter in OpenAI-compatible Chat Completion APIs.
    *
    * @see https://modelstudio.console.alibabacloud.com/?tab=api#/api/?type=model&url=2712576
@@ -305,6 +311,12 @@ export const FEATURES: Record<FeatureId, Feature> = {
     ],
   },
   [FeatureId.OpenAIUseThinkingParam2]: {
+    supportedProviders: [
+      'ark.cn-beijing.volces.com',
+      'ark.ap-southeast.bytepluses.com',
+    ],
+  },
+  [FeatureId.OpenAIStripIncludeParam]: {
     supportedProviders: [
       'ark.cn-beijing.volces.com',
       'ark.ap-southeast.bytepluses.com',
