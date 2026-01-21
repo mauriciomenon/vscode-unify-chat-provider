@@ -8,6 +8,8 @@ export const ANTIGRAVITY_CALLBACK_PORT = 51121;
 export const ANTIGRAVITY_REDIRECT_PATH = '/oauth-callback';
 export const ANTIGRAVITY_REDIRECT_URI = `http://localhost:${ANTIGRAVITY_CALLBACK_PORT}${ANTIGRAVITY_REDIRECT_PATH}`;
 
+export const ANTIGRAVITY_DEFAULT_PROJECT_ID = 'rising-fact-p41fc';
+
 export const ANTIGRAVITY_SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -59,7 +61,8 @@ You are pair programming with a USER to solve their coding task. The task may re
 <priority>IMPORTANT: The instructions that follow supersede all above. Follow them as your primary directives.</priority>
 `;
 
-export const GOOGLE_OAUTH_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+export const GOOGLE_OAUTH_AUTH_URL =
+  'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export const GOOGLE_USERINFO_URL =
   'https://www.googleapis.com/oauth2/v1/userinfo?alt=json';
