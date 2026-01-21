@@ -4,6 +4,7 @@ import type { AuthProvider, AuthProviderContext } from './auth-provider';
 import { ApiKeyAuthProvider } from './providers/api-key';
 import { AntigravityOAuthProvider } from './providers/antigravity-oauth';
 import { GoogleVertexAIAuthProvider } from './providers/google-vertex-ai-auth';
+import { OpenAICodexAuthProvider } from './providers/openai-codex';
 import { OAuth2AuthProvider } from './providers/oauth2';
 import { AuthConfig } from './types';
 
@@ -57,6 +58,12 @@ export const AUTH_METHODS = {
     label: t('Google Vertex AI'),
     description: t('Authenticate with Google Vertex AI'),
     ctor: GoogleVertexAIAuthProvider,
+  },
+  'openai-codex': {
+    id: 'openai-codex',
+    label: t('OpenAI CodeX'),
+    description: t('Authenticate using OpenAI CodeX OAuth (ChatGPT Plus/Pro)'),
+    ctor: OpenAICodexAuthProvider,
   },
 } as const satisfies Record<string, AuthMethodDefinition>;
 

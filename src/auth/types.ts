@@ -4,7 +4,8 @@ export type AuthMethod =
   | 'api-key'
   | 'oauth2'
   | 'antigravity-oauth'
-  | 'google-vertex-ai-auth';
+  | 'google-vertex-ai-auth'
+  | 'openai-codex';
 
 export type AuthTokenInfo =
   | { kind: 'none' }
@@ -131,6 +132,17 @@ export interface AntigravityOAuthConfig {
   email?: string;
 }
 
+export interface OpenAICodexAuthConfig {
+  method: 'openai-codex';
+  label?: string;
+  description?: string;
+  identityId?: string;
+  token?: string;
+  /** ChatGPT organization/subscription account ID (for ChatGPT-Account-Id header) */
+  accountId?: string;
+  email?: string;
+}
+
 /**
  * Google Vertex AI authentication sub-type
  */
@@ -195,6 +207,7 @@ export type AuthConfig =
   | ApiKeyAuthConfig
   | OAuth2AuthConfig
   | AntigravityOAuthConfig
+  | OpenAICodexAuthConfig
   | GoogleVertexAIAuthConfig;
 
 /**

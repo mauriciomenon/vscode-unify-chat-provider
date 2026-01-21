@@ -190,6 +190,7 @@
                   "google-antigravity",
                   "openai-chat-completion",
                   "openai-responses",
+                  "openai-codex",
                   "ollama"
                 ],
                 "enumDescriptions": [
@@ -199,6 +200,7 @@
                   "%configuration.endpoints.type.enumDescriptions.6%",
                   "%configuration.endpoints.type.enumDescriptions.3%",
                   "%configuration.endpoints.type.enumDescriptions.4%",
+                  "%configuration.endpoints.type.enumDescriptions.7%",
                   "%configuration.endpoints.type.enumDescriptions.5%"
                 ]
               },

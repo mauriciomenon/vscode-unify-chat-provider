@@ -55,16 +55,16 @@ import { randomUUID } from 'crypto';
 import { ProviderConfig, ModelConfig, PerformanceTrace } from '../../types';
 
 export class OpenAIResponsesProvider implements ApiProvider {
-  private readonly baseUrl: string;
+  protected readonly baseUrl: string;
 
-  constructor(private readonly config: ProviderConfig) {
+  constructor(protected readonly config: ProviderConfig) {
     this.baseUrl = buildBaseUrl(config.baseUrl, {
       ensureSuffix: '/v1',
       skipSuffixIfMatch: /\/v\d+$/,
     });
   }
 
-  private buildHeaders(
+  protected buildHeaders(
     credential?: AuthTokenInfo,
     modelConfig?: ModelConfig,
   ): Record<string, string> {
@@ -89,14 +89,14 @@ export class OpenAIResponsesProvider implements ApiProvider {
    * Create an OpenAI client with custom fetch for retry support.
    * A new client is created per request to enable per-request logging.
    */
-  private createClient(
+  protected createClient(
     logger: ProviderHttpLogger | undefined,
     stream: boolean,
     credential?: AuthTokenInfo,
   ): OpenAI {
     const requestTimeoutMs = stream
-      ? this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection
-      : this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+      ? (this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection)
+      : (this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response);
 
     const token = getToken(credential);
 
@@ -153,7 +153,6 @@ export class OpenAIResponsesProvider implements ApiProvider {
                 const item: EasyInputMessage = {
                   role: 'assistant',
                   content: '',
-                  type: 'message',
                 };
                 rawMap.set(item, raw);
                 outItems.push(item);
@@ -205,8 +204,8 @@ export class OpenAIResponsesProvider implements ApiProvider {
       role === vscode.LanguageModelChatMessageRole.Assistant
         ? 'assistant'
         : role === vscode.LanguageModelChatMessageRole.System
-        ? 'system'
-        : 'user';
+          ? 'system'
+          : 'user';
 
     if (part instanceof vscode.LanguageModelTextPart) {
       if (part.value.trim()) {
@@ -214,7 +213,6 @@ export class OpenAIResponsesProvider implements ApiProvider {
         return role === 'from_tool_result'
           ? [content]
           : {
-              type: 'message',
               role: roleStr,
               content: [content],
             };
@@ -278,7 +276,6 @@ export class OpenAIResponsesProvider implements ApiProvider {
         return role === 'from_tool_result'
           ? [content]
           : {
-              type: 'message',
               role: roleStr,
               content: [content],
             };
@@ -322,8 +319,8 @@ export class OpenAIResponsesProvider implements ApiProvider {
           content.length === 1 && content[0].type === 'input_text'
             ? content[0].text
             : content.length > 0
-            ? content
-            : '',
+              ? content
+              : '',
       };
     } else {
       throw new Error(`Unsupported ${role} message part type encountered`);

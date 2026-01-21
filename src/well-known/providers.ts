@@ -32,6 +32,18 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     ),
   },
   {
+    name: 'OpenAI CodeX (ChatGPT Plus/Pro)',
+    type: 'openai-codex',
+    baseUrl: 'https://chatgpt.com/backend-api/codex/responses',
+    authTypes: ['openai-codex'],
+    models: wellKnowns(
+      'gpt-5.1-codex-max',
+      'gpt-5.1-codex-mini',
+      'gpt-5.2',
+      'gpt-5.2-codex',
+    ),
+  },
+  {
     name: 'Google AI Studio',
     type: 'google-ai-studio',
     baseUrl: 'https://generativelanguage.googleapis.com',

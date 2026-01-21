@@ -7,6 +7,7 @@ import { VertexAIProvider } from './google/vertex-ai-client';
 import { ProviderDefinition } from './interface';
 import { OllamaProvider } from './ollama/client';
 import { OpenAIChatCompletionProvider } from './openai/chat-completion-client';
+import { OpenAICodeXProvider } from './openai/codex-client';
 import { OpenAIResponsesProvider } from './openai/responses-client';
 import { Feature } from './types';
 import { matchProvider, matchModelFamily } from './utils';
@@ -17,6 +18,7 @@ export type ProviderType =
   | 'google-vertex-ai'
   | 'google-antigravity'
   | 'openai-chat-completion'
+  | 'openai-codex'
   | 'openai-responses'
   | 'ollama';
 
@@ -50,6 +52,12 @@ export const PROVIDER_TYPES: Record<ProviderType, ProviderDefinition> = {
     label: t('OpenAI Chat Completion API'),
     description: '/v1/chat/completions',
     class: OpenAIChatCompletionProvider,
+  },
+  'openai-codex': {
+    type: 'openai-codex',
+    label: t('OpenAI CodeX'),
+    description: '/backend-api/codex/responses',
+    class: OpenAICodeXProvider,
   },
   'openai-responses': {
     type: 'openai-responses',
