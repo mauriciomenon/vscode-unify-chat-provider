@@ -3,6 +3,7 @@ import { SecretStore } from '../secret';
 import type { AuthProvider, AuthProviderContext } from './auth-provider';
 import { ApiKeyAuthProvider } from './providers/api-key';
 import { AntigravityOAuthProvider } from './providers/antigravity-oauth';
+import { GoogleVertexAIAuthProvider } from './providers/google-vertex-ai-auth';
 import { OAuth2AuthProvider } from './providers/oauth2';
 import { AuthConfig } from './types';
 
@@ -50,6 +51,12 @@ export const AUTH_METHODS = {
     label: t('Google (Antigravity)'),
     description: t('Authenticate using Google OAuth (Antigravity)'),
     ctor: AntigravityOAuthProvider,
+  },
+  'google-vertex-ai-auth': {
+    id: 'google-vertex-ai-auth',
+    label: t('Google Vertex AI'),
+    description: t('Authenticate with Google Vertex AI'),
+    ctor: GoogleVertexAIAuthProvider,
   },
 } as const satisfies Record<string, AuthMethodDefinition>;
 

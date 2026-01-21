@@ -1,5 +1,10 @@
 export const NO_AUTH_METHOD = 'none' as const;
-export type AuthMethod = 'none' | 'api-key' | 'oauth2' | 'antigravity-oauth';
+export type AuthMethod =
+  | 'none'
+  | 'api-key'
+  | 'oauth2'
+  | 'antigravity-oauth'
+  | 'google-vertex-ai-auth';
 
 export type AuthTokenInfo =
   | { kind: 'none' }
@@ -126,11 +131,71 @@ export interface AntigravityOAuthConfig {
   email?: string;
 }
 
+/**
+ * Google Vertex AI authentication sub-type
+ */
+export type GoogleVertexAIAuthSubType = 'adc' | 'service-account' | 'api-key';
+
+/**
+ * Base configuration shared by all Google Vertex AI auth types
+ */
+interface GoogleVertexAIAuthBaseConfig {
+  method: 'google-vertex-ai-auth';
+  /** Display label for UI */
+  label?: string;
+  /** Display description for UI */
+  description?: string;
+}
+
+/**
+ * ADC (Application Default Credentials) configuration
+ */
+export interface GoogleVertexAIAdcConfig extends GoogleVertexAIAuthBaseConfig {
+  subType: 'adc';
+  /** Google Cloud Project ID (required for ADC) */
+  projectId: string;
+  /** Google Cloud Location/Region (required for ADC) */
+  location: string;
+}
+
+/**
+ * Service Account JSON key file configuration
+ */
+export interface GoogleVertexAIServiceAccountConfig
+  extends GoogleVertexAIAuthBaseConfig {
+  subType: 'service-account';
+  /** Path to service account JSON key file */
+  keyFilePath: string;
+  /** Google Cloud Project ID (can be extracted from key file or overridden) */
+  projectId?: string;
+  /** Google Cloud Location/Region (required) */
+  location: string;
+}
+
+/**
+ * API Key configuration (for Vertex AI Express Mode)
+ */
+export interface GoogleVertexAIApiKeyConfig
+  extends GoogleVertexAIAuthBaseConfig {
+  subType: 'api-key';
+  /** API key value or secret reference */
+  apiKey?: string;
+}
+
+/**
+ * Google Vertex AI unified authentication configuration
+ */
+export type GoogleVertexAIAuthConfig =
+  | GoogleVertexAIAdcConfig
+  | GoogleVertexAIServiceAccountConfig
+  | GoogleVertexAIApiKeyConfig;
+
 export type AuthConfig =
   | NoAuthConfig
   | ApiKeyAuthConfig
   | OAuth2AuthConfig
-  | AntigravityOAuthConfig;
+  | AntigravityOAuthConfig
+  | GoogleVertexAIAuthConfig;
 
 /**
  * Resolved authentication credential.
