@@ -4,11 +4,11 @@
 - The current Features use “Feature” as the key and should also use conditions to determine which Features should be enabled. In addition to boolean values, other types of data are also supported. So user can override the support of a Feature in the configuration.
 - Precise thinking contents to reduce the amount of network data (OpenAIConciseReasoning and Anthropic thinking).
 - Support monitoring of balance usage.
-- Embedded functionality similar to [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
 - Context Indicator, official related issue：https://github.com/microsoft/vscode/issues/277871, https://github.com/microsoft/vscode/issues/277414
 - Support more apps import:
   - RooCode
   - CherryStudio
 - FIM/NES support.
+- Commit message generate support.
 - Automatic configuration update: It is possible to configure a URL (which will be automatically set when importing from the URL) and a switch. Once the switch is turned on, the latest configuration will be fetched periodically.
-- OpenCode (Models, client support)
+- OpenCode / ClaudeCode (agent client support)
