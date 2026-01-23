@@ -186,6 +186,29 @@ function abortReasonToError(signal: AbortSignal): Error {
   );
 }
 
+export function isAbortError(error: unknown): boolean {
+  const hasName = (value: unknown): value is { name: unknown } =>
+    typeof value === 'object' && value !== null && 'name' in value;
+
+  if (!error) {
+    return false;
+  }
+
+  if (error instanceof DOMException) {
+    return error.name === 'AbortError';
+  }
+
+  if (error instanceof Error) {
+    return error.name === 'AbortError';
+  }
+
+  if (hasName(error)) {
+    return error.name === 'AbortError';
+  }
+
+  return false;
+}
+
 function throwIfAborted(signal: AbortSignal | null | undefined): void {
   if (!signal) {
     return;
@@ -299,6 +322,72 @@ export async function fetchWithRetry(
   let lastError: Error | undefined;
   let attempt = 0;
 
+  const hasCause = (value: unknown): value is { cause: unknown } =>
+    typeof value === 'object' && value !== null && 'cause' in value;
+
+  const tryGetErrorCode = (value: unknown): string | undefined => {
+    if (typeof value !== 'object' || value === null) {
+      return undefined;
+    }
+    if (!('code' in value)) {
+      return undefined;
+    }
+    const code = (value as { code: unknown }).code;
+    return typeof code === 'string' ? code : undefined;
+  };
+
+  const retryableCodes = new Set<string>([
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ECONNREFUSED',
+    'EAI_AGAIN',
+    'ENOTFOUND',
+    // undici / fetch (Node) internal error codes
+    'UND_ERR_CONNECT_TIMEOUT',
+    'UND_ERR_HEADERS_TIMEOUT',
+    'UND_ERR_BODY_TIMEOUT',
+    'UND_ERR_SOCKET',
+  ]);
+
+  const isRetryableNetworkError = (
+    error: unknown,
+    options: { timedOut: boolean },
+  ): boolean => {
+    if (!error) {
+      return false;
+    }
+
+    // Retry on our own connection-timeout aborts (may surface as AbortError).
+    if (options.timedOut && isAbortError(error)) {
+      return true;
+    }
+
+    const directCode = tryGetErrorCode(error);
+    if (directCode && retryableCodes.has(directCode)) {
+      return true;
+    }
+
+    if (hasCause(error)) {
+      const causeCode = tryGetErrorCode(error.cause);
+      if (causeCode && retryableCodes.has(causeCode)) {
+        return true;
+      }
+    }
+
+    if (error instanceof Error) {
+      const message = error.message.toLowerCase();
+      if (
+        message.includes('fetch failed') ||
+        message.includes('network error') ||
+        message.includes('socket hang up')
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   while (attempt <= maxRetries) {
     // Create timeout controller for connection timeout
     const timeoutController = new AbortController();
@@ -342,6 +431,10 @@ export async function fetchWithRetry(
       lastResponse = response;
 
       if (attempt < maxRetries) {
+        throwIfAborted(existingSignal);
+        // Close body to free resources before retrying.
+        await response.body?.cancel().catch(() => {});
+
         // Calculate delay with exponential backoff and jitter
         const delayMs = calculateBackoffDelay(attempt, {
           initialDelayMs,
@@ -351,6 +444,7 @@ export async function fetchWithRetry(
         });
 
         // Log retry attempt (only to logs, not displayed in VSCode)
+        throwIfAborted(existingSignal);
         logger?.retry(attempt + 1, maxRetries, response.status, delayMs);
 
         // Wait before retrying (abortable by upstream cancellation)
@@ -360,13 +454,17 @@ export async function fetchWithRetry(
       attempt++;
     } catch (error) {
       clearTimeout(timeoutId);
+      throwIfAborted(existingSignal);
 
-      // Check if this is a connection timeout error (retryable)
+      // Retryable connection/network errors.
       if (
-        error instanceof Error &&
-        error.message.includes('Connection timeout')
+        (error instanceof Error &&
+          error.message.includes('Connection timeout')) ||
+        isRetryableNetworkError(error, {
+          timedOut: timeoutController.signal.aborted,
+        })
       ) {
-        lastError = error;
+        lastError = error instanceof Error ? error : new Error(String(error));
 
         if (attempt < maxRetries) {
           const delayMs = calculateBackoffDelay(attempt, {
@@ -376,6 +474,7 @@ export async function fetchWithRetry(
             jitterFactor,
           });
 
+          throwIfAborted(existingSignal);
           logger?.retry(attempt + 1, maxRetries, 0, delayMs);
           await delay(delayMs, existingSignal);
         }

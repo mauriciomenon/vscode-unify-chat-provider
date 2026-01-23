@@ -79,6 +79,7 @@ export class AnthropicProvider implements ApiProvider {
     logger: ProviderHttpLogger | undefined,
     stream: boolean,
     credential?: AuthTokenInfo,
+    abortSignal?: AbortSignal,
   ): Anthropic {
     const requestTimeoutMs = stream
       ? (this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection)
@@ -93,6 +94,7 @@ export class AnthropicProvider implements ApiProvider {
       fetch: createCustomFetch({
         connectionTimeoutMs: requestTimeoutMs,
         logger,
+        abortSignal,
       }),
     });
   }
@@ -790,7 +792,12 @@ export class AnthropicProvider implements ApiProvider {
 
       requestBase = this.transformRequestBase(requestBase, { model, stream });
 
-      const client = this.createClient(logger, stream, credential);
+      const client = this.createClient(
+        logger,
+        stream,
+        credential,
+        abortController.signal,
+      );
 
       performanceTrace.ttf = Date.now() - performanceTrace.tts;
 

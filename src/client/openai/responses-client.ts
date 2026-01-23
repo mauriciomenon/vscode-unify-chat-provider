@@ -93,6 +93,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
     logger: ProviderHttpLogger | undefined,
     stream: boolean,
     credential?: AuthTokenInfo,
+    abortSignal?: AbortSignal,
   ): OpenAI {
     const requestTimeoutMs = stream
       ? (this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection)
@@ -107,6 +108,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
       fetch: createCustomFetch({
         connectionTimeoutMs: requestTimeoutMs,
         logger,
+        abortSignal,
       }),
     });
   }
@@ -465,7 +467,12 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
     const headers = this.buildHeaders(credential, model);
 
-    const client = this.createClient(logger, streamEnabled, credential);
+    const client = this.createClient(
+      logger,
+      streamEnabled,
+      credential,
+      abortController.signal,
+    );
 
     performanceTrace.ttf = Date.now() - performanceTrace.tts;
 

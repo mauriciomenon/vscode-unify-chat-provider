@@ -57,7 +57,11 @@ export class OllamaProvider implements ApiProvider {
   ): Record<string, string> {
     const token = getToken(credential);
 
-    const headers = mergeHeaders(token, this.config.extraHeaders, modelConfig?.extraHeaders);
+    const headers = mergeHeaders(
+      token,
+      this.config.extraHeaders,
+      modelConfig?.extraHeaders,
+    );
 
     if (token) {
       const tokenType = getTokenType(credential) ?? 'Bearer';
@@ -75,17 +79,19 @@ export class OllamaProvider implements ApiProvider {
     headers?: Record<string, string>,
     logger?: ProviderHttpLogger,
     stream?: boolean,
+    abortSignal?: AbortSignal,
   ): Ollama {
     const streamEnabled = stream ?? true;
     const requestTimeoutMs = streamEnabled
-      ? this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection
-      : this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+      ? (this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection)
+      : (this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response);
 
     return new Ollama({
       host: this.baseUrl,
       fetch: createCustomFetch({
         connectionTimeoutMs: requestTimeoutMs,
         logger,
+        abortSignal,
       }),
       headers,
     });
@@ -267,8 +273,8 @@ export class OllamaProvider implements ApiProvider {
       role === vscode.LanguageModelChatMessageRole.Assistant
         ? 'assistant'
         : role === vscode.LanguageModelChatMessageRole.System
-        ? 'system'
-        : 'user';
+          ? 'system'
+          : 'user';
 
     if (part instanceof vscode.LanguageModelTextPart) {
       if (part.value.trim()) {
@@ -442,18 +448,21 @@ export class OllamaProvider implements ApiProvider {
     logger: RequestLogger,
     credential: AuthTokenInfo,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
+    const abortController = new AbortController();
     const headers = this.buildHeaders(credential, model);
     const streamEnabled = model.stream ?? true;
-    const client = this.createClient(headers, logger, streamEnabled);
-    const abortController = new AbortController();
+    const client = this.createClient(
+      headers,
+      logger,
+      streamEnabled,
+      abortController.signal,
+    );
+
     let stream: AbortableAsyncIterator<ChatResponse> | undefined;
     const cancellationListener = token.onCancellationRequested(() => {
       abortController.abort();
-      if (stream) {
-        stream.abort();
-      } else {
-        client.abort();
-      }
+      stream?.abort();
+      client.abort();
     });
     if (token.isCancellationRequested) {
       abortController.abort();

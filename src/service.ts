@@ -10,7 +10,7 @@ import { ModelConfig, PerformanceTrace, ProviderConfig } from './types';
 import { getBaseModelId } from './model-id-utils';
 import { createProvider } from './client/utils';
 import { formatModelDetail } from './ui/form-utils';
-import { getAllModelsForProvider } from './utils';
+import { getAllModelsForProvider, isAbortError } from './utils';
 import { SecretStore } from './secret';
 import { AuthManager } from './auth';
 import type { AuthCredential, AuthTokenInfo } from './auth/types';
@@ -168,7 +168,9 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     return client;
   }
 
-  private toAuthTokenInfo(credential: AuthCredential | undefined): AuthTokenInfo {
+  private toAuthTokenInfo(
+    credential: AuthCredential | undefined,
+  ): AuthTokenInfo {
     if (!credential?.value) {
       return { kind: 'none' };
     }
@@ -181,7 +183,9 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     };
   }
 
-  private async resolveCredential(provider: ProviderConfig): Promise<AuthTokenInfo> {
+  private async resolveCredential(
+    provider: ProviderConfig,
+  ): Promise<AuthTokenInfo> {
     const auth = provider.auth;
 
     // Prefer auth manager when auth config is present
@@ -191,7 +195,6 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
           t('Authentication required for provider "{0}".', provider.name),
         );
       }
-
 
       const credential = await this.authManager.getCredential(
         provider.name,
@@ -354,10 +357,14 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
         progress.report(part);
       }
     } catch (error) {
-      // sometimes, the chat panel in VSCode does not display the specific error,
-      // but instead shows the output from `stackTrace.format`.
-      logger.error(error);
-      throw error;
+      if (token.isCancellationRequested && isAbortError(error)) {
+        // User cancelled the request; treat provider abort errors as expected.
+      } else {
+        // sometimes, the chat panel in VSCode does not display the specific error,
+        // but instead shows the output from `stackTrace.format`.
+        logger.error(error);
+        throw error;
+      }
     }
 
     performanceTrace.tl = Date.now() - performanceTrace.tts;

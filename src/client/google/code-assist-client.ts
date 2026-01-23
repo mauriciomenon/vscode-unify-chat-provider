@@ -1920,6 +1920,9 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
             if (!flushed) {
               return;
             }
+            if (abortSignal.aborted) {
+              return;
+            }
             yield flushed;
             continue;
           }
@@ -1931,6 +1934,10 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
       }
     } finally {
       reader.releaseLock();
+    }
+
+    if (abortSignal.aborted) {
+      return;
     }
 
     buffer += decoder.decode();
@@ -2167,6 +2174,7 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
         connectionTimeoutMs: requestTimeoutMs,
         logger,
         retryConfig,
+        abortSignal: abortController.signal,
       });
 
       let response: Response | undefined;

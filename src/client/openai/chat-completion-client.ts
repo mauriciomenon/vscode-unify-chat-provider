@@ -95,10 +95,11 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     logger: ProviderHttpLogger | undefined,
     stream: boolean,
     credential?: AuthTokenInfo,
+    abortSignal?: AbortSignal,
   ): OpenAI {
     const requestTimeoutMs = stream
-      ? this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection
-      : this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response;
+      ? (this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection)
+      : (this.config.timeout?.response ?? DEFAULT_TIMEOUT_CONFIG.response);
 
     const token = getToken(credential);
 
@@ -109,6 +110,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       fetch: createCustomFetch({
         connectionTimeoutMs: requestTimeoutMs,
         logger,
+        abortSignal,
       }),
     });
   }
@@ -256,8 +258,8 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       role === vscode.LanguageModelChatMessageRole.Assistant
         ? 'assistant'
         : role === vscode.LanguageModelChatMessageRole.System
-        ? 'system'
-        : 'user';
+          ? 'system'
+          : 'user';
 
     if (part instanceof vscode.LanguageModelTextPart) {
       if (part.value.trim()) {
@@ -406,8 +408,8 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
           content.length > 1
             ? content
             : content.length > 0
-            ? content[0].text
-            : '',
+              ? content[0].text
+              : '',
         tool_call_id: part.callId,
       };
     } else {
@@ -436,7 +438,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
               required: [],
             }) as FunctionParameters,
           },
-        } as ChatCompletionFunctionTool),
+        }) as ChatCompletionFunctionTool,
     );
 
     // Add cache control to last tool to prevent reuse across requests
@@ -486,10 +488,10 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       return type === 'reasoning'
         ? { reasoning: { enabled: false } }
         : type === 'thinking'
-        ? { thinking: { type: 'disabled' } }
-        : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
-        ? { enable_thinking: false }
-        : { reasoning_effort: 'none' };
+          ? { thinking: { type: 'disabled' } }
+          : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
+            ? { enable_thinking: false }
+            : { reasoning_effort: 'none' };
     }
 
     if (thinking.budgetTokens !== undefined) {
@@ -503,36 +505,36 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
             },
           }
         : type === 'thinking'
-        ? { thinking: { type: 'enabled' } }
-        : type === 'enable_thinking_with_budget'
-        ? {
-            enable_thinking: true,
-            thinking_budget: thinking.budgetTokens,
-          }
-        : type === 'enable_thinking'
-        ? { enable_thinking: true }
-        : // Defaults to 'medium' effort if budget is set
-          { reasoning_effort: 'medium' };
+          ? { thinking: { type: 'enabled' } }
+          : type === 'enable_thinking_with_budget'
+            ? {
+                enable_thinking: true,
+                thinking_budget: thinking.budgetTokens,
+              }
+            : type === 'enable_thinking'
+              ? { enable_thinking: true }
+              : // Defaults to 'medium' effort if budget is set
+                { reasoning_effort: 'medium' };
     }
 
     if (thinking.effort !== undefined) {
       return type === 'reasoning'
         ? { reasoning: { effort: thinking.effort } }
         : type === 'thinking'
-        ? { thinking: { type: 'enabled' } }
-        : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
-        ? { enable_thinking: true }
-        : { reasoning_effort: thinking.effort };
+          ? { thinking: { type: 'enabled' } }
+          : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
+            ? { enable_thinking: true }
+            : { reasoning_effort: thinking.effort };
     }
 
     return type === 'reasoning'
       ? { reasoning: { enabled: true } }
       : type === 'thinking'
-      ? { thinking: { type: 'enabled' } }
-      : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
-      ? { enable_thinking: true }
-      : // Defaults to 'medium' effort if not set effort or budget
-        { reasoning_effort: 'medium' };
+        ? { thinking: { type: 'enabled' } }
+        : type === 'enable_thinking' || type === 'enable_thinking_with_budget'
+          ? { enable_thinking: true }
+          : // Defaults to 'medium' effort if not set effort or budget
+            { reasoning_effort: 'medium' };
   }
 
   private normalizeReasoningMaxTokens(
@@ -634,17 +636,17 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       | 'enable_thinking_with_budget' = useReasoningParam
       ? 'reasoning'
       : useThinkingParam
-      ? 'thinking'
-      : useThinkingParam3
-      ? useThinkingBudgetParam
-        ? 'enable_thinking_with_budget'
-        : 'enable_thinking'
-      : 'official';
+        ? 'thinking'
+        : useThinkingParam3
+          ? useThinkingBudgetParam
+            ? 'enable_thinking_with_budget'
+            : 'enable_thinking'
+          : 'official';
     const reasoningType: 'content' | 'details' | 'none' = useReasoningDetails
       ? 'details'
       : useReasoningContent
-      ? 'content'
-      : 'none';
+        ? 'content'
+        : 'none';
 
     const convertedMessages = this.convertMessages(
       encodedModelId,
@@ -671,11 +673,11 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         ? useOnlyMaxCompletionTokens
           ? { max_completion_tokens: model.maxOutputTokens }
           : useOnlyMaxTokens
-          ? { max_tokens: model.maxOutputTokens }
-          : {
-              max_tokens: model.maxOutputTokens,
-              max_completion_tokens: model.maxOutputTokens,
-            }
+            ? { max_tokens: model.maxOutputTokens }
+            : {
+                max_tokens: model.maxOutputTokens,
+                max_completion_tokens: model.maxOutputTokens,
+              }
         : {}),
       ...(model.temperature !== undefined
         ? { temperature: model.temperature }
@@ -698,7 +700,12 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
     Object.assign(baseBody, this.config.extraBody, model.extraBody);
 
-    const client = this.createClient(logger, streamEnabled, credential);
+    const client = this.createClient(
+      logger,
+      streamEnabled,
+      credential,
+      abortController.signal,
+    );
 
     performanceTrace.ttf = Date.now() - performanceTrace.tts;
 

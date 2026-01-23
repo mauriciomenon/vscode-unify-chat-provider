@@ -66,8 +66,8 @@ export function matchProvider(url: string, pattern: ProviderPattern): boolean {
     rawProtocol === 'http://'
       ? 'http:'
       : rawProtocol === 'https://'
-      ? 'https:'
-      : undefined;
+        ? 'https:'
+        : undefined;
 
   const rest = protocolMatch ? protocolMatch[2] : pattern;
   const slashIndex = rest.indexOf('/');
@@ -95,8 +95,8 @@ export function matchProvider(url: string, pattern: ProviderPattern): boolean {
   const hostMatches = hostPatternHasWildcard
     ? wildcardToRegExp(hostPattern).test(hostTarget)
     : hostPatternIncludesPort
-    ? hostWithPort === hostPattern
-    : hostname === hostPattern;
+      ? hostWithPort === hostPattern
+      : hostname === hostPattern;
 
   if (!hostMatches) {
     return false;
@@ -384,6 +384,11 @@ export interface CreateCustomFetchOptions {
   logger?: ProviderHttpLogger;
   urlTransformer?: (url: string) => string;
   retryConfig?: RetryConfig;
+  /**
+   * Optional upstream abort signal (e.g. derived from VSCode CancellationToken).
+   * Used as a fallback when the caller does not provide `init.signal`.
+   */
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -392,7 +397,57 @@ export interface CreateCustomFetchOptions {
 export function createCustomFetch(
   options: CreateCustomFetchOptions,
 ): typeof fetch {
-  const { connectionTimeoutMs, logger, urlTransformer, retryConfig } = options;
+  const {
+    connectionTimeoutMs,
+    logger,
+    urlTransformer,
+    retryConfig,
+    abortSignal,
+  } = options;
+
+  const combineAbortSignals = (
+    signals: Array<AbortSignal | null | undefined>,
+  ): { signal?: AbortSignal; dispose: () => void } => {
+    const activeSignals: AbortSignal[] = signals.filter(
+      (signal): signal is AbortSignal => signal != null,
+    );
+
+    if (activeSignals.length === 0) {
+      return { signal: undefined, dispose: () => {} };
+    }
+
+    if (activeSignals.length === 1) {
+      return { signal: activeSignals[0], dispose: () => {} };
+    }
+
+    const alreadyAborted = activeSignals.find((signal) => signal.aborted);
+    if (alreadyAborted) {
+      return { signal: alreadyAborted, dispose: () => {} };
+    }
+
+    const controller = new AbortController();
+    const listeners = new Map<AbortSignal, () => void>();
+
+    for (const signal of activeSignals) {
+      const onAbort = (): void => {
+        controller.abort(signal.reason);
+      };
+      listeners.set(signal, onAbort);
+      signal.addEventListener('abort', onAbort, { once: true });
+      // Avoid race: a signal might abort between initial aborted check and listener registration.
+      if (signal.aborted) {
+        controller.abort(signal.reason);
+      }
+    }
+
+    const dispose = (): void => {
+      for (const [signal, onAbort] of listeners.entries()) {
+        signal.removeEventListener('abort', onAbort);
+      }
+    };
+
+    return { signal: controller.signal, dispose };
+  };
 
   return async (
     input: RequestInfo | URL,
@@ -414,31 +469,37 @@ export function createCustomFetch(
       });
     }
 
-    const response = await fetchWithRetry(url, {
-      ...init,
-      logger,
-      retryConfig: retryConfig ?? DEFAULT_RETRY_CONFIG,
-      connectionTimeoutMs,
-    });
+    const combined = combineAbortSignals([init?.signal, abortSignal]);
+    try {
+      const response = await fetchWithRetry(url, {
+        ...init,
+        signal: combined.signal,
+        logger,
+        retryConfig: retryConfig ?? DEFAULT_RETRY_CONFIG,
+        connectionTimeoutMs,
+      });
 
-    if (logger) {
-      logger.providerResponseMeta(response);
+      if (logger) {
+        logger.providerResponseMeta(response);
 
-      if (logger.providerResponseBody) {
-        const contentType = response.headers.get('content-type') ?? '';
-        const isStreaming =
-          contentType.includes('text/event-stream') ||
-          contentType.includes('ndjson');
-        if (!isStreaming) {
-          const cloned = response.clone();
-          cloned.json().then(
-            (body) => logger.providerResponseBody!(body),
-            () => {},
-          );
+        if (logger.providerResponseBody) {
+          const contentType = response.headers.get('content-type') ?? '';
+          const isStreaming =
+            contentType.includes('text/event-stream') ||
+            contentType.includes('ndjson');
+          if (!isStreaming) {
+            const cloned = response.clone();
+            cloned.json().then(
+              (body) => logger.providerResponseBody!(body),
+              () => {},
+            );
+          }
         }
       }
-    }
 
-    return response;
+      return response;
+    } finally {
+      combined.dispose();
+    }
   };
 }

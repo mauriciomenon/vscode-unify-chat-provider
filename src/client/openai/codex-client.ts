@@ -112,6 +112,7 @@ export class OpenAICodeXProvider extends OpenAIResponsesProvider {
     logger: ProviderHttpLogger | undefined,
     stream: boolean,
     credential?: AuthTokenInfo,
+    abortSignal?: AbortSignal,
   ): OpenAI {
     const requestTimeoutMs = stream
       ? (this.config.timeout?.connection ?? DEFAULT_TIMEOUT_CONFIG.connection)
@@ -123,6 +124,7 @@ export class OpenAICodeXProvider extends OpenAIResponsesProvider {
       connectionTimeoutMs: requestTimeoutMs,
       logger,
       urlTransformer: rewriteToCodexEndpoint,
+      abortSignal,
     });
 
     const transformedFetch: typeof fetch = async (
