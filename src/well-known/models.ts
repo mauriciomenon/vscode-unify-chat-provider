@@ -607,7 +607,16 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gpt-oss-120b',
-    overrides: ['gpt-oss:120b', 'openai/gpt-oss-120b'],
+    overrides: [
+      'gpt-oss:120b',
+      'openai/gpt-oss-120b',
+      {
+        matchers: ['api.cerebras.ai'],
+        config: {
+          maxOutputTokens: 40000,
+        },
+      },
+    ],
     name: 'GPT-OSS 120B',
     maxInputTokens: 131072,
     maxOutputTokens: 131072,
@@ -1633,6 +1642,59 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
+    id: 'llama-3.1-8b',
+    overrides: [
+      'llama3.1-8b',
+      {
+        matchers: ['api.cerebras.ai'],
+        config: {
+          maxInputTokens: 32000,
+          maxOutputTokens: 8000,
+        },
+      },
+    ],
+    name: 'Llama 3.1 8B',
+    maxInputTokens: 128000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'llama-3.1-70b',
+    overrides: ['llama3.1-70b'],
+    name: 'Llama 3.1 70B',
+    maxInputTokens: 128000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'llama-3.1-405b',
+    overrides: ['llama3.1-405b'],
+    name: 'Llama 3.1 405B',
+    maxInputTokens: 128000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'llama-3.3-70b',
+    overrides: ['llama3.3-70b'],
+    name: 'Llama 3.3 70B',
+    maxInputTokens: 128000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
     id: 'qwen1.5-7b-chat',
     overrides: ['qwen:7b'],
     name: 'Qwen1.5 7B Chat',
@@ -1900,7 +1962,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-32b',
-    overrides: ['qwen3:32b'],
+    overrides: ['qwen3:32b', 'qwen-3-32b'],
     name: 'Qwen3 32B',
     maxInputTokens: 129024,
     stream: true,
@@ -1958,6 +2020,16 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'qwen3-235b-a22b-instruct-2507',
+    overrides: [
+      'qwen-3-235b-a22b-instruct-2507',
+      {
+        matchers: ['api.cerebras.ai'],
+        config: {
+          maxInputTokens: 131000,
+          maxOutputTokens: 40000,
+        },
+      },
+    ],
     name: 'Qwen3 235B A22B Instruct 2507',
     maxInputTokens: 129024,
     stream: true,
@@ -2174,7 +2246,8 @@ const _WELL_KNOWN_MODELS = [
         matchers: ['api.cerebras.ai'],
         config: {
           id: 'zai-glm-4.7',
-          maxInputTokens: 128000,
+          maxInputTokens: 131000,
+          maxOutputTokens: 40000,
         },
       },
     ],
