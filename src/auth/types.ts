@@ -140,8 +140,13 @@ export interface AntigravityOAuthConfig {
   description?: string;
   identityId?: string;
   token?: string;
+  /** Optional user-provided project id (duetProject) */
   projectId?: string;
+  /** Cloud Code Assist managed project id (cloudaicompanionProject) */
+  managedProjectId?: string;
   tier?: 'free' | 'paid';
+  /** More precise tier identifier (e.g. current_tier.id / paid_tier.id) */
+  tierId?: string;
   email?: string;
 }
 

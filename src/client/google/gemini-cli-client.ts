@@ -11,6 +11,7 @@ const GEMINI_3_TIER_SUFFIX = /-(minimal|low|medium|high)$/i;
 export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
   protected readonly codeAssistName = 'Gemini CLI';
   protected readonly codeAssistHeaders = GEMINI_CLI_HEADERS;
+  protected readonly codeAssistHeaderStyle = 'gemini-cli';
   protected readonly codeAssistEndpointFallbacks: readonly string[] = [];
 
   protected resolveModelForRequest(

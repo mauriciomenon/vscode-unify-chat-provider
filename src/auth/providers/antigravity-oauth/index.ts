@@ -20,7 +20,13 @@ import type {
   AuthCredential,
   OAuth2TokenData,
 } from '../../types';
-import { exchangeAntigravity, fetchAccountInfo, refreshAccessToken } from './oauth-client';
+import {
+  AntigravityTokenRefreshError,
+  exchangeAntigravity,
+  fetchAccountInfo,
+  parseAntigravityRefreshTokenParts,
+  refreshAccessToken,
+} from './oauth-client';
 import { performAntigravityAuthorization } from './screens/authorize-screen';
 import { authLog } from '../../../logger';
 
@@ -34,7 +40,9 @@ function toPersistableConfig(
     identityId: config?.identityId,
     token: config?.token,
     projectId: config?.projectId,
+    managedProjectId: config?.managedProjectId,
     tier: config?.tier,
+    tierId: config?.tierId,
     email: config?.email,
   };
 }
@@ -421,12 +429,13 @@ export class AntigravityOAuthProvider implements AuthProvider {
       `${this.context.providerId}:antigravity-oauth`,
       `Initiating authorization (projectId: ${projectId || 'auto-detect'})`,
     );
-    const authorization = await import('./oauth-client').then((m) =>
-      m.authorizeAntigravity(projectId),
-    );
-
     const callbackResult = await performAntigravityAuthorization(
-      authorization.url,
+      async (redirectUri) => {
+        const authorization = await import('./oauth-client').then((m) =>
+          m.authorizeAntigravity({ projectId, redirectUri }),
+        );
+        return authorization.url;
+      },
     );
     if (!callbackResult) {
       authLog.verbose(
@@ -498,7 +507,9 @@ export class AntigravityOAuthProvider implements AuthProvider {
       identityId: randomUUID(),
       token: tokenRef,
       projectId: exchanged.projectId,
+      managedProjectId: exchanged.managedProjectId,
       tier: exchanged.tier,
+      tierId: exchanged.tierId,
       email: exchanged.email,
     };
 
@@ -519,7 +530,8 @@ export class AntigravityOAuthProvider implements AuthProvider {
       'Starting token refresh',
     );
     const token = await this.resolveTokenData();
-    if (!token?.refreshToken) {
+    const existingRefreshToken = token?.refreshToken;
+    if (!existingRefreshToken) {
       authLog.error(
         `${this.context.providerId}:antigravity-oauth`,
         'No refresh token available',
@@ -531,9 +543,41 @@ export class AntigravityOAuthProvider implements AuthProvider {
       `${this.context.providerId}:antigravity-oauth`,
       'Calling refresh API',
     );
-    const refreshed = await refreshAccessToken({
-      refreshToken: token.refreshToken,
-    });
+    let refreshed:
+      | { accessToken: string; expiresAt?: number; tokenType?: string; refreshToken?: string }
+      | null;
+    try {
+      refreshed = await refreshAccessToken({
+        refreshToken: existingRefreshToken,
+      });
+    } catch (error) {
+      if (
+        error instanceof AntigravityTokenRefreshError &&
+        error.code === 'invalid_grant'
+      ) {
+        authLog.warn(
+          `${this.context.providerId}:antigravity-oauth`,
+          'Refresh token was revoked (invalid_grant); reauthentication required',
+        );
+        await this.revoke();
+        this._onDidChangeStatus.fire({ status: 'revoked' });
+        vscode.window.showWarningMessage(
+          t('Google revoked your Antigravity refresh token. Please sign in again.'),
+        );
+        return false;
+      }
+
+      authLog.error(
+        `${this.context.providerId}:antigravity-oauth`,
+        'Refresh API threw an error',
+        error,
+      );
+      this._onDidChangeStatus.fire({
+        status: 'error',
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      return false;
+    }
 
     if (!refreshed) {
       authLog.error(
@@ -558,7 +602,7 @@ export class AntigravityOAuthProvider implements AuthProvider {
 
     const nextToken: OAuth2TokenData = {
       accessToken: refreshed.accessToken,
-      refreshToken: token.refreshToken,
+      refreshToken: refreshed.refreshToken ?? existingRefreshToken,
       tokenType: refreshed.tokenType ?? 'Bearer',
       expiresAt: refreshed.expiresAt,
     };
@@ -580,21 +624,38 @@ export class AntigravityOAuthProvider implements AuthProvider {
       });
     }
 
-    if (!this.config?.projectId?.trim() || !this.config?.tier) {
+    const refreshTokenForParsing = nextToken.refreshToken ?? existingRefreshToken;
+    const cachedParts = parseAntigravityRefreshTokenParts(refreshTokenForParsing);
+    const shouldRefreshAccountInfo =
+      !this.config?.tier ||
+      !this.config?.tierId ||
+      !this.config?.managedProjectId?.trim();
+
+    if (shouldRefreshAccountInfo) {
       authLog.verbose(
         `${this.context.providerId}:antigravity-oauth`,
-        'Refreshing account info (projectId/tier)',
+        'Refreshing account info (managedProjectId/tier)',
       );
 
-      const accountInfo = await fetchAccountInfo(refreshed.accessToken);
+      const accountInfo = await fetchAccountInfo(
+        refreshed.accessToken,
+        this.config?.projectId ?? cachedParts.projectId,
+      );
       const updates: Partial<AntigravityOAuthConfig> = {};
 
-      if (!this.config?.projectId?.trim() && accountInfo.projectId.trim()) {
-        updates.projectId = accountInfo.projectId.trim();
+      if (
+        !this.config?.managedProjectId?.trim() &&
+        accountInfo.managedProjectId?.trim()
+      ) {
+        updates.managedProjectId = accountInfo.managedProjectId.trim();
       }
 
       if (!this.config?.tier || this.config.tier !== accountInfo.tier) {
         updates.tier = accountInfo.tier;
+      }
+
+      if (!this.config?.tierId || this.config.tierId !== accountInfo.tierId) {
+        updates.tierId = accountInfo.tierId;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -640,6 +701,8 @@ export class AntigravityOAuthProvider implements AuthProvider {
       token: undefined,
       email: undefined,
       tier: undefined,
+      tierId: undefined,
+      managedProjectId: undefined,
     });
 
     this._onDidChangeStatus.fire({ status: 'revoked' });

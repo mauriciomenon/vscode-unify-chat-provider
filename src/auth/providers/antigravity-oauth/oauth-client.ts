@@ -2,16 +2,16 @@ import { createHash, randomBytes } from 'node:crypto';
 import {
   ANTIGRAVITY_CLIENT_ID,
   ANTIGRAVITY_CLIENT_SECRET,
-  ANTIGRAVITY_REDIRECT_URI,
   ANTIGRAVITY_SCOPES,
   CODE_ASSIST_ENDPOINT_FALLBACKS,
-  CODE_ASSIST_LOAD_HEADERS,
+  CODE_ASSIST_HEADERS,
   CODE_ASSIST_LOAD_ENDPOINTS,
-  CODE_ASSIST_METADATA,
   GEMINI_CLI_HEADERS,
   GOOGLE_OAUTH_AUTH_URL,
   GOOGLE_OAUTH_TOKEN_URL,
   GOOGLE_USERINFO_URL,
+  buildCodeAssistMetadata,
+  getRandomizedHeaders,
 } from './constants';
 import type {
   AntigravityAccountInfo,
@@ -26,7 +26,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function extractProjectId(value: unknown): string {
+function extractManagedProjectId(value: unknown): string {
   if (typeof value === 'string') {
     return value.trim();
   }
@@ -34,6 +34,36 @@ function extractProjectId(value: unknown): string {
     return value['id'].trim();
   }
   return '';
+}
+
+function extractTierId(payload: Record<string, unknown>): string | undefined {
+  const pickTierId = (tierValue: unknown): string | undefined => {
+    if (!isRecord(tierValue) || typeof tierValue['id'] !== 'string') {
+      return undefined;
+    }
+    const id = tierValue['id'].trim();
+    return id ? id : undefined;
+  };
+
+  const paidTier = pickTierId(payload['paidTier']);
+  if (paidTier) {
+    return paidTier;
+  }
+  const paidTierSnake = pickTierId(payload['paid_tier']);
+  if (paidTierSnake) {
+    return paidTierSnake;
+  }
+
+  const currentTier = pickTierId(payload['currentTier']);
+  if (currentTier) {
+    return currentTier;
+  }
+  const currentTierSnake = pickTierId(payload['current_tier']);
+  if (currentTierSnake) {
+    return currentTierSnake;
+  }
+
+  return undefined;
 }
 
 function extractDefaultTierId(allowedTiers: unknown): string {
@@ -69,7 +99,12 @@ function encodeState(payload: AntigravityAuthState): string {
 }
 
 function decodeState(state: string): AntigravityAuthState {
-  const json = Buffer.from(state, 'base64url').toString('utf8');
+  const normalized = state.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(
+    normalized.length + ((4 - (normalized.length % 4)) % 4),
+    '=',
+  );
+  const json = Buffer.from(padded, 'base64').toString('utf8');
   const parsed: unknown = JSON.parse(json);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Invalid state');
@@ -77,12 +112,17 @@ function decodeState(state: string): AntigravityAuthState {
   const record = parsed as Record<string, unknown>;
   const verifier = record['verifier'];
   const projectId = record['projectId'];
+  const redirectUri = record['redirectUri'];
   if (typeof verifier !== 'string' || verifier.trim() === '') {
+    throw new Error('Invalid state');
+  }
+  if (typeof redirectUri !== 'string' || redirectUri.trim() === '') {
     throw new Error('Invalid state');
   }
   return {
     verifier,
     projectId: typeof projectId === 'string' ? projectId : '',
+    redirectUri,
   };
 }
 
@@ -93,15 +133,20 @@ function generatePkce(): { verifier: string; challenge: string } {
   return { verifier, challenge };
 }
 
-export async function authorizeAntigravity(projectId = ''): Promise<AntigravityAuthorization> {
+export async function authorizeAntigravity(options: {
+  projectId?: string;
+  redirectUri: string;
+}): Promise<AntigravityAuthorization> {
   const pkce = generatePkce();
 
-  const state = encodeState({ verifier: pkce.verifier, projectId });
+  const projectId = options.projectId?.trim() ?? '';
+  const redirectUri = options.redirectUri.trim();
+  const state = encodeState({ verifier: pkce.verifier, projectId, redirectUri });
 
   const url = new URL(GOOGLE_OAUTH_AUTH_URL);
   url.searchParams.set('client_id', ANTIGRAVITY_CLIENT_ID);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('redirect_uri', ANTIGRAVITY_REDIRECT_URI);
+  url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('scope', ANTIGRAVITY_SCOPES.join(' '));
   url.searchParams.set('code_challenge', pkce.challenge);
   url.searchParams.set('code_challenge_method', 'S256');
@@ -113,6 +158,7 @@ export async function authorizeAntigravity(projectId = ''): Promise<AntigravityA
     url: url.toString(),
     verifier: pkce.verifier,
     projectId,
+    redirectUri,
   };
 }
 
@@ -125,10 +171,114 @@ type TokenResponse = {
 
 type UserInfo = { email?: string };
 
+export type AntigravityRefreshTokenParts = {
+  refreshToken: string;
+  projectId?: string;
+  managedProjectId?: string;
+};
+
+export function parseAntigravityRefreshTokenParts(
+  refresh: string,
+): AntigravityRefreshTokenParts {
+  const [refreshToken = '', projectId = '', managedProjectId = ''] = (
+    refresh ?? ''
+  ).split('|');
+  return {
+    refreshToken,
+    projectId: projectId.trim() ? projectId.trim() : undefined,
+    managedProjectId: managedProjectId.trim() ? managedProjectId.trim() : undefined,
+  };
+}
+
+export function formatAntigravityRefreshTokenParts(
+  parts: AntigravityRefreshTokenParts,
+): string {
+  const projectSegment = parts.projectId ?? '';
+  const base = `${parts.refreshToken}|${projectSegment}`;
+  return parts.managedProjectId ? `${base}|${parts.managedProjectId}` : base;
+}
+
+type OAuthErrorPayload = {
+  error?:
+    | string
+    | {
+        code?: string;
+        status?: string;
+        message?: string;
+      };
+  error_description?: string;
+};
+
+function parseOAuthErrorPayload(text: string | undefined): {
+  code?: string;
+  description?: string;
+} {
+  if (!text) {
+    return {};
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!isRecord(parsed)) {
+      return { description: text };
+    }
+
+    const payload = parsed as OAuthErrorPayload;
+    let code: string | undefined;
+    if (typeof payload.error === 'string') {
+      code = payload.error;
+    } else if (payload.error && typeof payload.error === 'object') {
+      code = payload.error.status ?? payload.error.code;
+      if (!payload.error_description && payload.error.message) {
+        return { code, description: payload.error.message };
+      }
+    }
+
+    const description = payload.error_description;
+    if (description) {
+      return { code, description };
+    }
+
+    if (
+      payload.error &&
+      typeof payload.error === 'object' &&
+      payload.error.message
+    ) {
+      return { code, description: payload.error.message };
+    }
+
+    return { code };
+  } catch {
+    return { description: text };
+  }
+}
+
+export class AntigravityTokenRefreshError extends Error {
+  code?: string;
+  description?: string;
+  status: number;
+  statusText: string;
+
+  constructor(options: {
+    message: string;
+    code?: string;
+    description?: string;
+    status: number;
+    statusText: string;
+  }) {
+    super(options.message);
+    this.name = 'AntigravityTokenRefreshError';
+    this.code = options.code;
+    this.description = options.description;
+    this.status = options.status;
+    this.statusText = options.statusText;
+  }
+}
+
 const FETCH_TIMEOUT_MS = 10_000;
 const ONBOARD_TIMEOUT_MS = 30_000;
-const ONBOARD_MAX_ATTEMPTS = 5;
-const ONBOARD_POLL_DELAY_MS = 2_000;
+const ONBOARD_MAX_ATTEMPTS = 10;
+const ONBOARD_POLL_DELAY_MS = 5_000;
 
 async function fetchWithTimeout(
   url: string,
@@ -146,17 +296,21 @@ async function fetchWithTimeout(
 
 export async function fetchAccountInfo(
   accessToken: string,
+  projectId?: string,
 ): Promise<AntigravityAccountInfo> {
   authLog.verbose('antigravity-client', 'Fetching account info');
+  const randomized = getRandomizedHeaders('gemini-cli');
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': CODE_ASSIST_LOAD_HEADERS['User-Agent'],
-    'X-Goog-Api-Client': CODE_ASSIST_LOAD_HEADERS['X-Goog-Api-Client'],
-    'Client-Metadata': CODE_ASSIST_LOAD_HEADERS['Client-Metadata'],
+    'User-Agent': randomized['User-Agent'],
+    'X-Goog-Api-Client': CODE_ASSIST_HEADERS['X-Goog-Api-Client'],
+    'Client-Metadata': CODE_ASSIST_HEADERS['Client-Metadata'],
   };
 
   let detectedTier: AntigravityTier = 'free';
+  let tierId: string | undefined;
+  let managedProjectId: string | undefined;
 
   const loadEndpoints = Array.from(
     new Set<string>([...CODE_ASSIST_LOAD_ENDPOINTS, ...CODE_ASSIST_ENDPOINT_FALLBACKS]),
@@ -169,7 +323,7 @@ export async function fetchAccountInfo(
         method: 'POST',
         headers,
         body: JSON.stringify({
-          metadata: CODE_ASSIST_METADATA,
+          metadata: buildCodeAssistMetadata(projectId),
         }),
       });
 
@@ -183,30 +337,29 @@ export async function fetchAccountInfo(
         continue;
       }
 
-      const projectId = extractProjectId(data['cloudaicompanionProject']);
-
+      managedProjectId =
+        extractManagedProjectId(data['cloudaicompanionProject']) || undefined;
+      tierId = extractTierId(data);
       const defaultTierId = extractDefaultTierId(data['allowedTiers']);
-      if (
-        defaultTierId !== 'legacy-tier' &&
-        !defaultTierId.includes('free') &&
-        !defaultTierId.includes('zero')
-      ) {
-        detectedTier = 'paid';
-      } else if (defaultTierId !== 'legacy-tier') {
-        detectedTier = 'free';
+      const effectiveTierId =
+        tierId ?? (defaultTierId !== 'legacy-tier' ? defaultTierId : undefined);
+      if (effectiveTierId) {
+        const lower = effectiveTierId.toLowerCase();
+        detectedTier =
+          lower.includes('free') || lower.includes('zero') ? 'free' : 'paid';
       }
 
-      const paidTier = data['paidTier'];
-      if (isRecord(paidTier) && typeof paidTier['id'] === 'string') {
-        const paidTierId = paidTier['id'];
-        if (!paidTierId.includes('free') && !paidTierId.includes('zero')) {
-          detectedTier = 'paid';
-        }
-      }
-
-      if (projectId) {
-        authLog.verbose('antigravity-client', `Account info fetched (projectId: ${projectId}, tier: ${detectedTier})`);
-        return { projectId, tier: detectedTier };
+      if (managedProjectId) {
+        authLog.verbose(
+          'antigravity-client',
+          `Account info fetched (managedProjectId: ${managedProjectId}, tier: ${detectedTier})`,
+        );
+        return {
+          projectId: projectId?.trim() ?? '',
+          managedProjectId,
+          tier: detectedTier,
+          tierId: effectiveTierId,
+        };
       }
 
       authLog.verbose(
@@ -214,9 +367,10 @@ export async function fetchAccountInfo(
         `loadCodeAssist returned no projectId; attempting onboardUser (tierId: ${defaultTierId})`,
       );
 
+      const onboardTierId = tierId ?? defaultTierId;
       const requestBody = JSON.stringify({
-        tierId: defaultTierId,
-        metadata: CODE_ASSIST_METADATA,
+        tierId: onboardTierId,
+        metadata: buildCodeAssistMetadata(projectId),
       });
 
       for (let attempt = 1; attempt <= ONBOARD_MAX_ATTEMPTS; attempt++) {
@@ -228,7 +382,10 @@ export async function fetchAccountInfo(
           `${baseEndpoint}/v1internal:onboardUser`,
           {
             method: 'POST',
-            headers,
+            headers: {
+              ...headers,
+              ...getRandomizedHeaders('antigravity'),
+            },
             body: requestBody,
           },
           ONBOARD_TIMEOUT_MS,
@@ -253,7 +410,7 @@ export async function fetchAccountInfo(
             throw new Error('onboardUser response missing "response" object');
           }
 
-          const onboardProjectId = extractProjectId(
+          const onboardProjectId = extractManagedProjectId(
             responsePayload['cloudaicompanionProject'],
           );
           if (!onboardProjectId) {
@@ -264,7 +421,13 @@ export async function fetchAccountInfo(
             'antigravity-client',
             `onboardUser returned projectId: ${onboardProjectId}`,
           );
-          return { projectId: onboardProjectId, tier: detectedTier };
+          return {
+            projectId: projectId?.trim() ?? '',
+            managedProjectId: onboardProjectId,
+            tier: detectedTier,
+            tierId:
+              onboardTierId !== 'legacy-tier' ? onboardTierId : undefined,
+          };
         }
 
         await sleep(ONBOARD_POLL_DELAY_MS);
@@ -276,7 +439,12 @@ export async function fetchAccountInfo(
   }
 
   authLog.verbose('antigravity-client', `Account info fetch completed (projectId: empty, tier: ${detectedTier})`);
-  return { projectId: '', tier: detectedTier };
+  return {
+    projectId: projectId?.trim() ?? '',
+    managedProjectId,
+    tier: detectedTier,
+    tierId,
+  };
 }
 
 export async function exchangeAntigravity(options: {
@@ -302,7 +470,7 @@ export async function exchangeAntigravity(options: {
         client_secret: ANTIGRAVITY_CLIENT_SECRET,
         code: options.code,
         grant_type: 'authorization_code',
-        redirect_uri: ANTIGRAVITY_REDIRECT_URI,
+        redirect_uri: decoded.redirectUri,
         code_verifier: decoded.verifier,
       }),
     });
@@ -346,19 +514,33 @@ export async function exchangeAntigravity(options: {
       ? ((await userInfoResponse.json()) as UserInfo)
       : {};
 
-    const accountInfo = await fetchAccountInfo(accessToken);
+    const desiredProjectId = decoded.projectId.trim();
+    const accountInfo = await fetchAccountInfo(
+      accessToken,
+      desiredProjectId || undefined,
+    );
 
-    const projectId = decoded.projectId || accountInfo.projectId;
+    const managedProjectId = accountInfo.managedProjectId?.trim() || undefined;
+    const packedRefreshToken = formatAntigravityRefreshTokenParts({
+      refreshToken,
+      projectId: desiredProjectId || undefined,
+      managedProjectId,
+    });
 
-    authLog.verbose('antigravity-client', `Token exchange successful (email: ${userInfo.email}, projectId: ${projectId})`);
+    authLog.verbose(
+      'antigravity-client',
+      `Token exchange successful (email: ${userInfo.email}, projectId: ${desiredProjectId || 'auto'}, managedProjectId: ${managedProjectId || 'auto'})`,
+    );
     return {
       type: 'success',
       accessToken,
-      refreshToken,
+      refreshToken: packedRefreshToken,
       expiresAt,
       email: userInfo.email,
-      projectId,
+      projectId: desiredProjectId,
+      managedProjectId,
       tier: accountInfo.tier,
+      tierId: accountInfo.tierId,
     };
   } catch (error) {
     authLog.error('antigravity-client', 'Token exchange failed with exception', error);
@@ -371,29 +553,53 @@ export async function exchangeAntigravity(options: {
 
 export async function refreshAccessToken(options: {
   refreshToken: string;
-}): Promise<{ accessToken: string; expiresAt?: number; tokenType?: string } | null> {
+}): Promise<{
+  accessToken: string;
+  expiresAt?: number;
+  tokenType?: string;
+  refreshToken?: string;
+} | null> {
   authLog.verbose('antigravity-client', 'Refreshing access token');
   try {
+    const parts = parseAntigravityRefreshTokenParts(options.refreshToken);
+    if (!parts.refreshToken.trim()) {
+      authLog.error('antigravity-client', 'Missing refresh token for refresh request');
+      return null;
+    }
+
+    const randomized = getRandomizedHeaders('gemini-cli');
     const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         Accept: '*/*',
         'Accept-Encoding': 'gzip, deflate, br',
-        'User-Agent': GEMINI_CLI_HEADERS['User-Agent'],
-        'X-Goog-Api-Client': GEMINI_CLI_HEADERS['X-Goog-Api-Client'],
+        'User-Agent': randomized['User-Agent'],
+        'X-Goog-Api-Client': randomized['X-Goog-Api-Client'],
       },
       body: new URLSearchParams({
         client_id: ANTIGRAVITY_CLIENT_ID,
         client_secret: ANTIGRAVITY_CLIENT_SECRET,
-        refresh_token: options.refreshToken,
+        refresh_token: parts.refreshToken,
         grant_type: 'refresh_token',
       }),
     });
 
     if (!response.ok) {
-      authLog.error('antigravity-client', `Token refresh failed (status: ${response.status})`);
-      return null;
+      const errorText = await response.text().catch(() => '');
+      const { code, description } = parseOAuthErrorPayload(errorText);
+      const details = [code, description ?? errorText].filter(Boolean).join(': ');
+      const baseMessage = `Antigravity token refresh failed (${response.status} ${response.statusText})`;
+      const message = details ? `${baseMessage} - ${details}` : baseMessage;
+
+      authLog.error('antigravity-client', message);
+      throw new AntigravityTokenRefreshError({
+        message,
+        code,
+        description: description ?? errorText,
+        status: response.status,
+        statusText: response.statusText,
+      });
     }
 
     const payload = (await response.json()) as TokenResponse;
@@ -411,8 +617,20 @@ export async function refreshAccessToken(options: {
     const tokenType = typeof payload.token_type === 'string' ? payload.token_type : undefined;
 
     authLog.verbose('antigravity-client', `Token refresh successful (expiresAt: ${expiresAt ? new Date(expiresAt).toISOString() : 'never'})`);
-    return { accessToken, expiresAt, tokenType };
+    const refreshToken =
+      typeof payload.refresh_token === 'string' && payload.refresh_token.trim()
+        ? formatAntigravityRefreshTokenParts({
+            refreshToken: payload.refresh_token,
+            projectId: parts.projectId,
+            managedProjectId: parts.managedProjectId,
+          })
+        : options.refreshToken;
+
+    return { accessToken, expiresAt, tokenType, refreshToken };
   } catch (error) {
+    if (error instanceof AntigravityTokenRefreshError) {
+      throw error;
+    }
     authLog.error('antigravity-client', 'Token refresh failed with exception', error);
     return null;
   }

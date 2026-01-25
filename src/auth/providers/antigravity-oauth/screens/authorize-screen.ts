@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
 import { createServer } from 'node:http';
 import { t } from '../../../../i18n';
-import {
-  ANTIGRAVITY_CALLBACK_PORT,
-  ANTIGRAVITY_REDIRECT_PATH,
-} from '../constants';
+import { ANTIGRAVITY_REDIRECT_PATH } from '../constants';
+import type { AddressInfo } from 'node:net';
 
 type CallbackResult =
   | { type: 'success'; code: string; state: string }
@@ -49,14 +47,8 @@ function renderHtml(text: string): string {
 }
 
 export async function performAntigravityAuthorization(
-  url: string,
+  createAuthorizationUrl: (redirectUri: string) => Promise<string> | string,
 ): Promise<CallbackResult | null> {
-  const opened = await vscode.env.openExternal(vscode.Uri.parse(url));
-  if (!opened) {
-    vscode.window.showErrorMessage(t('Failed to open browser for authorization'));
-    return null;
-  }
-
   const manualFallback = async (): Promise<CallbackResult | null> => {
     const pasted = await vscode.window.showInputBox({
       title: t('Authorization'),
@@ -95,15 +87,56 @@ export async function performAntigravityAuthorization(
           resolve(result);
         };
 
-        const cancelSubscription = cancellationToken.onCancellationRequested(() => {
-          server.close(() => {
-            doResolve(null);
-          });
-        });
+        const cancelSubscription = cancellationToken.onCancellationRequested(
+          () => {
+            server.close(() => {
+              doResolve(null);
+            });
+          },
+        );
+
+        const tryListen = async (host: string): Promise<{
+          origin: string;
+          redirectUri: string;
+        } | null> => {
+          try {
+            await new Promise<void>((resolveListen, rejectListen) => {
+              const handleError = (error: unknown): void => {
+                server.off('error', handleError);
+                rejectListen(
+                  error instanceof Error ? error : new Error(String(error)),
+                );
+              };
+              server.once('error', handleError);
+              server.listen(0, host, () => {
+                server.off('error', handleError);
+                resolveListen();
+              });
+            });
+
+            const address = server.address();
+            const info =
+              address && typeof address === 'object' && 'port' in address
+                ? (address as AddressInfo)
+                : null;
+            if (!info) {
+              throw new Error('Failed to resolve OAuth callback port');
+            }
+
+            const hostForUrl = host === '::1' ? '[::1]' : host;
+            const origin = `http://${hostForUrl}:${info.port}`;
+            return {
+              origin,
+              redirectUri: `${origin}${ANTIGRAVITY_REDIRECT_PATH}`,
+            };
+          } catch {
+            return null;
+          }
+        };
 
         const server = createServer((req, res) => {
           const reqUrl = req.url ?? '';
-          const parsed = parseUrlOrNull(`http://localhost${reqUrl}`);
+          const parsed = parseUrlOrNull(`${origin}${reqUrl}`);
           if (!parsed || parsed.pathname !== ANTIGRAVITY_REDIRECT_PATH) {
             res.statusCode = 404;
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -130,12 +163,36 @@ export async function performAntigravityAuthorization(
           });
         });
 
+        let origin = 'http://127.0.0.1';
+        const start = async (): Promise<void> => {
+          const listener =
+            (await tryListen('127.0.0.1')) ?? (await tryListen('::1'));
+          if (!listener) {
+            server.close();
+            doResolve(await manualFallback());
+            return;
+          }
+
+          origin = listener.origin;
+          const url = await Promise.resolve(
+            createAuthorizationUrl(listener.redirectUri),
+          );
+
+          const opened = await vscode.env.openExternal(vscode.Uri.parse(url));
+          if (!opened) {
+            server.close(() => {
+              doResolve(null);
+            });
+          }
+        };
+
+        void start();
+
         server.on('error', async () => {
           server.close();
           doResolve(await manualFallback());
         });
 
-        server.listen(ANTIGRAVITY_CALLBACK_PORT, 'localhost');
       });
     },
   );
