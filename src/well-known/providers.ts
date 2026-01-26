@@ -121,7 +121,12 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
       reasoning_format: 'parsed',
     },
     models: [
-      // TODO
+      'llama3.1-8b',
+      'llama-3.3-70b',
+      'gpt-oss-120b',
+      'qwen-3-32b',
+      'qwen-3-235b-a22b-instruct-2507',
+      'zai-glm-4.7',
     ],
   },
   {
