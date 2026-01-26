@@ -533,7 +533,7 @@
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "l10n:check": "bun run scripts/l10n-audit.ts",
-    "l10n:sync": "bun run scripts/l10n-audit.ts --write",
+    "l10n:sync": "bun run scripts/l10n-audit.ts --write --write-locales",
     "count-loc": "bun run scripts/count-loc.ts",
     "release": "bun run scripts/release.ts"
   },
