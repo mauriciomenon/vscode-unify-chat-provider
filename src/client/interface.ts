@@ -13,6 +13,11 @@ export interface ProviderDefinition {
   type: ProviderType;
   label: string;
   description: string;
+  /**
+   * Category label used for grouping in UI (QuickPick separators).
+   * Stored as an i18n key (passed through `t()` by the UI).
+   */
+  category: string;
   class: new (config: ProviderConfig) => ApiProvider;
 }
 

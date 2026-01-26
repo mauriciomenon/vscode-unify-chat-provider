@@ -77,19 +77,46 @@ export const providerFormSchema: FormSchema<ProviderFormDraft> = {
       section: 'primary',
       edit: async (draft) => {
         const { pickQuickItem } = await import('./component');
-        const picked = await pickQuickItem<
-          vscode.QuickPickItem & { typeValue: ProviderType }
-        >({
+        type ProviderTypePickItem = vscode.QuickPickItem & {
+          typeValue?: ProviderType;
+        };
+
+        const items: ProviderTypePickItem[] = [];
+        const defs = Object.values(PROVIDER_TYPES);
+        const byCategory = new Map<string, typeof defs>();
+        const categories: string[] = [];
+        for (const def of defs) {
+          if (!byCategory.has(def.category)) {
+            byCategory.set(def.category, []);
+            categories.push(def.category);
+          }
+          byCategory.get(def.category)!.push(def);
+        }
+
+        for (const category of categories) {
+          items.push({
+            label: '',
+            kind: vscode.QuickPickItemKind.Separator,
+            description: t(category),
+          });
+          const group = byCategory.get(category);
+          if (!group) continue;
+          for (const def of group) {
+            items.push({
+              label: def.label,
+              description: def.description,
+              picked: def.type === draft.type,
+              typeValue: def.type,
+            });
+          }
+        }
+
+        const picked = await pickQuickItem<ProviderTypePickItem>({
           title: t('API Format'),
           placeholder: t('Select the API format'),
-          items: Object.values(PROVIDER_TYPES).map((opt) => ({
-            label: opt.label,
-            description: opt.description,
-            picked: opt.type === draft.type,
-            typeValue: opt.type,
-          })),
+          items,
         });
-        if (picked) {
+        if (picked?.typeValue) {
           draft.type = picked.typeValue;
         }
       },
@@ -271,12 +298,6 @@ async function pickAuthMethod(
     picked: !draft.auth || draft.auth.method === 'none',
   });
 
-  items.push({
-    label: '',
-    kind: vscode.QuickPickItemKind.Separator,
-    description: t('Methods'),
-  });
-
   const draftLabel = getAuthDisplayLabel(draft.auth);
   const pickedByPreset = (method: string): boolean => {
     return WELL_KNOWN_AUTH_PRESETS.some((preset) => {
@@ -290,13 +311,33 @@ async function pickAuthMethod(
     });
   };
 
-  for (const def of Object.values(AUTH_METHODS)) {
+  const methodDefs = Object.values(AUTH_METHODS);
+  const byCategory = new Map<string, typeof methodDefs>();
+  const categories: string[] = [];
+  for (const def of methodDefs) {
+    if (!byCategory.has(def.category)) {
+      byCategory.set(def.category, []);
+      categories.push(def.category);
+    }
+    byCategory.get(def.category)!.push(def);
+  }
+
+  for (const category of categories) {
     items.push({
-      label: def.label,
-      description: def.description,
-      authAction: { kind: 'method', method: def.id },
-      picked: draft.auth?.method === def.id && !pickedByPreset(def.id),
+      label: '',
+      kind: vscode.QuickPickItemKind.Separator,
+      description: t(category),
     });
+    const group = byCategory.get(category);
+    if (!group) continue;
+    for (const def of group) {
+      items.push({
+        label: def.label,
+        description: def.description,
+        authAction: { kind: 'method', method: def.id },
+        picked: draft.auth?.method === def.id && !pickedByPreset(def.id),
+      });
+    }
   }
 
   if (WELL_KNOWN_AUTH_PRESETS.length > 0) {

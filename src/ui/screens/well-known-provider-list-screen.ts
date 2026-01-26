@@ -24,30 +24,58 @@ export async function runWellKnownProviderListScreen(
   _route: WellKnownProviderListRoute,
   _resume: UiResume | undefined,
 ): Promise<UiNavAction> {
+  const byCategory = new Map<string, WellKnownProviderConfig[]>();
+  const categories: string[] = [];
+  for (const provider of WELL_KNOWN_PROVIDERS) {
+    if (!byCategory.has(provider.category)) {
+      byCategory.set(provider.category, []);
+      categories.push(provider.category);
+    }
+    byCategory.get(provider.category)!.push(provider);
+  }
+
+  const items: WellKnownProviderItem[] = [
+    { label: `$(arrow-left) ${t('Back')}`, action: 'back' },
+    { label: '', kind: vscode.QuickPickItemKind.Separator },
+  ];
+
+  for (const category of categories) {
+    items.push({
+      label: '',
+      kind: vscode.QuickPickItemKind.Separator,
+      description: t(category),
+    });
+    const group = byCategory.get(category);
+    if (!group) continue;
+    for (const provider of group) {
+      items.push({
+        label: t(provider.name),
+        description: t(provider.name) === provider.name ? '' : provider.name,
+        detail: provider.baseUrl,
+        provider,
+      });
+    }
+  }
+
   const picked = await pickQuickItem<WellKnownProviderItem>({
     title: t('Add From Well-Known Provider List'),
     placeholder: t('Select a provider'),
     matchOnDescription: true,
     matchOnDetail: true,
     ignoreFocusOut: true,
-    items: [
-      { label: `$(arrow-left) ${t('Back')}`, action: 'back' },
-      { label: '', kind: vscode.QuickPickItemKind.Separator },
-      ...WELL_KNOWN_PROVIDERS.map((provider) => ({
-        label: t(provider.name),
-        description: t(provider.name) === provider.name ? '' : provider.name,
-        detail: provider.baseUrl,
-        provider,
-      })),
-    ],
+    items,
   });
 
   if (!picked || picked.action === 'back' || !picked.provider) {
     return { kind: 'pop' };
   }
 
-  const { authTypes: _authTypes, models: _modelIds, ...providerConfig } =
-    picked.provider;
+  const {
+    authTypes: _authTypes,
+    models: _modelIds,
+    category: _category,
+    ...providerConfig
+  } = picked.provider;
   const draft = createProviderDraft({
     ...providerConfig,
     models: resolveProviderModels(picked.provider),

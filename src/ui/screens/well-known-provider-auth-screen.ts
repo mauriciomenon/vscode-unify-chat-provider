@@ -109,18 +109,32 @@ function buildAllAuthItems(): WellKnownAuthPickItem[] {
     selection: { kind: 'method', method: 'none' },
   });
 
-  items.push({
-    label: '',
-    kind: vscode.QuickPickItemKind.Separator,
-    description: t('Methods'),
-  });
+  const methodDefs = Object.values(AUTH_METHODS);
+  const byCategory = new Map<string, typeof methodDefs>();
+  const categories: string[] = [];
+  for (const def of methodDefs) {
+    if (!byCategory.has(def.category)) {
+      byCategory.set(def.category, []);
+      categories.push(def.category);
+    }
+    byCategory.get(def.category)!.push(def);
+  }
 
-  for (const def of Object.values(AUTH_METHODS)) {
+  for (const category of categories) {
     items.push({
-      label: def.label,
-      description: def.description,
-      selection: { kind: 'method', method: def.id },
+      label: '',
+      kind: vscode.QuickPickItemKind.Separator,
+      description: t(category),
     });
+    const group = byCategory.get(category);
+    if (!group) continue;
+    for (const def of group) {
+      items.push({
+        label: def.label,
+        description: def.description,
+        selection: { kind: 'method', method: def.id },
+      });
+    }
   }
 
   if (WELL_KNOWN_AUTH_PRESETS.length > 0) {
