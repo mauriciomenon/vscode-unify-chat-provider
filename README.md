@@ -25,14 +25,14 @@ Integrate multiple LLM API providers into VS Code's GitHub Copilot Chat using th
 
 ## Features
 
-- **[Perfect Compatibility](#api-format-support-table)**: Supports all major LLM API formats (OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Ollama Chat).
-- **[Deep Adaptation](#provider-support-table)**: Deeply adapts to each provider’s API capabilities and best practices.
-- **[Best Performance](#model-support-table)**: Built-in recommended parameters for mainstream models to help you get the most out of them.
-- **[Out of the Box](#one-click-configuration)**: One-click setup for mainstream providers, with automatic syncing of official model lists—no tedious configuration.
-- **[Quick Migration](#one-click-migration)**: One-click migration from popular apps/extensions (Claude Code, CodeX, Gemini CLI...).
-- **[Import and Export](#import-and-export)**: Complete import/export support; import existing configs via Base64, JSON, URL, or URI.
-- **[Controllable Parameters](#adjust-parameters)**: Exposes all request parameters, plus custom headers and request body fields.
-- **[Great UX](#manage-providers)**: Built-in visual UI; unlimited provider/model configs; multiple configs can coexist for the same provider or model.
+- 🐑 **Free Tier Access**: Aggregates the latest free mainstream models, configurable in just a few steps!
+- 🔌 **Perfect Compatibility**: Supports all major LLM API formats (OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Ollama Chat, Gemini).
+- 🎯 **Deep Adaptation**: Adapts to special API features and best practices of 45+ mainstream providers.
+- 🚀 **Best Performance**: Built-in recommended parameters for 200+ mainstream models, allowing you to maximize model potential without tuning.
+- 📦 **Out of the Box**: One-click configuration, or one-click migration from mainstream applications and extensions, with automatic syncing of official model lists, no tedious operations required.
+- 💾 **Import and Export**: Complete import/export support; import existing configs via Base64, JSON, URL, or URI.
+- 💎 **Great UX**: Visual interface configuration, fully open model parameters, supports unlimited provider and model configurations, and supports coexistence of multiple configuration variants for the same provider and model.
+- ✨ **One More Thing**: One-click use of your Claude Code, Gemini CLI, Antigravity, Github Copilot, Qwen Code, OpenAI CodeX (ChatGPT Plus/Pro), iFlow CLI account quotas.
 
 ## Installation
 
@@ -41,16 +41,106 @@ Integrate multiple LLM API providers into VS Code's GitHub Copilot Chat using th
 
 ## Quick Start
 
-Choose the most suitable way to start:
+Check out the [Cookbook](#-cookbook), you can start using it in minutes:
+
+- **Free Claude 4.5 & Gemini 3 Series Models**:
+  - [Add Gemini CLI / Antigravity Account](#add-gemini-cli--antigravity-account)
+- **Partially Free Claude, GPT, Gemini, Grok Series Models**:
+  - [Add GitHub Copilot Account](#add-github-copilot-account)
+- **Free GLM 4.7, Kimi K2, Qwen3, DeepSeek Series Models**:
+  - [Add iFlow API Key or CLI Account](#add-iflow-api-key-or-cli-account)
+- More Recipes:
+  - [Impersonate Claude Code Client](#impersonate-claude-code-client)
+
+You can also check the [Provider Support Table](#provider-support-table):
+
+- Browse all providers with **long-term free quotas**.
+- [One-Click Configuration](#one-click-configuration) to start.
+
+When you have added multiple providers or models:
+
+- Use the [Manage Providers](#manage-providers) interface for unified management.
+- Use [Import and Export](#import-and-export) to backup or share configurations with others.
+
+Currently, you might also be looking for:
 
 - [One-Click Migration](#one-click-migration): Migrate from other apps or extensions.
-- [One-Click Configuration](#one-click-configuration): Add built-in supported model providers.
-- [Import and Export](#import-and-export): Import from your backups or configs shared by others.
-- [Manual Configuration](#manual-configuration): Add any provider and model from scratch.
+- [Manual Configuration](#manual-configuration): Add any provider and model completely from scratch.
 
-> No matter which method you use, you can customize any field before or after the import is completed.
+If the above content still doesn't help you, please continue reading the rest of this document, or create an Issue for help.
 
-### Basic Operations
+## 🍱 Cookbook
+
+#### Add Gemini CLI / Antigravity Account
+
+<details>
+
+> ⚠️ Warning: This may violate Google's Terms of Service, please be aware of the risk of account banning!
+
+0. You need to prepare a Google account.
+1. Open the VS Code Command Palette and search for `Unify Chat Provider: Add Provider From Well-Known Provider List`.
+2. Select `Google Antigravity` in the list, leave `Project ID` blank and press Enter.
+3. Allow the extension to open the browser for authorized login, and log in to your account in the browser.
+4. After logging in, return to VS Code and click the `Save` button at the bottom of the configuration interface to complete.
+5. Optional: Repeat the above steps to add the `Google Gemini CLI` provider.
+
+The quotas for Antigravity and Gemini CLI for the same account are independent, so it is recommended to add both to get more free quotas.
+
+</details>
+
+#### Add GitHub Copilot Account
+
+<details>
+
+VS Code's Copilot Chat itself supports logging into a GitHub Copilot account, so this is generally used to quickly switch between multiple accounts.
+
+0. You need to prepare a Github account.
+1. Open the VS Code Command Palette and search for `Unify Chat Provider: Add Provider From Well-Known Provider List`.
+2. Select `Github Copilot` in the list, and choose `Github.com` or `Github Enterprise` depending on whether your account is an enterprise subscription.
+3. Allow the extension to open the browser for authorized login, and log in to your account in the browser.
+4. After logging in, return to VS Code and click the `Save` button at the bottom of the configuration interface to complete.
+
+</details>
+
+#### Add iFlow API Key or CLI Account
+
+<details>
+
+0. You need to prepare an iFlow account.
+1. Open the VS Code Command Palette and search for `Unify Chat Provider: Add Provider From Well-Known Provider List`.
+2. Select `iFlow` in the list, and choose from two verification methods:
+   - `API Key`: Fill in the API Key generated in the iFlow console.
+   - `iFlow CLI`: Allow the extension to open the browser for authorized login, and log in to your account in the browser.
+3. After verification is completed, return to VS Code and click the `Save` button at the bottom of the configuration interface to complete.
+
+</details>
+
+#### Impersonate Claude Code Client
+
+<details>
+
+> ⚠️ Warning: This may violate the provider's Terms of Service, please be aware of the risk of account banning!
+
+When do you need to use this?
+
+- Some Coding Plan subscriptions or relay sites require you to strictly use their API Key in Claude Code.
+- You need to use Claude Code's account quota in Github Copilot.
+
+Steps:
+
+0. You need to prepare a Claude Code account or API Key (whether official Key or not).
+1. Open the VS Code Command Palette and search for `Unify Chat Provider: Add Provider From Well-Known Provider List`.
+2. Select `Claude Code` in the list, and choose from two verification methods:
+   - `API Key`: Fill in the API Key used in Claude Code.
+   - `Claude Code`: Allow the extension to open the browser for authorized login, and log in to your account in the browser.
+3. If your `Base URL` is not the official `https://api.anthropic.com`:
+   - In the pop-up configuration interface, click `Provider Settings...` -> `API Base URL` and fill in the URL you want to use.
+   - Return to the previous interface.
+4. Click the `Save` button at the bottom of the configuration interface to complete.
+
+</details>
+
+## Basic Operations
 
 The UI is integrated into the VS Code Command Palette for a more native experience. Here’s the basic workflow:
 
@@ -66,7 +156,7 @@ The UI is integrated into the VS Code Command Palette for a more native experien
   <img src="assets/screenshot-20.png" width="600" />
 </div>
 
-### One-Click Migration
+## One-Click Migration
 
 See the [Application Migration Support Table](#application-migration-support-table) to learn which apps and extensions are supported.
 
@@ -79,14 +169,12 @@ See the [Application Migration Support Table](#application-migration-support-tab
    <div align="center">
    <img src="assets/screenshot-2.png" width="600" />
    </div>
-
    - The UI lists all supported apps/extensions and the detected config file paths.
    - Use the button group on the far right of each item for additional actions:
      1. `Custom Path`: Import from a custom config file path.
      2. `Import From Config Content`: Paste the config content directly.
 
 2. Choose the app/extension you want to import, then you’ll be taken to the config import screen.
-
    - This screen lets you review and edit the config that will be imported.
    - For details, see the [Provider Settings](#provider-settings) section.
 
@@ -96,7 +184,7 @@ See the [Application Migration Support Table](#application-migration-support-tab
    <img src="assets/screenshot-23.png" width="600" />
    </div>
 
-### One-Click Configuration
+## One-Click Configuration
 
 See the [Provider Support Table](#provider-support-table) for providers supported by one-click configuration.
 
@@ -112,7 +200,6 @@ See the [Provider Support Table](#provider-support-table) for providers supporte
 
 2. Select the provider you want to add.
 3. Follow the prompts to configure authentication (usually an API key), then you’ll be taken to the config import screen.
-
    - This screen lets you review and edit the config that will be imported.
    - For details, see the [Provider Settings](#provider-settings) section.
 
@@ -122,14 +209,13 @@ See the [Provider Support Table](#provider-support-table) for providers supporte
    <img src="assets/screenshot-22.png" width="600" />
    </div>
 
-### Manual Configuration
+## Manual Configuration
 
 This section uses DeepSeek as an example, adding the provider and two models.
 
 > DeepSeek supports [One-Click Configuration](#one-click-configuration). This section shows the manual setup for demonstration purposes.
 
 0. Preparation: get the API information from the provider docs, at least the following:
-
    - `API Format`: The API format (e.g., OpenAI Chat Completions, Anthropic Messages).
    - `API Base URL`: The base URL of the API.
    - `Authentication`: Usually an API key; obtained from the user center or console after registration.
@@ -139,25 +225,20 @@ This section uses DeepSeek as an example, adding the provider and two models.
    <div align="center">
    <img src="assets/screenshot-6.png" width="600" />
    </div>
-
    - This screen is similar to the [Provider Settings](#provider-settings) screen, and includes in-place documentation for each field.
 
 2. Fill in the provider name: `Name`.
-
    - The name must be unique and is shown in the model list. Here we use `DeepSeek`.
    - You can create multiple configs for the same provider with different names, e.g., `DeepSeek-Person`, `DeepSeek-Team`.
 
 3. Choose the API format: `API Format`.
-
    - DeepSeek uses the `OpenAI Chat Completion` format, so select that.
    - To see all supported formats, refer to the [API Format Support Table](#api-format-support-table).
 
 4. Set the base URL: `API Base URL`.
-
    - DeepSeek’s base URL is `https://api.deepseek.com`.
 
 5. Configure authentication: `Authentication`.
-
    - DeepSeek uses API Key for authentication, so select `API Key`.
    - Enter the API key generated from the DeepSeek console.
 
@@ -168,7 +249,6 @@ This section uses DeepSeek as an example, adding the provider and two models.
    </div>
 
 7. Enable `Auto-Fetch Official Models`.
-
    - This example uses auto-fetch to reduce configuration steps; see [Auto-Fetch Official Models](#auto-fetch-official-models) for details.
    - For model fields and other ways to add models, see [Manage Models](#manage-models).
 
@@ -409,6 +489,8 @@ This can increase the risk of user data leakage, so evaluate the risk before ena
 
 ## API Format Support Table
 
+<details>
+
 | API                                                                                          | ID                       | Typical Endpoint                 | Notes                                                                                       |
 | :------------------------------------------------------------------------------------------- | :----------------------- | :------------------------------- | :------------------------------------------------------------------------------------------ |
 | [OpenAI Chat Completion API](https://platform.openai.com/docs/api-reference/chat)            | `openai-chat-completion` | `/v1/chat/completions`           | If the base URL doesn’t end with a version suffix, `/v1` is appended automatically.         |
@@ -418,6 +500,8 @@ This can increase the risk of user data leakage, so evaluate the risk before ena
 | [Anthropic Messages API](https://platform.claude.com/docs/en/api/typescript/messages/create) | `anthropic`              | `/v1/messages`                   | Automatically removes duplicated `/v1` suffix.                                              |
 | [Ollama Chat API](https://docs.ollama.com/api/chat)                                          | `ollama`                 | `/api/chat`                      | Automatically removes duplicated `/api` suffix.                                             |
 
+</details>
+
 ## Provider Support Table
 
 The providers listed below support [One-Click Configuration](#one-click-configuration). Implementations follow the best practices from official docs to help you get the best performance.
@@ -426,75 +510,153 @@ The providers listed below support [One-Click Configuration](#one-click-configur
 >
 > Even if a provider is not listed, you can still use it via [Manual Configuration](#manual-configuration).
 
-| Provider                                                                                        | Supported Features                                       |
-| :---------------------------------------------------------------------------------------------- | :------------------------------------------------------- |
-| [OpenAI](https://openai.com/)                                                                   |                                                          |
-| [Google AI Studio](https://aistudio.google.com/)                                                |                                                          |
-| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>[Authentication](#google-vertex-ai-authentication)   |
-| [Anthropic](https://www.anthropic.com/)                                                         | <li>InterleavedThinking <li>FineGrainedToolStreaming     |
-| [xAI](https://docs.x.ai/)                                                                       |                                                          |
-| [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers)           |                                                          |
-| [OpenRouter](https://openrouter.ai/)                                                            | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails |
-| [OpenCode Zen (OpenAI Chat Completions)](https://opencode.ai/)                                  | <li>ReasoningContent                                     |
-| [OpenCode Zen (OpenAI Responses)](https://opencode.ai/)                                         | <li>ReasoningContent                                     |
-| [OpenCode Zen (Anthropic Messages)](https://opencode.ai/)                                       | <li>InterleavedThinking <li>FineGrainedToolStreaming     |
-| [OpenCode Zen (Gemini)](https://opencode.ai/)                                                   |                                                          |
-| [Nvidia](https://build.nvidia.com/)                                                             |                                                          |
-| [Alibaba Cloud Model Studio (China)](https://www.aliyun.com/product/bailian)                    | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Alibaba Cloud Model Studio (Coding Plan)](https://www.aliyun.com/product/bailian)              | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Alibaba Cloud Model Studio (International)](https://www.alibabacloud.com/help/en/model-studio) | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Model Scope (API-Inference)](https://modelscope.cn/)                                           | <li>ThinkingParam3 <li>ReasoningContent                  |
-| [Volcano Engine](https://www.volcengine.com/product/ark)                                        | <li>AutoThinking <li>ThinkingParam2                      |
-| [Volcano Engine (Coding Plan)](https://www.volcengine.com/activity/codingplan)                  | <li>AutoThinking <li>ThinkingParam2                      |
-| [Byte Plus](https://www.byteplus.com/en/product/modelark)                                       | <li>AutoThinking <li>ThinkingParam2                      |
-| [Tencent Cloud (China)](https://cloud.tencent.com/product/hunyuan)                              |                                                          |
-| [DeepSeek](https://www.deepseek.com/)                                                           | <li>ThinkingParam <li>ReasoningContent                   |
-| [Xiaomi MiMo](https://mimo.xiaomi.com/)                                                         | <li>ThinkingParam <li>ReasoningContent                   |
-| [Ollama Local](https://ollama.com/)                                                             |                                                          |
-| [Ollama Cloud](https://ollama.com/)                                                             |                                                          |
-| [ZhiPu AI](https://open.bigmodel.cn/)                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [ZhiPu AI (Coding Plan)](https://open.bigmodel.cn/)                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [Z.AI](https://z.ai/)                                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [Z.AI (Coding Plan)](https://z.ai/)                                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking |
-| [MiniMax (China)](https://www.minimaxi.com/)                                                    | <li>ReasoningDetails                                     |
-| [MiniMax (International)](https://www.minimax.io/)                                              | <li>ReasoningDetails                                     |
-| [LongCat](https://longcat.chat/)                                                                |                                                          |
-| [Moonshot AI (China)](https://www.moonshot.cn/)                                                 | <li>ReasoningContent                                     |
-| [Moonshot AI (International)](https://www.moonshot.ai/)                                         | <li>ReasoningContent                                     |
-| [Moonshot AI (Coding Plan)](https://www.kimi.com/coding)                                        | <li>ReasoningContent                                     |
-| [StreamLake Vanchin (China)](https://streamlake.com/)                                           |                                                          |
-| [StreamLake Vanchin (China, Coding Plan)](https://streamlake.com/)                              |                                                          |
-| [StreamLake Vanchin (International)](https://www.streamlake.ai/)                                |                                                          |
-| [StreamLake Vanchin (International, Coding Plan)](https://www.streamlake.ai/)                   |                                                          |
+<details>
 
-### Google Vertex AI Authentication
+| Provider                                                                                        | Supported Features                                             | Free Quota                 |
+| :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------- | :------------------------- |
+| [Open AI](https://openai.com/)                                                                  |                                                                |                            |
+| [Google AI Studio](https://aistudio.google.com/)                                                |                                                                |                            |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>[Authentication](#google-vertex-ai-authentication)         |                            |
+| [Anthropic](https://www.anthropic.com/)                                                         | <li>InterleavedThinking <li>FineGrainedToolStreaming           |                            |
+| [xAI](https://docs.x.ai/)                                                                       |                                                                |                            |
+| [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers)           |                                                                |                            |
+| [OpenRouter](https://openrouter.ai/)                                                            | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails       | [Details](#openrouter)     |
+| [Cerebras](https://www.cerebras.ai/)                                                            | <li>ReasoningField <li>DisableReasoningParam <li>ClearThinking | [Details](#cerebras)       |
+| [OpenCode Zen (OpenAI Chat Completions)](https://opencode.ai/)                                  | <li>ReasoningContent                                           |                            |
+| [OpenCode Zen (OpenAI Responses)](https://opencode.ai/)                                         | <li>ReasoningContent                                           |                            |
+| [OpenCode Zen (Anthropic Messages)](https://opencode.ai/)                                       | <li>InterleavedThinking <li>FineGrainedToolStreaming           |                            |
+| [OpenCode Zen (Gemini)](https://opencode.ai/)                                                   |                                                                |                            |
+| [Nvidia](https://build.nvidia.com/)                                                             |                                                                | [Details](#nvidia)         |
+| [Alibaba Cloud Model Studio (China)](https://www.aliyun.com/product/bailian)                    | <li>ThinkingParam3 <li>ReasoningContent                        |                            |
+| [Alibaba Cloud Model Studio (Coding Plan)](https://www.aliyun.com/product/bailian)              | <li>ThinkingParam3 <li>ReasoningContent                        |                            |
+| [Alibaba Cloud Model Studio (International)](https://www.alibabacloud.com/help/en/model-studio) | <li>ThinkingParam3 <li>ReasoningContent                        |                            |
+| [Model Scope (API-Inference)](https://modelscope.cn/)                                           | <li>ThinkingParam3 <li>ReasoningContent                        | [Details](#model-scope)    |
+| [Volcano Engine](https://www.volcengine.com/product/ark)                                        | <li>AutoThinking <li>ThinkingParam2                            | [Details](#volcano-engine) |
+| [Volcano Engine (Coding Plan)](https://www.volcengine.com/activity/codingplan)                  | <li>AutoThinking <li>ThinkingParam2                            |                            |
+| [Byte Plus](https://www.byteplus.com/en/product/modelark)                                       | <li>AutoThinking <li>ThinkingParam2                            |                            |
+| [Tencent Cloud (China)](https://cloud.tencent.com/product/hunyuan)                              |                                                                |                            |
+| [DeepSeek](https://www.deepseek.com/)                                                           | <li>ThinkingParam <li>ReasoningContent                         |                            |
+| [Xiaomi MiMo](https://mimo.xiaomi.com/)                                                         | <li>ThinkingParam <li>ReasoningContent                         |                            |
+| [Ollama Local](https://ollama.com/)                                                             |                                                                |                            |
+| [Ollama Cloud](https://ollama.com/)                                                             |                                                                |                            |
+| [ZhiPu AI](https://open.bigmodel.cn/)                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       | [Details](#zhipu-ai--zai)  |
+| [ZhiPu AI (Coding Plan)](https://open.bigmodel.cn/)                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |                            |
+| [Z.AI](https://z.ai/)                                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       | [Details](#zhipu-ai--zai)  |
+| [Z.AI (Coding Plan)](https://z.ai/)                                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |                            |
+| [MiniMax (China)](https://www.minimaxi.com/)                                                    | <li>ReasoningDetails                                           |                            |
+| [MiniMax (International)](https://www.minimax.io/)                                              | <li>ReasoningDetails                                           |                            |
+| [LongCat](https://longcat.chat/)                                                                |                                                                | [Details](#longcat)        |
+| [Moonshot AI (China)](https://www.moonshot.cn/)                                                 | <li>ReasoningContent                                           |                            |
+| [Moonshot AI (International)](https://www.moonshot.ai/)                                         | <li>ReasoningContent                                           |                            |
+| [Moonshot AI (Coding Plan)](https://www.kimi.com/coding)                                        | <li>ReasoningContent                                           |                            |
+| [StreamLake Vanchin (China)](https://streamlake.com/)                                           |                                                                | [Details](#streamlake)     |
+| [StreamLake Vanchin (China, Coding Plan)](https://streamlake.com/)                              |                                                                |                            |
+| [StreamLake Vanchin (International)](https://www.streamlake.ai/)                                |                                                                | [Details](#streamlake)     |
+| [StreamLake Vanchin (International, Coding Plan)](https://www.streamlake.ai/)                   |                                                                |                            |
+| [iFlow](https://platform.iflow.cn/)                                                             | <li>ThinkingParam3 <li>ClearThinking <li>ReasoningSplitParam   | [Details](#iflow)          |
 
-Google Cloud Vertex AI has three authentication methods:
+Experimental Supported Providers:
 
-- Application Default Credentials (ADC)
+> ⚠️ Warning: Adding the following providers may violate their Terms of Service!
+>
+> - Your account may be suspended or permanently banned.
+> - You need to accept the risks yourself; all risks are borne by you.
 
-  Supported — just leave `Authentication` unset (or choose `No Authentication`).
+| Provider                                               | Free Quota                     |
+| :----------------------------------------------------- | :----------------------------- |
+| [OpenAI CodeX (ChatGPT Plus/Pro)](https://openai.com/) |                                |
+| [Qwen Code](https://github.com/QwenLM/qwen-code)       | [Details](#qwen-code)          |
+| [GitHub Copilot](https://github.com/features/copilot)  | [Details](#github-copilot)     |
+| [Google Antigravity](https://antigravity.google/)      | [Details](#google-antigravity) |
+| [Google Gemini CLI](https://geminicli.com/)            | [Details](#google-gemini-cli)  |
+| [Claude Code](https://claude.ai/)                      |                                |
+| [iFlow CLI](https://platform.iflow.cn/)                | [Details](#iflow)              |
 
-- Service Account JSON key
+Long-Term Free Quotas:
 
-  Supported, but note:
+#### Qwen Code
 
-  - Set `Authentication` to `API Key`, then fill the JSON key file path in the `API Key` field, e.g. `/path/to/your/keyfile.json`.
-  - Based on the `project` and `location` from the platform, set `API Base URL` to:
+- Completely free.
+- Supported models:
+  - qwen3-coder-plus
+  - qwen3-coder-flash
+  - qwen3-vl-plus
 
-    ```
-    https://<location>-aiplatform.googleapis.com/v1/projects/<project>/locations/<location>
-    ```
+#### GitHub Copilot
 
-    For example:
+- Some models have free quotas, others require Copilot subscription. After subscription, it is completely free with monthly refreshing quotas.
+- Supported models: Claude, GPT, Grok, Gemini and other mainstream models.
 
-    ```
-    https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1
-    ```
+#### Google Antigravity
 
-- Google Cloud API key
+- Each model has a certain free quota, refreshing over time.
+- Supported models: Claude 4.5 Series, Gemini 3 Series.
 
-  Supported — just configure `Authentication` (API Key).
+#### Google Gemini CLI
+
+- Each model has a certain free quota, refreshing over time.
+- Supported models: Gemini 3 Series, Gemini 2.5 Series.
+
+#### iFlow
+
+- Completely free.
+- Supported models: GLM, Kimi, Qwen, DeepSeek and other mainstream models.
+
+#### Cerebras
+
+- Some models have free quotas, refreshing over time.
+- Supported models:
+  - GLM 4.7
+  - GPT-OSS-120B
+  - Qwen 3 235B Instruct
+  - ...
+
+#### Nvidia
+
+- Completely free, but with rate limits.
+- Supports almost all open-source weight models.
+
+#### Volcano Engine
+
+- Each model has a certain free quota, refreshing over time.
+- Supported models: Doubao, Kimi, DeepSeek and other mainstream models.
+
+#### Model Scope
+
+- Each model has a certain free quota, refreshing over time.
+- Supported models: GLM, Kimi, Qwen, DeepSeek and other mainstream models.
+
+#### ZhiPu AI / Z.AI
+
+- Some models are completely free.
+- Supported models: GLM Flash series models.
+
+#### SiliconFlow
+
+- Some models are completely free.
+- Supported models: Mostly open-source weight models under 32B.
+
+#### StreamLake
+
+- Completely free, but with rate limits.
+- Supported models:
+  - KAT-Coder-Pro V1
+  - KAT-Coder-Air
+
+#### LongCat
+
+- Has a certain free quota, refreshing over time.
+- Supported models:
+  - LongCat-Flash-Chat
+  - LongCat-Flash-Thinking
+  - LongCat-Flash-Thinking-2601
+
+#### OpenRouter
+
+- Some models have certain free quotas, refreshing over time.
+- Supported models: Frequently changing, models with 'free' in the name.
+
+</details>
 
 ## Model Support Table
 
@@ -503,6 +665,8 @@ The models listed below support [One-Click Add Models](#one-click-add-models), a
 > Tip
 >
 > Even if a model is not listed, you can still use it via [Add Model Manually](#add-model-manually) and tune the parameters yourself.
+
+<details>
 
 | Vendor           | Series                | Supported Models                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | :--------------- | :-------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -537,7 +701,7 @@ The models listed below support [One-Click Add Models](#one-click-add-models), a
 | **MiniMax**      | MiniMax M2 Series     | MiniMax-M2.1, MiniMax-M2.1-Lightning, MiniMax-M2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | **LongCat**      | LongCat Flash Series  | LongCat Flash Chat, LongCat Flash Thinking, LongCat Flash Thinking 2601                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | **StreamLake**   | KAT-Coder Series      | KAT-Coder-Pro V1, KAT-Coder-Exp-72B-1010, KAT-Coder-Air V1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| **Moonshot AI**  | Kimi K2 Series        | Kimi K2 Thinking, Kimi K2 Thinking Turbo, Kimi K2 0905 Preview, Kimi K2 Turbo Preview, Kimi For Coding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Moonshot AI**  | Kimi K2 Series        | Kimi K2 Thinking, Kimi K2 Thinking Turbo, Kimi K2 0905 Preview, Kimi K2 0711 Preview, Kimi K2 Turbo Preview, Kimi For Coding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | **Qwen**         | Qwen 3 Series         | Qwen3-Max, Qwen3-Max Preview, Qwen3-Coder-Plus, Qwen3-Coder-Flash, Qwen3-VL-Plus, Qwen3-VL-Flash, Qwen3-VL-32B-Instruct, Qwen3 0.6B, Qwen3 1.7B, Qwen3 4B, Qwen3 8B, Qwen3 14B, Qwen3 32B, Qwen3 30B A3B, Qwen3 235B A22B, Qwen3 30B A3B Thinking 2507, Qwen3 30B A3B Instruct 2507, Qwen3 235B A22B Thinking 2507, Qwen3 235B A22B Instruct 2507, Qwen3 Coder 480B A35B Instruct, Qwen3 Coder 30B A3B Instruct, Qwen3-Omni-Flash, Qwen3-Omni-Flash-Realtime, Qwen3-Omni 30B A3B Captioner, Qwen-Omni-Turbo, Qwen-Omni-Turbo-Realtime, Qwen3-VL 235B A22B Thinking, Qwen3-VL 235B A22B Instruct, Qwen3-VL 32B Thinking, Qwen3-VL 30B A3B Thinking, Qwen3-VL 30B A3B Instruct, Qwen3-VL 8B Thinking, Qwen3-VL 8B Instruct, Qwen3 Next 80B A3B Thinking, Qwen3 Next 80B A3B Instruct, Qwen-Plus, Qwen-Flash, Qwen-Turbo, Qwen-Max, Qwen-Long, Qwen-Doc-Turbo, Qwen Deep Research |
 |                  | Qwen 2.5 Series       | Qwen2.5 0.5B Instruct, Qwen2.5 1.5B Instruct, Qwen2.5 3B Instruct, Qwen2.5 7B Instruct, Qwen2.5 14B Instruct, Qwen2.5 32B Instruct, Qwen2.5 72B Instruct, Qwen2.5 7B Instruct (1M), Qwen2.5 14B Instruct (1M), Qwen2.5 Coder 0.5B Instruct, Qwen2.5 Coder 1.5B Instruct, Qwen2.5 Coder 3B Instruct, Qwen2.5 Coder 7B Instruct, Qwen2.5 Coder 14B Instruct, Qwen2.5 Coder 32B Instruct, Qwen2.5 Math 1.5B Instruct, Qwen2.5 Math 7B Instruct, Qwen2.5 Math 72B Instruct, Qwen2.5-VL 3B Instruct, Qwen2.5-VL 7B Instruct, Qwen2.5-VL 32B Instruct, Qwen2.5-Omni-7B, Qwen2 7B Instruct, Qwen2 72B Instruct, Qwen2 57B A14B Instruct, Qwen2-VL 72B Instruct                                                                                                                                                                                                                        |
 |                  | Qwen 1.5 Series       | Qwen1.5 7B Chat, Qwen1.5 14B Chat, Qwen1.5 32B Chat, Qwen1.5 72B Chat, Qwen1.5 110B Chat                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -545,21 +709,27 @@ The models listed below support [One-Click Add Models](#one-click-add-models), a
 |                  | Qwen Coder Series     | Qwen-Coder-Plus, Qwen-Coder-Turbo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 |                  | Other Models          | Qwen-Math-Plus, Qwen-Math-Turbo, Qwen-VL-OCR, Qwen-VL-Max, Qwen-VL-Plus, Qwen-Plus Character (JA)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Xiaomi MiMo**  | MiMo V2 Series        | MiMo V2 Flash                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **ZhiPu AI**     | GLM 4 Series          | GLM-4.7, GLM-4.6, GLM-4.5, GLM-4.5-X, GLM-4.5-Air, GLM-4.5-AirX, GLM-4-Plus, GLM-4-Air-250414, GLM-4-Long, GLM-4-AirX, GLM-4-FlashX-250414, GLM-4.5-Flash, GLM-4-Flash-250414, GLM-4.6V, GLM-4.5V, GLM-4.1V-Thinking-FlashX, GLM-4.6V-Flash, GLM-4.1V-Thinking-Flash                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **ZhiPu AI**     | GLM 4 Series          | GLM-4.7, GLM-4.7-Flash, GLM-4.7-FlashX, GLM-4.6, GLM-4.5, GLM-4.5-X, GLM-4.5-Air, GLM-4.5-AirX, GLM-4-Plus, GLM-4-Air-250414, GLM-4-Long, GLM-4-AirX, GLM-4-FlashX-250414, GLM-4.5-Flash, GLM-4-Flash-250414, GLM-4.6V, GLM-4.5V, GLM-4.1V-Thinking-FlashX, GLM-4.6V-Flash, GLM-4.1V-Thinking-Flash                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 |                  | CodeGeeX Series       | CodeGeeX-4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **Tencent HY**   | HY 2.0 Series         | HY 2.0 Think, HY 2.0 Instruct                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 |                  | HY 1.5 Series         | HY Vision 1.5 Instruct                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | **OpenCode Zen** | Zen                   | Big Pickle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
+</details>
+
 ## Application Migration Support Table
 
 The applications listed below support [One-Click Migration](#one-click-migration).
+
+<details>
 
 | Application                                           | Notes                                                                                                                                    |
 | :---------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
 | [Claude Code](https://claude.com/product/claude-code) | Migration is supported only when using a custom Base URL and API Key.                                                                    |
 | [CodeX](https://openai.com/codex/)                    | Migration is supported only when using a custom Base URL and API Key.                                                                    |
 | [Gemini CLI](https://geminicli.com/)                  | Migration is supported only when using the following auth methods: `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`. |
+
+</details>
 
 ## Contributing
 

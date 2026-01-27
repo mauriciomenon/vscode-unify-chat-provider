@@ -41,22 +41,21 @@ Unify Chat Provider
 
 ## 快速开始
 
-翻看食谱，你可以在几分钟之内开始使用：
-
-TODO：如果拉取官方模型失败，会返回占位符模型吗？
-TODO：补充免费额度的供应商标记
+翻看 [食谱](#-食谱)，你可以在几分钟之内开始使用：
 
 - **免费的 Claude 4.5 & Gemini 3 系列模型**：
-   - [添加 Gemini CLI / Antigravity 账号](#添加-gemini-cli--antigravity-账号)
-- **免费和按次数计费的 Claude、GPT、Gemini、Grok 等系列模型**：
-   - [添加 GitHub Copilot 账号](#添加-github-copilot-账号)
+  - [添加 Gemini CLI / Antigravity 账号](#添加-gemini-cli--antigravity-账号)
+- **部分免费的 Claude、GPT、Gemini、Grok 等系列模型**：
+  - [添加 GitHub Copilot 账号](#添加-github-copilot-账号)
 - **免费的 GLM 4.7、Kimi K2、Qwen3、DeepSeek 等系列模型**：
-   - [添加 iFlow API Key 或 CLI 账号](#添加-iflow-api-key-或-cli-账号)
+  - [添加 iFlow API Key 或 CLI 账号](#添加-iflow-api-key-或-cli-账号)
+- 更多食谱：
+  - [伪装 Claude Code 客户端](#伪装-claude-code-客户端)
 
 你也可以查看 [供应商支持表](#供应商支持表)：
 
-- 了解哪些是含**长期免费额度**的供应商。
-- 立即 [一键配置](#一键配置) 开始使用。
+- 浏览所有含**长期免费额度**的供应商。
+- [一键配置](#一键配置) 开始使用。
 
 当你添加了多个供应商或者模型后：
 
@@ -72,19 +71,74 @@ TODO：补充免费额度的供应商标记
 
 ## 🍱 食谱
 
-### 添加 Gemini CLI / Antigravity 账号
+#### 添加 Gemini CLI / Antigravity 账号
+
+<details>
 
 > ⚠️ 警告：这可能会违反谷歌的服务条款，请知悉可能存在封号风险！
 
-TODO
+0. 你需要准备一个 Google 账号。
+1. 打开 VS Code 命令面板，搜索 `Unify Chat Provider: 从内置供应商列表添加供应商`。
+2. 在列表中选择 `Google Antigravity`，`Project ID` 可不填写直接回车。
+3. 允许扩展打开浏览器进行授权登录，在浏览器中登录你的账号。
+4. 登录完成后返回 VS Code，点击配置界面最下方的 `保存` 按钮完成。
+5. 可选：重复以上步骤，添加 `Google Gemini CLI` 供应商。
 
-### 添加 GitHub Copilot 账号
+同一个账号 Antigravity 和 Gemini CLI 的配额是独立的，所以建议都添加以获得更多免费额度。
 
-TODO
+</details>
 
-### 添加 iFlow API Key 或 CLI 账号
+#### 添加 GitHub Copilot 账号
 
-TODO
+<details>
+
+VS Code 的 Copilot Chat 本身就支持登录 GitHub Copilot 账号，所以一般用于快速切换多个账号。
+
+0. 你需要准备一个 Github 账号。
+1. 打开 VS Code 命令面板，搜索 `Unify Chat Provider: 从内置供应商列表添加供应商`。
+2. 在列表中选择 `Github Copilot`，视你的账号是否为企业订阅选择 `Github.com` 或者 `Github Enterprise`。
+3. 允许扩展打开浏览器进行授权登录，在浏览器中登录你的账号。
+4. 登录完成后返回 VS Code，点击配置界面最下方的 `保存` 按钮完成。
+
+</details>
+
+#### 添加 iFlow API Key 或 CLI 账号
+
+<details>
+
+0. 你需要准备一个 iFlow 账号。
+1. 打开 VS Code 命令面板，搜索 `Unify Chat Provider: 从内置供应商列表添加供应商`。
+2. 在列表中选择 `iFlow`，可以选择两种验证方式：
+   - `API Key`：填写在 iFlow 控制台生成的 API Key。
+   - `iFlow CLI`：允许扩展打开浏览器进行授权登录，在浏览器中登录你的账号。
+3. 验证完成后返回 VS Code，点击配置界面最下方的 `保存` 按钮完成。
+
+</details>
+
+#### 伪装 Claude Code 客户端
+
+<details>
+
+> ⚠️ 警告：这可能会违反供应商的服务条款，请知悉可能存在封号风险！
+
+何时需要使用？
+
+- 一些 Coding Plan 订阅、中转站点要求你必须只在 Claude Code 中使用他们的 API Key。
+- 你需要在 Github Copilot 中使用 Claude Code 的账号配额。
+
+步骤：
+
+0. 你需要准备一个 Claude Code 账号或者 API Key（无论是否为官方 Key）。
+1. 打开 VS Code 命令面板，搜索 `Unify Chat Provider: 从内置供应商列表添加供应商`。
+2. 在列表中选择 `Claude Code`，可以选择两种验证方式：
+   - `API Key`：填写在 Claude Code 中使用的 API Key。
+   - `Claude Code`：允许扩展打开浏览器进行授权登录，在浏览器中登录你的账号。
+3. 如果你的 `Base URL` 不是官网的 `https://api.anthropic.com`：
+   - 在弹出的配置界面中点击 `供应商配置...` -> `API 基础 URL`，填写为你要使用的 URL。
+   - 返回上一层界面。
+4. 点击配置界面最下方的 `保存` 按钮完成。
+
+</details>
 
 ## 基本操作
 
@@ -452,65 +506,149 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 
 <details>
 
-| 供应商                                                                                | 支持特性                                                       |
-| :------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| [Open AI](https://openai.com/)                                                        |
-| [Google AI Studio](https://aistudio.google.com/)                                      |                                                                |
-| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                | <li>Authentication                                             |
-| [Anthropic](https://www.anthropic.com/)                                               | <li>InterleavedThinking <li>FineGrainedToolStreaming           |
-| [xAI](https://docs.x.ai/)                                                             |
-| [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers) |
-| [OpenRouter](https://openrouter.ai/)                                                  | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails       |
-| [Cerebras](https://www.cerebras.ai/)                                                  | <li>ReasoningField <li>DisableReasoningParam <li>ClearThinking |
-| [OpenCode Zen (OpenAI Chat Completion)](https://opencode.ai/)                         | <li>ReasoningContent                                           |
-| [OpenCode Zen (OpenAI Responses)](https://opencode.ai/)                               | <li>ReasoningContent                                           |
-| [OpenCode Zen (Anthropic Messages)](https://opencode.ai/)                             | <li>InterleavedThinking <li>FineGrainedToolStreaming           |
-| [OpenCode Zen (Gemini)](https://opencode.ai/)                                         |                                                                |
-| [英伟达](https://build.nvidia.com/)                                                   |                                                                |
-| [阿里云百炼平台 (中国站)](https://www.aliyun.com/product/bailian)                     | <li>ThinkingParam3 <li>ReasoningContent                        |
-| [阿里云百炼平台 (Coding Plan)](https://www.aliyun.com/product/bailian)                | <li>ThinkingParam3 <li>ReasoningContent                        |
-| [阿里云百炼平台 (国际站)](https://www.alibabacloud.com/help/en/model-studio)          | <li>ThinkingParam3 <li>ReasoningContent                        |
-| [魔搭社区 (API-Inference)](https://modelscope.cn/)                                    | <li>ThinkingParam3 <li>ReasoningContent                        |
-| [火山引擎](https://www.volcengine.com/product/ark)                                    | <li>AutoThinking <li>ThinkingParam2                            |
-| [火山引擎 (Coding Plan)](https://www.volcengine.com/activity/codingplan)              | <li>AutoThinking <li>ThinkingParam2                            |
-| [Byte Plus](https://www.byteplus.com/en/product/modelark)                             | <li>AutoThinking <li>ThinkingParam2                            |
-| [腾讯云 (中国站)](https://cloud.tencent.com/product/hunyuan)                          |
-| [DeepSeek](https://www.deepseek.com/)                                                 | <li>ThinkingParam <li>ReasoningContent                         |
-| [Xiaomi MIMO](https://mimo.xiaomi.com/)                                               | <li>ThinkingParam <li>ReasoningContent                         |
-| [Ollama Local](https://ollama.com/)                                                   |
-| [Ollama Cloud](https://ollama.com/)                                                   |
-| [智谱 AI](https://open.bigmodel.cn/)                                                  | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |
-| [智谱 AI (Coding Plan)](https://open.bigmodel.cn/)                                    | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |
-| [Z.AI](https://z.ai/)                                                                 | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |
-| [Z.AI (Coding Plan)](https://z.ai/)                                                   | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |
-| [MiniMax (中国站)](https://www.minimaxi.com/)                                         | <li>ReasoningDetails                                           |
-| [MiniMax (国际站)](https://www.minimax.io/)                                           | <li>ReasoningDetails                                           |
-| [LongCat](https://longcat.chat/)                                                      |                                                                |
-| [Moonshot AI (中国站)](https://www.moonshot.cn/)                                      | <li>ReasoningContent                                           |
-| [Moonshot AI (国际站)](https://www.moonshot.ai/)                                      | <li>ReasoningContent                                           |
-| [Moonshot AI (Coding Plan)](https://www.kimi.com/coding)                              | <li>ReasoningContent                                           |
-| [快手万擎 (中国站)](https://streamlake.com/)                                          |                                                                |
-| [快手万擎 (中国站, Coding Plan)](https://streamlake.com/)                             |                                                                |
-| [快手万擎 (国际站)](https://www.streamlake.ai/)                                       |                                                                |
-| [快手万擎 (国际站, Coding Plan)](https://www.streamlake.ai/)                          |                                                                |
-| [iFlow](https://platform.iflow.cn/)                                                   | <li>ThinkingParam3 <li>ClearThinking <li>ReasoningSplitParam   |
+| 供应商                                                                                | 支持特性                                                       | 免费额度              |
+| :------------------------------------------------------------------------------------ | -------------------------------------------------------------- | --------------------- |
+| [Open AI](https://openai.com/)                                                        |                                                                |                       |
+| [Google AI Studio](https://aistudio.google.com/)                                      |                                                                |                       |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                | <li>Authentication                                             |                       |
+| [Anthropic](https://www.anthropic.com/)                                               | <li>InterleavedThinking <li>FineGrainedToolStreaming           |                       |
+| [xAI](https://docs.x.ai/)                                                             |                                                                |                       |
+| [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers) |                                                                |                       |
+| [OpenRouter](https://openrouter.ai/)                                                  | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails       | [详情](#openrouter)   |
+| [Cerebras](https://www.cerebras.ai/)                                                  | <li>ReasoningField <li>DisableReasoningParam <li>ClearThinking | [详情](#cerebras)     |
+| [OpenCode Zen (OpenAI Chat Completion)](https://opencode.ai/)                         | <li>ReasoningContent                                           |                       |
+| [OpenCode Zen (OpenAI Responses)](https://opencode.ai/)                               | <li>ReasoningContent                                           |                       |
+| [OpenCode Zen (Anthropic Messages)](https://opencode.ai/)                             | <li>InterleavedThinking <li>FineGrainedToolStreaming           |                       |
+| [OpenCode Zen (Gemini)](https://opencode.ai/)                                         |                                                                |                       |
+| [英伟达](https://build.nvidia.com/)                                                   |                                                                | [详情](#英伟达)       |
+| [阿里云百炼平台 (中国站)](https://www.aliyun.com/product/bailian)                     | <li>ThinkingParam3 <li>ReasoningContent                        |                       |
+| [阿里云百炼平台 (Coding Plan)](https://www.aliyun.com/product/bailian)                | <li>ThinkingParam3 <li>ReasoningContent                        |                       |
+| [阿里云百炼平台 (国际站)](https://www.alibabacloud.com/help/en/model-studio)          | <li>ThinkingParam3 <li>ReasoningContent                        |                       |
+| [魔搭社区 (API-Inference)](https://modelscope.cn/)                                    | <li>ThinkingParam3 <li>ReasoningContent                        | [详情](#魔搭社区)     |
+| [火山引擎](https://www.volcengine.com/product/ark)                                    | <li>AutoThinking <li>ThinkingParam2                            | [详情](#火山引擎)     |
+| [火山引擎 (Coding Plan)](https://www.volcengine.com/activity/codingplan)              | <li>AutoThinking <li>ThinkingParam2                            |                       |
+| [Byte Plus](https://www.byteplus.com/en/product/modelark)                             | <li>AutoThinking <li>ThinkingParam2                            |                       |
+| [腾讯云 (中国站)](https://cloud.tencent.com/product/hunyuan)                          |                                                                |                       |
+| [DeepSeek](https://www.deepseek.com/)                                                 | <li>ThinkingParam <li>ReasoningContent                         |                       |
+| [Xiaomi MIMO](https://mimo.xiaomi.com/)                                               | <li>ThinkingParam <li>ReasoningContent                         |                       |
+| [Ollama Local](https://ollama.com/)                                                   |                                                                |                       |
+| [Ollama Cloud](https://ollama.com/)                                                   |                                                                |                       |
+| [智谱 AI](https://open.bigmodel.cn/)                                                  | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       | [详情](#智谱-ai--zai) |
+| [智谱 AI (Coding Plan)](https://open.bigmodel.cn/)                                    | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |                       |
+| [Z.AI](https://z.ai/)                                                                 | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       | [详情](#智谱-ai--zai) |
+| [Z.AI (Coding Plan)](https://z.ai/)                                                   | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking       |                       |
+| [MiniMax (中国站)](https://www.minimaxi.com/)                                         | <li>ReasoningDetails                                           |                       |
+| [MiniMax (国际站)](https://www.minimax.io/)                                           | <li>ReasoningDetails                                           |                       |
+| [LongCat](https://longcat.chat/)                                                      |                                                                | [详情](#longcat)      |
+| [Moonshot AI (中国站)](https://www.moonshot.cn/)                                      | <li>ReasoningContent                                           |                       |
+| [Moonshot AI (国际站)](https://www.moonshot.ai/)                                      | <li>ReasoningContent                                           |                       |
+| [Moonshot AI (Coding Plan)](https://www.kimi.com/coding)                              | <li>ReasoningContent                                           |                       |
+| [快手万擎 (中国站)](https://streamlake.com/)                                          |                                                                | [详情](#快手万擎)     |
+| [快手万擎 (中国站, Coding Plan)](https://streamlake.com/)                             |                                                                |                       |
+| [快手万擎 (国际站)](https://www.streamlake.ai/)                                       |                                                                | [详情](#快手万擎)     |
+| [快手万擎 (国际站, Coding Plan)](https://www.streamlake.ai/)                          |                                                                |                       |
+| [iFlow](https://platform.iflow.cn/)                                                   | <li>ThinkingParam3 <li>ClearThinking <li>ReasoningSplitParam   | [详情](#iflow)        |
 
-以下为实验性支持的供应商：
+实验性支持的供应商：
 
 > ⚠️ 警告：添加以下供应商可能会违反它们的服务条款！
 >
 > - 你的账户可能会被暂停或永久封禁。
 > - 你需要自行权衡，所有风险都将由你自己承担。
 
-| 供应商                                                 |
-| :----------------------------------------------------- |
-| [OpenAI CodeX (ChatGPT Plus/Pro)](https://openai.com/) |
-| [Qwen Code](https://github.com/QwenLM/qwen-code)       |
-| [GitHub Copilot](https://github.com/features/copilot)  |
-| [Google Antigravity](https://antigravity.google/)      |
-| [Google Gemini CLI](https://geminicli.com/)            |
-| [Claude Code](https://claude.ai/)                      |
-| [iFlow CLI](https://platform.iflow.cn/)                |
+| 供应商                                                 | 免费额度                    |
+| :----------------------------------------------------- | --------------------------- |
+| [OpenAI CodeX (ChatGPT Plus/Pro)](https://openai.com/) |                             |
+| [Qwen Code](https://github.com/QwenLM/qwen-code)       | [详情](#qwen-code)          |
+| [GitHub Copilot](https://github.com/features/copilot)  | [详情](#github-copilot)     |
+| [Google Antigravity](https://antigravity.google/)      | [详情](#google-antigravity) |
+| [Google Gemini CLI](https://geminicli.com/)            | [详情](#google-gemini-cli)  |
+| [Claude Code](https://claude.ai/)                      |                             |
+| [iFlow CLI](https://platform.iflow.cn/)                | [详情](#iflow)              |
+
+长期免费额度：
+
+#### Qwen Code
+
+- 完全免费。
+- 支持模型：
+  - qwen3-coder-plus
+  - qwen3-coder-flash
+  - qwen3-vl-plus
+
+#### GitHub Copilot
+
+- 部分模型有免费额度，部分模型需要 Copilot 订阅，订阅之后完全免费，按月刷新额度。
+- 支持模型：Claude、GPT、Grok、Gemini 等主流模型。
+
+#### Google Antigravity
+
+- 每个模型有一定的免费额度，按时间刷新额度。
+- 支持模型：Claude 4.5 系列、Gemini 3 系列。
+
+#### Google Gemini CLI
+
+- 每个模型有一定的免费额度，按时间刷新额度。
+- 支持模型：Gemini 3 系列、Gemini 2.5 系列。
+
+#### iFlow
+
+- 完全免费。
+- 支持模型：GLM、Kimi、Qwen、DeepSeek 等主流模型。
+
+#### Cerebras
+
+- 部分模型有免费额度，按时间刷新额度。
+- 支持模型：
+  - GLM 4.7
+  - GPT-OSS-120B
+  - Qwen 3 235B Instruct
+  - ...
+
+#### 英伟达
+
+- 完全免费，但有速率限制。
+- 支持几乎所有开源权重模型。
+
+#### 火山引擎
+
+- 每个模型有一定的免费额度，按时间刷新额度。
+- 支持模型：Doubao、Kimi、DeepSeek 等主流模型。
+
+#### 魔搭社区
+
+- 每个模型有一定的免费额度，按时间刷新额度。
+- 支持模型：GLM、Kimi、Qwen、DeepSeek 等主流模型。
+
+#### 智谱 AI / Z.AI
+
+- 部分模型完全免费。
+- 支持模型：GLM Flash 系列模型。
+
+#### 硅基流动
+
+- 部分模型完全免费。
+- 支持模型：大部分是 32B 以下的开源权重模型。
+
+#### 快手万擎
+
+- 完全免费，但有速率限制。
+- 支持模型：
+  - KAT-Coder-Pro V1
+  - KAT-Coder-Air
+
+#### LongCat
+
+- 有一定的免费额度，按时间刷新额度。
+- 支持模型：
+  - LongCat-Flash-Chat
+  - LongCat-Flash-Thinking
+  - LongCat-Flash-Thinking-2601
+
+#### OpenRouter
+
+- 部分模型有一定的免费额度，按时间刷新额度。
+- 支持模型：变动频繁，名称中带 free 的模型。
 
 </details>
 
@@ -565,7 +703,7 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 |                  | Qwen Coder 系列     | Qwen-Coder-Plus, Qwen-Coder-Turbo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 |                  | 其它模型            | Qwen-Math-Plus, Qwen-Math-Turbo, Qwen-VL-OCR, Qwen-VL-Max, Qwen-VL-Plus, Qwen-Plus Character (JA)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Xiaomi MiMo**  | MiMo V2 系列        | MiMo V2 Flash                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **ZhiPu AI**     | GLM 4 系列          | GLM-4.7, GLM-4.6, GLM-4.5, GLM-4.5-X, GLM-4.5-Air, GLM-4.5-AirX, GLM-4-Plus, GLM-4-Air-250414, GLM-4-Long, GLM-4-AirX, GLM-4-FlashX-250414, GLM-4.5-Flash, GLM-4-Flash-250414, GLM-4.6V, GLM-4.5V, GLM-4.1V-Thinking-FlashX, GLM-4.6V-Flash, GLM-4.1V-Thinking-Flash                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **ZhiPu AI**     | GLM 4 系列          | GLM-4.7, GLM-4.7-Flash, GLM-4.7-FlashX, GLM-4.6, GLM-4.5, GLM-4.5-X, GLM-4.5-Air, GLM-4.5-AirX, GLM-4-Plus, GLM-4-Air-250414, GLM-4-Long, GLM-4-AirX, GLM-4-FlashX-250414, GLM-4.5-Flash, GLM-4-Flash-250414, GLM-4.6V, GLM-4.5V, GLM-4.1V-Thinking-FlashX, GLM-4.6V-Flash, GLM-4.1V-Thinking-Flash                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 |                  | CodeGeeX 系列       | CodeGeeX-4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **Tencent HY**   | HY 2.0 系列         | HY 2.0 Think, HY 2.0 Instruct                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 |                  | HY 1.5 系列         | HY Vision 1.5 Instruct                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
