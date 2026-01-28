@@ -47,6 +47,8 @@ Check out the [Cookbook](#-cookbook), you can start using it in minutes:
   - [Add Gemini CLI / Antigravity Account](#add-gemini-cli--antigravity-account)
 - **Partially Free Claude, GPT, Gemini, Grok Series Models**:
   - [Add GitHub Copilot Account](#add-github-copilot-account)
+- **Free Kimi K2.5, GLM 4.7, MiniMax M2.1 Series Models**:
+  - [Add Nvidia Account](#add-nvidia-account)
 - **Free GLM 4.7, Kimi K2, Qwen3, DeepSeek Series Models**:
   - [Add iFlow API Key or CLI Account](#add-iflow-api-key-or-cli-account)
 - More Recipes:
@@ -99,6 +101,19 @@ VS Code's Copilot Chat itself supports logging into a GitHub Copilot account, so
 2. Select `Github Copilot` in the list, and choose `Github.com` or `Github Enterprise` depending on whether your account is an enterprise subscription.
 3. Allow the extension to open the browser for authorized login, and log in to your account in the browser.
 4. After logging in, return to VS Code and click the `Save` button at the bottom of the configuration interface to complete.
+
+</details>
+
+#### Add Nvidia Account
+
+<details>
+
+0. You need to prepare an Nvidia account.
+1. Open the VS Code Command Palette and search for `Unify Chat Provider: Add Provider From Well-Known Provider List`.
+2. Select `Nvidia` in the list, fill in the API Key generated in the user panel and press Enter.
+3. Click the `Save` button at the bottom of the configuration interface to complete.
+
+> If you need to use the Kimi K2.5 model, please add it from the built-in model list, as the official API may not have returned this model information yet.
 
 </details>
 
@@ -199,7 +214,7 @@ See the [Provider Support Table](#provider-support-table) for providers supporte
    </div>
 
 2. Select the provider you want to add.
-3. Follow the prompts to configure authentication (usually an API key), then you’ll be taken to the config import screen.
+3. Follow the prompts to configure authentication (usually an API key, or it may require logging in via the browser), then you’ll be taken to the config import screen.
    - This screen lets you review and edit the config that will be imported.
    - For details, see the [Provider Settings](#provider-settings) section.
 
@@ -367,6 +382,8 @@ This screen shows all configuration fields for the model. For field details, see
 
 ### Provider Parameters
 
+<details>
+
 The following fields correspond to `ProviderConfig` (field names used in import/export JSON).
 
 | Name                       | ID                        | Description                                                                                          |
@@ -383,19 +400,11 @@ The following fields correspond to `ProviderConfig` (field names used in import/
 | Response Interval Timeout  | `timeout.response`        | Maximum time to wait between SSE chunks; default `120000` (2 minutes).                               |
 | Auto-Fetch Official Models | `autoFetchOfficialModels` | Whether to periodically fetch and auto-update the official model list from the provider API.         |
 
-#### Authentication (`auth`)
-
-`auth` is optional. Recommended configurations:
-
-```json
-{ "method": "none" }
-{ "method": "api-key", "apiKey": "<your-api-key-or-secret-ref>" }
-{ "method": "oauth2", "oauth": { "grantType": "authorization_code", "authorizationUrl": "...", "tokenUrl": "...", "clientId": "..." } }
-```
-
-Legacy note: `apiKey` (top-level) is deprecated but still supported for migration and will be normalized into `auth`.
+</details>
 
 ### Model Parameters
+
+<details>
 
 The following fields correspond to `ModelConfig` (field names used in import/export JSON).
 
@@ -423,6 +432,8 @@ The following fields correspond to `ModelConfig` (field names used in import/exp
 | Thinking Effort        | `thinking.effort`          | `none` / `minimal` / `low` / `medium` / `high` / `xhigh`                                                                                   |
 | Extra Headers          | `extraHeaders`             | HTTP headers appended to this model request (`Record<string, string>`).                                                                    |
 | Extra Body Fields      | `extraBody`                | Extra fields appended to this model request body (`Record<string, unknown>`).                                                              |
+
+</details>
 
 ## Import and Export
 
@@ -463,8 +474,6 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 
 The import will override the `auth` field before importing.
 
-Note: override values are parsed as JSON when possible. Legacy `apiKey` is still accepted and will be normalized into `auth`.
-
 ### Provider Advocacy
 
 If you are a developer for an LLM provider, you can add a link like the following on your website so users can add your model to this extension with one click:
@@ -491,14 +500,14 @@ This can increase the risk of user data leakage, so evaluate the risk before ena
 
 <details>
 
-| API                                                                                          | ID                       | Typical Endpoint                 | Notes                                                                                       |
-| :------------------------------------------------------------------------------------------- | :----------------------- | :------------------------------- | :------------------------------------------------------------------------------------------ |
-| [OpenAI Chat Completion API](https://platform.openai.com/docs/api-reference/chat)            | `openai-chat-completion` | `/v1/chat/completions`           | If the base URL doesn’t end with a version suffix, `/v1` is appended automatically.         |
-| [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses)             | `openai-responses`       | `/v1/responses`                  | If the base URL doesn’t end with a version suffix, `/v1` is appended automatically.         |
-| [Google AI Studio (Gemini API)](https://ai.google.dev/aistudio)                              | `google-ai-studio`       | `/v1beta/models:generateContent` | Automatically detect the version number suffix.                                             |
-| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                       | `google-vertex-ai`       | `/v1beta/models:generateContent` | Provide different base URL based on the [Authentication](#google-vertex-ai-authentication). |
-| [Anthropic Messages API](https://platform.claude.com/docs/en/api/typescript/messages/create) | `anthropic`              | `/v1/messages`                   | Automatically removes duplicated `/v1` suffix.                                              |
-| [Ollama Chat API](https://docs.ollama.com/api/chat)                                          | `ollama`                 | `/api/chat`                      | Automatically removes duplicated `/api` suffix.                                             |
+| API                                                                                          | ID                       | Typical Endpoint                 | Notes                                                                               |
+| :------------------------------------------------------------------------------------------- | :----------------------- | :------------------------------- | :---------------------------------------------------------------------------------- |
+| [OpenAI Chat Completion API](https://platform.openai.com/docs/api-reference/chat)            | `openai-chat-completion` | `/v1/chat/completions`           | If the base URL doesn’t end with a version suffix, `/v1` is appended automatically. |
+| [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses)             | `openai-responses`       | `/v1/responses`                  | If the base URL doesn’t end with a version suffix, `/v1` is appended automatically. |
+| [Google AI Studio (Gemini API)](https://ai.google.dev/aistudio)                              | `google-ai-studio`       | `/v1beta/models:generateContent` | Automatically detect the version number suffix.                                     |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                       | `google-vertex-ai`       | `/v1beta/models:generateContent` | Provide different base URL based on authentication.                                 |
+| [Anthropic Messages API](https://platform.claude.com/docs/en/api/typescript/messages/create) | `anthropic`              | `/v1/messages`                   | Automatically removes duplicated `/v1` suffix.                                      |
+| [Ollama Chat API](https://docs.ollama.com/api/chat)                                          | `ollama`                 | `/api/chat`                      | Automatically removes duplicated `/api` suffix.                                     |
 
 </details>
 
@@ -516,7 +525,7 @@ The providers listed below support [One-Click Configuration](#one-click-configur
 | :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------- | :------------------------- |
 | [Open AI](https://openai.com/)                                                                  |                                                                |                            |
 | [Google AI Studio](https://aistudio.google.com/)                                                |                                                                |                            |
-| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>[Authentication](#google-vertex-ai-authentication)         |                            |
+| [Google Vertex AI](https://cloud.google.com/vertex-ai)                                          | <li>Authentication                                             |                            |
 | [Anthropic](https://www.anthropic.com/)                                                         | <li>InterleavedThinking <li>FineGrainedToolStreaming           |                            |
 | [xAI](https://docs.x.ai/)                                                                       |                                                                |                            |
 | [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers)           |                                                                |                            |
