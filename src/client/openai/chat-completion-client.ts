@@ -1224,7 +1224,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       usage.completion_tokens,
       performanceTrace,
       logger,
-      usage as unknown as Record<string, unknown>,
+      usage,
     );
   }
 

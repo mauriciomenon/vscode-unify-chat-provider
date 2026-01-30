@@ -3,6 +3,7 @@ import type { PerformanceTrace } from './types';
 import type { BetaUsage } from '@anthropic-ai/sdk/resources/beta/messages';
 import type { CompletionUsage } from 'openai/resources/completions';
 import type { ResponseUsage } from 'openai/resources/responses/responses';
+import type { GenerateContentResponseUsageMetadata } from '@google/genai';
 
 const CHANNEL_NAME = 'Unify Chat Provider';
 
@@ -158,6 +159,12 @@ export interface ProviderHttpLogger {
     delayMs: number,
   ): void;
 }
+
+export type ProviderUsage =
+  | BetaUsage
+  | CompletionUsage
+  | ResponseUsage
+  | GenerateContentResponseUsageMetadata;
 
 /**
  * A logger bound to a specific request ID for contextual logging.
@@ -330,7 +337,7 @@ export class RequestLogger implements ProviderHttpLogger {
    * Log usage information from provider. Always logged.
    * @param usage Raw usage object from provider (will be JSON stringified)
    */
-  usage(usage: BetaUsage | CompletionUsage | ResponseUsage): void {
+  usage(usage: ProviderUsage): void {
     this.ch.info(`[${this.requestId}] Usage: ${JSON.stringify(usage)}`);
 
     try {
@@ -356,6 +363,22 @@ export class RequestLogger implements ProviderHttpLogger {
 
         this.ch.info(
           `[${this.requestId}] Cache: ${cachedTokens} cached, ${uncachedTokens} uncached (${cacheHitRatio}% hit ratio)`,
+        );
+        return;
+      } else if (
+        'cachedContentTokenCount' in usage ||
+        'promptTokenCount' in usage
+      ) {
+        const promptTokens = usage.promptTokenCount ?? 0;
+        const cachedTokens = usage.cachedContentTokenCount ?? 0;
+        const uncachedPromptTokens = Math.max(promptTokens - cachedTokens, 0);
+        const cacheHitRatio =
+          promptTokens > 0
+            ? ((cachedTokens / promptTokens) * 100).toFixed(1)
+            : '0.0';
+
+        this.ch.info(
+          `[${this.requestId}] Cache: ${cachedTokens} cached, ${uncachedPromptTokens} uncached (${cacheHitRatio}% hit ratio)`,
         );
         return;
       } else if ('total_tokens' in usage) {
@@ -511,7 +534,6 @@ export class RequestLogger implements ProviderHttpLogger {
       return undefined;
     }
   }
-
 }
 
 export class SimpleHttpLogger implements ProviderHttpLogger {

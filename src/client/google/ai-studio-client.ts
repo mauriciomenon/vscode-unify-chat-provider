@@ -932,7 +932,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
       usage.candidatesTokenCount,
       performanceTrace,
       logger,
-      usage as unknown as Record<string, unknown>,
+      usage,
     );
   }
 

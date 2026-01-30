@@ -1,5 +1,9 @@
 import { getBaseModelId } from '../model-id-utils';
-import type { ProviderHttpLogger, RequestLogger } from '../logger';
+import type {
+  ProviderHttpLogger,
+  ProviderUsage,
+  RequestLogger,
+} from '../logger';
 import * as vscode from 'vscode';
 import type { AuthTokenInfo } from '../auth/types';
 import { ModelConfig, PerformanceTrace, ProviderConfig } from '../types';
@@ -313,7 +317,7 @@ export function processUsage(
   outputTokens: number | undefined,
   performanceTrace: PerformanceTrace,
   logger: RequestLogger,
-  usage: Record<string, unknown>,
+  usage: ProviderUsage,
 ): void {
   if (outputTokens) {
     performanceTrace.tps =
@@ -323,7 +327,7 @@ export function processUsage(
   } else {
     performanceTrace.tps = NaN;
   }
-  logger.usage(usage as unknown as Parameters<RequestLogger['usage']>[0]);
+  logger.usage(usage);
 }
 
 /**

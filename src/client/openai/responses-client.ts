@@ -815,12 +815,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
   ) {
-    sharedProcessUsage(
-      usage.output_tokens,
-      performanceTrace,
-      logger,
-      usage as unknown as Record<string, unknown>,
-    );
+    sharedProcessUsage(usage.output_tokens, performanceTrace, logger, usage);
   }
 
   estimateTokenCount(text: string): number {
