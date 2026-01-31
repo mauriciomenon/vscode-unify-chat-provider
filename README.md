@@ -88,6 +88,20 @@ If the above content still doesn't help you, please continue reading the rest of
 
 The quotas for Antigravity and Gemini CLI for the same account are independent, so it is recommended to add both to get more free quotas.
 
+**Gemini CLI Permission Error Solution:**
+
+When using Gemini CLI models, you may see:
+
+- Permission 'cloudaicompanion.companions.generateChat' denied on resource '//cloudaicompanion.googleapis.com/projects/...'
+- 'No project ID found for Gemini CLI.'
+
+That means you need to have your own `Project ID`.
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create or select a project
+3. Enable the **Gemini for Google Cloud API** (`cloudaicompanion.googleapis.com`)
+4. When authorizing, explicitly fill in the `Project ID` instead of leaving it blank.
+
 </details>
 
 #### Add GitHub Copilot Account

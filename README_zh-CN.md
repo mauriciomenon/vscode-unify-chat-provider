@@ -88,6 +88,20 @@ Unify Chat Provider
 
 同一个账号 Antigravity 和 Gemini CLI 的配额是独立的，所以建议都添加以获得更多免费额度。
 
+**Gemini CLI 权限错误解决方案：**
+
+在使用 Gemini CLI 模型时，您可能会看到以下错误：
+
+- Permission 'cloudaicompanion.companions.generateChat' denied on resource '//cloudaicompanion.googleapis.com/projects/...'
+- 'No project ID found for Gemini CLI.'
+
+这意味着你需要创建自己的 `Project ID`。
+
+1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
+2. 创建或选择一个项目。
+3. 启用 Google Cloud 的 Gemini API (`cloudaicompanion.googleapis.com`)
+4. 授权时，请明确填写 `Project ID`，而不是留空。
+
 </details>
 
 #### 添加 GitHub Copilot 账号
