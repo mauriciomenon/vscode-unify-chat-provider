@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.3.2 - 2026-01-31
+
+### Features
+- auth: add projectId support for Gemini CLI OAuth and improve account info fetching (5defa96, SmallMain)
+
+### Fixes
+- update shouldInjectAntigravitySystemInstruction parameters and logic (c8d73d3, SmallMain)
+
 ## v4.3.1 - 2026-01-30
 
 ### Fixes
