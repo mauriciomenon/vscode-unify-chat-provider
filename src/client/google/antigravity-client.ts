@@ -32,10 +32,10 @@ export class GoogleAntigravityProvider extends GoogleCodeAssistProvider {
   }
 
   protected override shouldInjectAntigravitySystemInstruction(
-    modelIdLower: string,
-    isClaudeModel: boolean,
+    _modelIdLower: string,
+    _isClaudeModel: boolean,
   ): boolean {
-    return isClaudeModel || modelIdLower.includes('gemini-3-pro-high');
+    return true;
   }
 
   override async getAvailableModels(
