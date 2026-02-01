@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.3.4 - 2026-02-01
+
+### Features
+- migration: add global migration logging for provider operations (075e4f5, SmallMain)
+
 ## v4.3.3 - 2026-02-01
 
 ### Fixes
