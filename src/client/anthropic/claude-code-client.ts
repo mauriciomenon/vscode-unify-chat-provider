@@ -275,7 +275,7 @@ export class AnthropicClaudeCodeProvider extends AnthropicProvider {
         continue;
       }
       for (const block of message.content) {
-        if (block.type === 'tool_use') {
+        if (block && block.type === 'tool_use') {
           registerName(block.name);
         }
       }
@@ -333,6 +333,7 @@ export class AnthropicClaudeCodeProvider extends AnthropicProvider {
     }
 
     for (const block of message.content) {
+      if (!block) continue;
       this.rewriteToolNameReferencesInContentBlock(block, rewriteText);
     }
   }
