@@ -1,3 +1,4 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { DataPartMimeTypes, StatefulMarkerData } from './client/types';
 import type { ProviderHttpLogger } from './logger';
 import { officialModelsManager } from './official-models-manager';
@@ -832,4 +833,72 @@ export function getAllModelsForProviderSync(
   );
 
   return [...userModels, ...filteredOfficialModels];
+}
+
+export type PKCEMethod = 'S256' | 'plain';
+
+export interface PKCEChallenge<M extends PKCEMethod = 'S256'> {
+  verifier: string;
+  challenge: string;
+  method: M;
+}
+
+const PKCE_VERIFIER_CHARSET =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+function generatePkceVerifier(length: number): string {
+  const bytes = randomBytes(length);
+  let out = '';
+  for (const byte of bytes) {
+    out += PKCE_VERIFIER_CHARSET[byte & 63];
+  }
+  return out;
+}
+
+function generatePkceChallenge(verifier: string, method: PKCEMethod): string {
+  if (method === 'plain') {
+    return verifier;
+  }
+  return createHash('sha256').update(verifier).digest('base64url');
+}
+
+function timingSafeEqualStrings(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  const aBuf = Buffer.from(a, 'utf8');
+  const bBuf = Buffer.from(b, 'utf8');
+  if (aBuf.length !== bBuf.length) {
+    return false;
+  }
+  return timingSafeEqual(aBuf, bBuf);
+}
+
+export function generatePKCE(): PKCEChallenge<'S256'>;
+export function generatePKCE(length: number): PKCEChallenge<'S256'>;
+export function generatePKCE<M extends PKCEMethod>(
+  length: number,
+  method: M,
+): PKCEChallenge<M>;
+export function generatePKCE(
+  length: number = 64,
+  method: PKCEMethod = 'S256',
+): PKCEChallenge<PKCEMethod> {
+  if (length < 43 || length > 128) {
+    throw new Error('Code verifier length must be between 43 and 128 characters');
+  }
+
+  const verifier = generatePkceVerifier(length);
+  const challenge = generatePkceChallenge(verifier, method);
+
+  return { verifier, challenge, method };
+}
+
+export function validatePKCE(
+  verifier: string,
+  challenge: string,
+  method: PKCEMethod = 'S256',
+): boolean {
+  const generatedChallenge = generatePkceChallenge(verifier, method);
+  return timingSafeEqualStrings(generatedChallenge, challenge);
 }

@@ -5,7 +5,6 @@
  * using the official Gemini CLI OAuth credentials.
  */
 
-import { createHash, randomBytes } from 'node:crypto';
 import {
   GEMINI_CLI_CLIENT_ID,
   GEMINI_CLI_CLIENT_SECRET,
@@ -28,6 +27,7 @@ import type {
   GeminiCliTokenExchangeResult,
 } from './types';
 import { authLog } from '../../../logger';
+import { generatePKCE } from '../../../utils';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -102,10 +102,6 @@ function extractDefaultTierId(allowedTiers: unknown): string {
   return id ? id : 'legacy-tier';
 }
 
-function base64UrlEncode(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('base64url');
-}
-
 function encodeState(payload: GeminiCliAuthState): string {
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
@@ -136,20 +132,13 @@ function decodeState(state: string): GeminiCliAuthState {
   };
 }
 
-function generatePkce(): { verifier: string; challenge: string } {
-  const verifier = base64UrlEncode(randomBytes(32));
-  const hash = createHash('sha256').update(verifier).digest();
-  const challenge = hash.toString('base64url');
-  return { verifier, challenge };
-}
-
 /**
  * Generate the OAuth authorization URL for Gemini CLI.
  */
 export async function authorizeGeminiCli(options: {
   redirectUri: string;
 }): Promise<GeminiCliAuthorization> {
-  const pkce = generatePkce();
+  const pkce = generatePKCE(43);
 
   const redirectUri = options.redirectUri.trim();
   const state = encodeState({ verifier: pkce.verifier, redirectUri });
@@ -160,7 +149,7 @@ export async function authorizeGeminiCli(options: {
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('scope', GEMINI_CLI_SCOPES.join(' '));
   url.searchParams.set('code_challenge', pkce.challenge);
-  url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('code_challenge_method', pkce.method);
   url.searchParams.set('state', state);
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('prompt', 'consent');

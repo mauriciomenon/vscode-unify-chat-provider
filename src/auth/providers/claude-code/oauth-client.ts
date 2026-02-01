@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'node:crypto';
 import {
   CLAUDE_CODE_AUTH_URL,
   CLAUDE_CODE_CLIENT_ID,
@@ -7,12 +6,7 @@ import {
   CLAUDE_CODE_TOKEN_URL,
 } from './constants';
 import { authLog } from '../../../logger';
-
-function generatePkce(): { verifier: string; challenge: string } {
-  const verifier = randomBytes(96).toString('base64url');
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
-  return { verifier, challenge };
-}
+import { generatePKCE } from '../../../utils';
 
 function normalizeTokenType(raw: string | undefined): string {
   const trimmed = raw?.trim();
@@ -98,7 +92,7 @@ export interface ClaudeCodeAuthorization {
 }
 
 export function authorizeClaudeCode(): ClaudeCodeAuthorization {
-  const pkce = generatePkce();
+  const pkce = generatePKCE(128);
   const state = pkce.verifier;
   const redirectUri = CLAUDE_CODE_REDIRECT_URI;
 
@@ -109,7 +103,7 @@ export function authorizeClaudeCode(): ClaudeCodeAuthorization {
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('scope', CLAUDE_CODE_SCOPE);
   url.searchParams.set('code_challenge', pkce.challenge);
-  url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('code_challenge_method', pkce.method);
   url.searchParams.set('state', state);
 
   return { url: url.toString(), verifier: pkce.verifier, state, redirectUri };

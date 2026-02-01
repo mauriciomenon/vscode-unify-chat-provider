@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import {
   OPENAI_CODEX_CLIENT_ID,
   OPENAI_CODEX_ISSUER,
@@ -7,24 +7,7 @@ import {
   OPENAI_CODEX_SCOPE,
 } from './constants';
 import { authLog } from '../../../logger';
-
-const PKCE_CHARSET =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-
-function generateRandomString(length: number): string {
-  const bytes = randomBytes(length);
-  let out = '';
-  for (const byte of bytes) {
-    out += PKCE_CHARSET[byte % PKCE_CHARSET.length];
-  }
-  return out;
-}
-
-function generatePkce(): { verifier: string; challenge: string } {
-  const verifier = generateRandomString(43);
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
-  return { verifier, challenge };
-}
+import { generatePKCE } from '../../../utils';
 
 function generateState(): string {
   return randomBytes(32).toString('base64url');
@@ -38,7 +21,7 @@ export interface OpenAICodexAuthorization {
 }
 
 export function authorizeOpenAICodex(): OpenAICodexAuthorization {
-  const pkce = generatePkce();
+  const pkce = generatePKCE(43);
   const state = generateState();
   const redirectUri = OPENAI_CODEX_REDIRECT_URI;
 
@@ -48,7 +31,7 @@ export function authorizeOpenAICodex(): OpenAICodexAuthorization {
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('scope', OPENAI_CODEX_SCOPE);
   url.searchParams.set('code_challenge', pkce.challenge);
-  url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('code_challenge_method', pkce.method);
   url.searchParams.set('id_token_add_organizations', 'true');
   url.searchParams.set('codex_cli_simplified_flow', 'true');
   url.searchParams.set('state', state);

@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'node:crypto';
 import {
   ANTIGRAVITY_CLIENT_ID,
   ANTIGRAVITY_CLIENT_SECRET,
@@ -21,6 +20,7 @@ import type {
   AntigravityTier,
 } from './types';
 import { authLog } from '../../../logger';
+import { generatePKCE } from '../../../utils';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -90,10 +90,6 @@ async function sleep(ms: number): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
-function base64UrlEncode(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('base64url');
-}
-
 function encodeState(payload: AntigravityAuthState): string {
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
@@ -126,18 +122,11 @@ function decodeState(state: string): AntigravityAuthState {
   };
 }
 
-function generatePkce(): { verifier: string; challenge: string } {
-  const verifier = base64UrlEncode(randomBytes(32));
-  const hash = createHash('sha256').update(verifier).digest();
-  const challenge = hash.toString('base64url');
-  return { verifier, challenge };
-}
-
 export async function authorizeAntigravity(options: {
   projectId?: string;
   redirectUri: string;
 }): Promise<AntigravityAuthorization> {
-  const pkce = generatePkce();
+  const pkce = generatePKCE(43);
 
   const projectId = options.projectId?.trim() ?? '';
   const redirectUri = options.redirectUri.trim();
@@ -149,7 +138,7 @@ export async function authorizeAntigravity(options: {
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('scope', ANTIGRAVITY_SCOPES.join(' '));
   url.searchParams.set('code_challenge', pkce.challenge);
-  url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('code_challenge_method', pkce.method);
   url.searchParams.set('state', state);
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('prompt', 'consent');

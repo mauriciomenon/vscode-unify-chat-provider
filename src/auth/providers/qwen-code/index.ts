@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { randomBytes, createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import {
   AuthConfigureResult,
   AuthProvider,
@@ -17,6 +17,7 @@ import {
 } from '../../../secret';
 import type { AuthCredential, OAuth2TokenData, QwenCodeAuthConfig } from '../../types';
 import { authLog } from '../../../logger';
+import { generatePKCE } from '../../../utils';
 
 const QWEN_OAUTH_DEVICE_CODE_ENDPOINT =
   'https://chat.qwen.ai/api/v1/oauth2/device/code';
@@ -46,19 +47,6 @@ function pickNumber(
   return typeof value === 'number' ? value : undefined;
 }
 
-type QwenPkcePair = {
-  codeVerifier: string;
-  codeChallenge: string;
-  codeChallengeMethod: 'S256';
-};
-
-function generatePkcePair(): QwenPkcePair {
-  const codeVerifier = randomBytes(32).toString('base64url');
-  const hash = createHash('sha256').update(codeVerifier).digest();
-  const codeChallenge = hash.toString('base64url');
-  return { codeVerifier, codeChallenge, codeChallengeMethod: 'S256' };
-}
-
 type QwenDeviceCodeResponse = {
   verificationUri: string;
   verificationUriComplete?: string;
@@ -70,13 +58,13 @@ type QwenDeviceCodeResponse = {
 };
 
 async function requestDeviceCode(): Promise<QwenDeviceCodeResponse> {
-  const pkce = generatePkcePair();
+  const pkce = generatePKCE(43);
 
   const params = new URLSearchParams({
     client_id: QWEN_OAUTH_CLIENT_ID,
     scope: QWEN_OAUTH_SCOPE,
-    code_challenge: pkce.codeChallenge,
-    code_challenge_method: pkce.codeChallengeMethod,
+    code_challenge: pkce.challenge,
+    code_challenge_method: pkce.method,
   });
 
   const response = await fetch(QWEN_OAUTH_DEVICE_CODE_ENDPOINT, {
@@ -123,7 +111,7 @@ async function requestDeviceCode(): Promise<QwenDeviceCodeResponse> {
     deviceCode,
     intervalSeconds,
     expiresInSeconds,
-    codeVerifier: pkce.codeVerifier,
+    codeVerifier: pkce.verifier,
   };
 }
 

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 import {
   OAuth2AuthCodeConfig,
   OAuth2ClientCredentialsConfig,
@@ -19,6 +19,7 @@ import {
   createOAuth2ErrorFromNetworkError,
 } from './errors';
 import { authLog } from '../../../logger';
+import { generatePKCE as generatePKCEUtil } from '../../../utils';
 
 /**
  * Generate a random state string for OAuth
@@ -31,14 +32,12 @@ export function generateState(): string {
  * Generate PKCE challenge
  */
 export function generatePKCE(): PKCEChallenge {
-  const codeVerifier = randomBytes(32).toString('base64url');
-  const hash = createHash('sha256').update(codeVerifier).digest();
-  const codeChallenge = hash.toString('base64url');
+  const pkce = generatePKCEUtil(43);
 
   return {
-    codeVerifier,
-    codeChallenge,
-    codeChallengeMethod: 'S256',
+    codeVerifier: pkce.verifier,
+    codeChallenge: pkce.challenge,
+    codeChallengeMethod: pkce.method,
   };
 }
 
