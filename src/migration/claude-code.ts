@@ -7,31 +7,11 @@ import type {
 import { ClaudeCodeOAuthDetectedError } from './errors';
 import { firstExistingFilePath, isExistingFile } from './fs-utils';
 import {
-  WELL_KNOWN_MODELS,
-  WellKnownModelId,
-  normalizeWellKnownConfigs,
-} from '../well-known/models';
-import { t } from '../i18n';
-import type { ModelConfig, ProviderConfig } from '../types';
+  WELL_KNOWN_PROVIDERS,
+  resolveProviderModels,
+} from '../well-known/providers';
+import type { ProviderConfig } from '../types';
 import { migrationLog } from '../logger';
-
-const CLAUDE_CODE_DEFAULT_MODEL_IDS: WellKnownModelId[] = [
-  'claude-sonnet-4-5',
-  'claude-opus-4-5',
-  'claude-haiku-4-5',
-] as const;
-
-function getClaudeCodeDefaultModels(provider: ProviderConfig): ModelConfig[] {
-  const models: (typeof WELL_KNOWN_MODELS)[number][] = [];
-  for (const id of CLAUDE_CODE_DEFAULT_MODEL_IDS) {
-    const model = WELL_KNOWN_MODELS.find((m) => m.id === id);
-    if (!model) {
-      throw new Error(t('Well-known model not found: {0}', id));
-    }
-    models.push(model);
-  }
-  return normalizeWellKnownConfigs(models, undefined, provider);
-}
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -138,18 +118,22 @@ function buildClaudeCodeProvider(
     throw new ClaudeCodeOAuthDetectedError(settings.oauthEmail);
   }
 
-  const baseUrl = settings.baseUrl ?? 'https://api.anthropic.com';
+  const claudeCodeWellKnown = WELL_KNOWN_PROVIDERS.find(
+    (p) => p.type === 'claude-code',
+  );
 
-  const providerForMatching: ProviderConfig = {
-    type: 'claude-code',
-    name: 'Claude Code',
-    baseUrl,
-    models: [],
-  };
+  if (!claudeCodeWellKnown) {
+    throw new Error('Claude Code provider not found in well-known providers');
+  }
+
+  const baseUrl = settings.baseUrl ?? claudeCodeWellKnown.baseUrl;
+  const models = resolveProviderModels(claudeCodeWellKnown);
 
   const provider: Partial<ProviderConfig> = {
-    ...providerForMatching,
-    models: getClaudeCodeDefaultModels(providerForMatching),
+    type: 'claude-code',
+    name: claudeCodeWellKnown.name,
+    baseUrl,
+    models,
   };
 
   if (settings.authMethod === 'api-key' && settings.apiKey) {
