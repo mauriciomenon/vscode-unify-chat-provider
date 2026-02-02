@@ -483,8 +483,13 @@ export async function fetchWithRetry(
 
       if (attempt < maxRetries) {
         throwIfAborted(existingSignal);
-        // Close body to free resources before retrying.
-        await response.body?.cancel().catch(() => {});
+        // Read response body for logging before closing
+        let responseBody: string | undefined;
+        try {
+          responseBody = await response.text();
+        } catch {
+          // Ignore errors reading body
+        }
 
         // Calculate delay with exponential backoff and jitter
         const delayMs = calculateBackoffDelay(attempt, {
@@ -496,7 +501,13 @@ export async function fetchWithRetry(
 
         // Log retry attempt (only to logs, not displayed in VSCode)
         throwIfAborted(existingSignal);
-        logger?.retry(attempt + 1, maxRetries, response.status, delayMs);
+        logger?.retry(
+          attempt + 1,
+          maxRetries,
+          response.status,
+          delayMs,
+          responseBody,
+        );
 
         // Wait before retrying (abortable by upstream cancellation)
         await delay(delayMs, existingSignal);
@@ -885,7 +896,9 @@ export function generatePKCE(
   method: PKCEMethod = 'S256',
 ): PKCEChallenge<PKCEMethod> {
   if (length < 43 || length > 128) {
-    throw new Error('Code verifier length must be between 43 and 128 characters');
+    throw new Error(
+      'Code verifier length must be between 43 and 128 characters',
+    );
   }
 
   const verifier = generatePkceVerifier(length);

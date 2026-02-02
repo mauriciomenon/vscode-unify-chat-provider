@@ -1166,7 +1166,10 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
 
   protected resolveProjectId(): string {
     const auth = this.config.auth;
-    if (auth?.method === 'antigravity-oauth' || auth?.method === 'google-gemini-oauth') {
+    if (
+      auth?.method === 'antigravity-oauth' ||
+      auth?.method === 'google-gemini-oauth'
+    ) {
       const managedProjectId = auth.managedProjectId?.trim();
       if (managedProjectId) {
         return managedProjectId;
@@ -1859,8 +1862,21 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
                   ? backoffMs
                   : Math.max(backoffMs, cappedServerDelayMs);
 
-              logger?.retry(attempt + 1, maxRetries, response.status, delayMs);
-              await response.body?.cancel().catch(() => {});
+              // Read response body for logging
+              let responseBody: string | undefined;
+              try {
+                responseBody = await response.text();
+              } catch {
+                // Ignore errors reading body
+              }
+
+              logger?.retry(
+                attempt + 1,
+                maxRetries,
+                response.status,
+                delayMs,
+                responseBody,
+              );
               await delay(delayMs, abortController.signal);
             }
 

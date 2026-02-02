@@ -157,6 +157,7 @@ export interface ProviderHttpLogger {
     maxRetries: number,
     statusCode: number,
     delayMs: number,
+    responseBody?: string,
   ): void;
 }
 
@@ -436,10 +437,14 @@ export class RequestLogger implements ProviderHttpLogger {
     maxRetries: number,
     statusCode: number,
     delayMs: number,
+    responseBody?: string,
   ): void {
     this.ch.warn(
       `[${this.requestId}] ⟳ Retry ${attempt}/${maxRetries} after HTTP ${statusCode}, waiting ${delayMs}ms`,
     );
+    if (responseBody) {
+      this.ch.warn(`[${this.requestId}] Response Body: ${responseBody}`);
+    }
   }
 
   /**
@@ -553,10 +558,14 @@ export class SimpleHttpLogger implements ProviderHttpLogger {
     maxRetries: number,
     statusCode: number,
     delayMs: number,
+    responseBody?: string,
   ): void {
     this.ch.warn(
       `[${this.requestId}] ⟳ Retry ${attempt}/${maxRetries} after HTTP ${statusCode}, waiting ${delayMs}ms`,
     );
+    if (responseBody) {
+      this.ch.warn(`[${this.requestId}] Response Body: ${responseBody}`);
+    }
   }
 
   providerRequest(details: {
