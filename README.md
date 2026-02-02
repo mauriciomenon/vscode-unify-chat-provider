@@ -563,6 +563,8 @@ The providers listed below support [One-Click Configuration](#one-click-configur
 | [Xiaomi MiMo](https://mimo.xiaomi.com/)                                                         | <li>ThinkingParam <li>ReasoningContent                          |                            |
 | [Ollama Local](https://ollama.com/)                                                             |                                                                 |                            |
 | [Ollama Cloud](https://ollama.com/)                                                             |                                                                 |                            |
+| [StepFun (China)](https://platform.stepfun.com/)                                                | <li>ReasoningField                                              |                            |
+| [StepFun (International)](https://platform.stepfun.com/)                                        | <li>ReasoningField                                              |                            |
 | [ZhiPu AI](https://open.bigmodel.cn/)                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking        | [Details](#zhipu-ai--zai)  |
 | [ZhiPu AI (Coding Plan)](https://open.bigmodel.cn/)                                             | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking        |                            |
 | [Z.AI](https://z.ai/)                                                                           | <li>ThinkingParam <li>ReasoningContent <li>ClearThinking        | [Details](#zhipu-ai--zai)  |

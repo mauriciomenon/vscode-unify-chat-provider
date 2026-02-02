@@ -340,6 +340,8 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'portal.qwen.ai',
       'api.siliconflow.cn',
       'api.siliconflow.com',
+      'api.stepfun.com',
+      'api.stepfun.ai',
     ],
   },
   [FeatureId.OpenAICacheControl]: {
@@ -357,7 +359,7 @@ export const FEATURES: Record<FeatureId, Feature> = {
     supportedProviders: ['openrouter.ai', 'api.minimaxi.com', 'api.minimax.io'],
   },
   [FeatureId.OpenAIUseReasoningField]: {
-    supportedProviders: ['api.cerebras.ai'],
+    supportedProviders: ['api.cerebras.ai', 'api.stepfun.com', 'api.stepfun.ai'],
   },
   [FeatureId.OpenAIUseDisableReasoningParam]: {
     customCheckers: [

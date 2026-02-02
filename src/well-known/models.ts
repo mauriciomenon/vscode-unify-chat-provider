@@ -2876,6 +2876,178 @@ const _WELL_KNOWN_MODELS = [
       imageInput: false,
     },
   },
+  {
+    id: 'step-1-8k',
+    name: 'Step 1 8k',
+    maxInputTokens: 8000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-1-32k',
+    name: 'Step 1 32k',
+    maxInputTokens: 32000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-1-128k',
+    name: 'Step 1 128k',
+    maxInputTokens: 128000,
+    maxOutputTokens: 128000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-1-256k',
+    name: 'Step 1 256k',
+    maxInputTokens: 256000,
+    maxOutputTokens: 256000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-2-16k',
+    name: 'Step 2 16k',
+    maxInputTokens: 16000,
+    maxOutputTokens: 16000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-2-16k-exp',
+    name: 'Step 2 16k Exp',
+    maxInputTokens: 16000,
+    maxOutputTokens: 16000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-2-mini',
+    name: 'Step 2 Mini',
+    maxInputTokens: 32000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'step-1o-turbo-vision',
+    name: 'Step 1o Turbo Vision',
+    maxInputTokens: 32000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'step-1o-vision-32k',
+    name: 'Step 1o Vision 32k',
+    maxInputTokens: 32000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'step-1v-8k',
+    name: 'Step 1v 8k',
+    maxInputTokens: 8000,
+    maxOutputTokens: 8000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'step-1v-32k',
+    name: 'Step 1v 32k',
+    maxInputTokens: 32000,
+    maxOutputTokens: 32000,
+    stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'step-3',
+    name: 'Step 3',
+    maxInputTokens: 65536,
+    maxOutputTokens: undefined,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+    extraBody: {
+      reasoning_format: 'general',
+    },
+  },
+  {
+    id: 'step-3.5-flash',
+    name: 'Step 3.5 Flash',
+    maxInputTokens: 256000,
+    maxOutputTokens: undefined,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+    extraBody: {
+      reasoning_format: 'general',
+    },
+  },
+  {
+    id: 'step-r1-v-mini',
+    name: 'Step R1 V Mini',
+    maxInputTokens: 100000,
+    maxOutputTokens: undefined,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: false,
+      imageInput: true,
+    },
+    extraBody: {
+      reasoning_format: 'general',
+    },
+  },
 ] as const satisfies readonly WellKnownModelConfig[];
 export const WELL_KNOWN_MODELS: readonly WellKnownModelConfig[] =
   _WELL_KNOWN_MODELS;

@@ -18,6 +18,8 @@
   "API key is missing for: {0}. Please re-enter before exporting.": "以下项缺少 API Key：{0}。导出前请重新输入。",
   "Provider \"{0}\" updated.": "已更新供应商 \"{0}\"。",
   "Provider \"{0}\" added.": "已添加供应商 \"{0}\"。",
+  "StepFun (China)": "阶跃星辰 (中国站)",
+  "StepFun (International)": "阶跃星辰 (国际站)",
   "Provider \"{0}\" API key is missing. Please re-enter it before duplicating.": "供应商 \"{0}\" 的 API Key 缺失。克隆前请重新输入。",
   "Provider \"{0}\" authentication data is missing. Please re-enter it before duplicating.": "供应商 \"{0}\" 的认证信息缺失。克隆前请重新进行认证。",
   "Provider duplicated as \"{0}\".": "已将供应商克隆为 \"{0}\"。",

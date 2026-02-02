@@ -284,6 +284,22 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     models: ['mimo-v2-flash'],
   },
   {
+    name: 'StepFun (China)',
+    category: 'General',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://api.stepfun.com/v1',
+    authTypes: ['api-key'],
+    models: ['step-3.5-flash', 'step-2-mini', 'step-1o-turbo-vision'],
+  },
+  {
+    name: 'StepFun (International)',
+    category: 'General',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://api.stepfun.ai/v1',
+    authTypes: ['api-key'],
+    models: ['step-3.5-flash', 'step-2-mini', 'step-1o-turbo-vision'],
+  },
+  {
     name: 'Ollama Local',
     category: 'General',
     type: 'ollama',

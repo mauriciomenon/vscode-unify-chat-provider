@@ -18,6 +18,8 @@
   "API key is missing for: {0}. Please re-enter before exporting.": "API key is missing for: {0}. Please re-enter before exporting.",
   "Provider \"{0}\" updated.": "Provider \"{0}\" updated.",
   "Provider \"{0}\" added.": "Provider \"{0}\" added.",
+  "StepFun (China)": "StepFun (China)",
+  "StepFun (International)": "StepFun (International)",
   "Provider \"{0}\" API key is missing. Please re-enter it before duplicating.": "Provider \"{0}\" API key is missing. Please re-enter it before duplicating.",
   "Provider \"{0}\" authentication data is missing. Please re-enter it before duplicating.": "Provider \"{0}\" authentication data is missing. Please re-enter it before duplicating.",
   "Provider duplicated as \"{0}\".": "Provider duplicated as \"{0}\".",
