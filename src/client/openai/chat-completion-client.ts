@@ -848,7 +848,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
     if (tool_calls) {
       for (const call of tool_calls) {
-        if (call.type === 'function') {
+        if (call && call.type === 'function') {
           yield new vscode.LanguageModelToolCallPart(
             call.id,
             call.function.name,
@@ -1044,7 +1044,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
         if (tool_calls && tool_calls.length > 0) {
           for (const call of tool_calls) {
-            if (call.type === 'function') {
+            if (call && call.type === 'function') {
               yield new vscode.LanguageModelToolCallPart(
                 call.id,
                 call.function.name,
