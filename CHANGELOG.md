@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.4.4 - 2026-02-05
+
+### Fixes
+- ensure content property is present in message_start event (a321ff3, SmallMain)
+
 ## v4.4.3 - 2026-02-03
 
 ### Fixes
