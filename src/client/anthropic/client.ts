@@ -1146,7 +1146,13 @@ export class AnthropicProvider implements ApiProvider {
 
     switch (event.type) {
       case 'message_start':
-        return event.message;
+        return Object.assign(
+          {
+            // Some provider do not have a content property.
+            content: [],
+          } satisfies Partial<BetaMessage>,
+          event.message,
+        );
 
       case 'content_block_start':
         snapshot.content[event.index] = event.content_block;
