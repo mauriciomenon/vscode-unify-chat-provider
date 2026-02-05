@@ -398,7 +398,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
    */
   async provideTokenCount(
     model: vscode.LanguageModelChatInformation,
-    text: string | vscode.LanguageModelChatMessage,
+    text: string | vscode.LanguageModelChatRequestMessage,
     _token: vscode.CancellationToken,
   ): Promise<number> {
     const found = await this.findProviderAndModel(model.id);
