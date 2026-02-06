@@ -359,7 +359,11 @@ export const FEATURES: Record<FeatureId, Feature> = {
     supportedProviders: ['openrouter.ai', 'api.minimaxi.com', 'api.minimax.io'],
   },
   [FeatureId.OpenAIUseReasoningField]: {
-    supportedProviders: ['api.cerebras.ai', 'api.stepfun.com', 'api.stepfun.ai'],
+    supportedProviders: [
+      'api.cerebras.ai',
+      'api.stepfun.com',
+      'api.stepfun.ai',
+    ],
   },
   [FeatureId.OpenAIUseDisableReasoningParam]: {
     customCheckers: [
@@ -424,6 +428,7 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api-inference.modelscope.cn',
       'api.siliconflow.cn',
       'api.siliconflow.com',
+      'api.longcat.chat',
     ],
   },
   [FeatureId.OpenAIUseThinkingBudgetParam]: {
@@ -433,6 +438,7 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api-inference.modelscope.cn',
       'api.siliconflow.cn',
       'api.siliconflow.com',
+      'api.longcat.chat',
     ],
   },
   [FeatureId.OpenAIUseReasoningContent]: {
@@ -449,6 +455,7 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api-inference.modelscope.cn',
       'api.siliconflow.cn',
       'api.siliconflow.com',
+      'api.longcat.chat',
     ],
     customCheckers: [
       // Checker for iFlow GLM models:

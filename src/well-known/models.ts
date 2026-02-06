@@ -2850,7 +2850,7 @@ const _WELL_KNOWN_MODELS = [
     id: 'LongCat-Flash-Chat',
     name: 'LongCat Flash Chat',
     maxInputTokens: 256000,
-    maxOutputTokens: 8000,
+    maxOutputTokens: 128000,
     stream: true,
     capabilities: {
       toolCalling: true,
@@ -2860,11 +2860,12 @@ const _WELL_KNOWN_MODELS = [
   {
     id: 'LongCat-Flash-Thinking',
     name: 'LongCat Flash Thinking',
-    maxInputTokens: 128000,
-    maxOutputTokens: 8000,
+    maxInputTokens: 256000,
+    maxOutputTokens: 128000,
     stream: true,
     thinking: {
       type: 'enabled',
+      budgetTokens: 64000,
     },
     capabilities: {
       toolCalling: true,
@@ -2874,12 +2875,24 @@ const _WELL_KNOWN_MODELS = [
   {
     id: 'LongCat-Flash-Thinking-2601',
     name: 'LongCat Flash Thinking 2601',
-    maxInputTokens: 128000,
-    maxOutputTokens: 8000,
+    maxInputTokens: 256000,
+    maxOutputTokens: 128000,
     stream: true,
     thinking: {
       type: 'enabled',
+      budgetTokens: 64000,
     },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'LongCat-Flash-Lite',
+    name: 'LongCat Flash Lite',
+    maxInputTokens: 320000,
+    maxOutputTokens: 128000,
+    stream: true,
     capabilities: {
       toolCalling: true,
       imageInput: false,

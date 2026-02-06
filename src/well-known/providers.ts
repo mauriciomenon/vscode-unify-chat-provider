@@ -384,13 +384,14 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
   {
     name: 'LongCat',
     category: 'General',
-    type: 'anthropic',
-    baseUrl: 'https://api.longcat.chat/anthropic',
+    type: 'openai-chat-completion',
+    baseUrl: 'https://api.longcat.chat/openai',
     authTypes: ['api-key'],
     models: [
       'LongCat-Flash-Chat',
       'LongCat-Flash-Thinking',
       'LongCat-Flash-Thinking-2601',
+      'LongCat-Flash-Lite',
     ],
   },
   {
