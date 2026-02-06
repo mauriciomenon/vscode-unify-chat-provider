@@ -181,6 +181,8 @@ export class OpenAICodeXProvider extends OpenAIResponsesProvider {
       { id: 'gpt-5.1-codex-mini', maxOutputTokens: undefined },
       { id: 'gpt-5.2', maxOutputTokens: undefined },
       { id: 'gpt-5.2-codex', maxOutputTokens: undefined },
+      { id: 'gpt-5.3-codex', maxOutputTokens: undefined },
+      { id: 'gpt-5.1-codex', maxOutputTokens: undefined },
     ];
   }
 

@@ -337,6 +337,21 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
+    id: 'gpt-5.3-codex',
+    name: 'GPT-5.3-Codex',
+    maxInputTokens: 400000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'xhigh',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
     id: 'gpt-5.2-codex',
     name: 'GPT-5.2-Codex',
     maxInputTokens: 400000,
