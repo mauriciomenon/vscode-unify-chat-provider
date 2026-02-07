@@ -1037,11 +1037,14 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         continue;
       }
 
-      const { content } = choice.delta;
+      const delta = choice.delta;
+      const content = delta?.content;
 
       recordFirstToken();
 
-      yield* this.extractThinkingParts(choice.delta, 'content-only');
+      if (delta) {
+        yield* this.extractThinkingParts(delta, 'content-only');
+      }
 
       if (content) {
         for (const segment of thinkingTagParser.push(content)) {
