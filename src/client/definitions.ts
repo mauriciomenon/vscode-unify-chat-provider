@@ -11,7 +11,7 @@ import { GitHubCopilotProvider } from './github-copilot/client';
 import { IFlowCLIProvider } from './iflow/client';
 import { OllamaProvider } from './ollama/client';
 import { OpenAIChatCompletionProvider } from './openai/chat-completion-client';
-import { OpenAICodeXProvider } from './openai/codex-client';
+import { OpenAICodexProvider } from './openai/codex-client';
 import { OpenAIResponsesProvider } from './openai/responses-client';
 import { QwenCodeProvider } from './qwen/qwen-code-client';
 import { Feature } from './types';
@@ -112,10 +112,10 @@ export const PROVIDER_TYPES: Record<ProviderType, ProviderDefinition> = {
   },
   'openai-codex': {
     type: 'openai-codex',
-    label: t('OpenAI CodeX'),
+    label: t('OpenAI Codex'),
     description: '/backend-api/codex/responses',
     category: 'Experimental',
-    class: OpenAICodeXProvider,
+    class: OpenAICodexProvider,
   },
   'iflow-cli': {
     type: 'iflow-cli',

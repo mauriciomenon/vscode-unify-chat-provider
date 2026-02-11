@@ -97,8 +97,8 @@ export const AUTH_METHODS = {
   },
   'openai-codex': {
     id: 'openai-codex',
-    label: t('OpenAI CodeX'),
-    description: t('Authenticate using OpenAI CodeX OAuth (ChatGPT Plus/Pro)'),
+    label: t('OpenAI Codex'),
+    description: t('Authenticate using OpenAI Codex OAuth (ChatGPT Plus/Pro)'),
     category: 'Experimental',
     ctor: OpenAICodexAuthProvider,
   },

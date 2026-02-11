@@ -84,7 +84,7 @@ export const DEFAULT_CHAT_TIMEOUT_CONFIG = {
 } as const;
 
 export function buildOpencodeUserAgent(): string {
-  // Matches OpenCode's GitHub Copilot / CodeX user-agent style.
+  // Matches OpenCode's GitHub Copilot / Codex user-agent style.
   return 'opencode/1.1.28 ai-sdk/provider-utils/3.0.20 runtime/bun/1.3.5';
 }
 
@@ -625,9 +625,7 @@ export async function fetchWithRetryUsingFetch(
 
     const timeoutId = setTimeout(() => {
       didTimeout = true;
-      timeoutController.abort(
-        new Error(timeoutMessage),
-      );
+      timeoutController.abort(new Error(timeoutMessage));
     }, connTimeout);
 
     try {

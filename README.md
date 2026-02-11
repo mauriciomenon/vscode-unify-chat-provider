@@ -32,7 +32,7 @@ Integrate multiple LLM API providers into VS Code's GitHub Copilot Chat using th
 - 📦 **Out of the Box**: One-click configuration, or one-click migration from mainstream applications and extensions, with automatic syncing of official model lists, no tedious operations required.
 - 💾 **Import and Export**: Complete import/export support; import existing configs via Base64, JSON, URL, or URI.
 - 💎 **Great UX**: Visual interface configuration, fully open model parameters, supports unlimited provider and model configurations, and supports coexistence of multiple configuration variants for the same provider and model.
-- ✨ **One More Thing**: One-click use of your Claude Code, Gemini CLI, Antigravity, Github Copilot, Qwen Code, OpenAI CodeX (ChatGPT Plus/Pro), iFlow CLI account quotas.
+- ✨ **One More Thing**: One-click use of your Claude Code, Gemini CLI, Antigravity, Github Copilot, Qwen Code, OpenAI Codex (ChatGPT Plus/Pro), iFlow CLI account quotas.
 
 ## Installation
 
@@ -610,7 +610,7 @@ Experimental Supported Providers:
 
 | Provider                                               | Free Quota                     |
 | :----------------------------------------------------- | :----------------------------- |
-| [OpenAI CodeX (ChatGPT Plus/Pro)](https://openai.com/) |                                |
+| [OpenAI Codex (ChatGPT Plus/Pro)](https://openai.com/) |                                |
 | [Qwen Code](https://github.com/QwenLM/qwen-code)       | [Details](#qwen-code)          |
 | [GitHub Copilot](https://github.com/features/copilot)  | [Details](#github-copilot)     |
 | [Google Antigravity](https://antigravity.google/)      | [Details](#google-antigravity) |
@@ -783,7 +783,7 @@ The applications listed below support [One-Click Migration](#one-click-migration
 | Application                                           | Notes                                                                                                                                    |
 | :---------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
 | [Claude Code](https://claude.com/product/claude-code) | Migration is supported only when using a custom Base URL and API Key.                                                                    |
-| [CodeX](https://openai.com/codex/)                    | Migration is supported only when using a custom Base URL and API Key.                                                                    |
+| [Codex](https://openai.com/codex/)                    | Migration is supported only when using a custom Base URL and API Key.                                                                    |
 | [Gemini CLI](https://geminicli.com/)                  | Migration is supported only when using the following auth methods: `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`. |
 
 </details>

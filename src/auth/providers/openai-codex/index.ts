@@ -43,7 +43,9 @@ function toPersistableConfig(
 }
 
 export class OpenAICodexAuthProvider implements AuthProvider {
-  static supportsSensitiveDataInSettings(_auth: OpenAICodexAuthConfig): boolean {
+  static supportsSensitiveDataInSettings(
+    _auth: OpenAICodexAuthConfig,
+  ): boolean {
     return false;
   }
 
@@ -185,10 +187,10 @@ export class OpenAICodexAuthProvider implements AuthProvider {
   get definition(): AuthProviderDefinition {
     return {
       id: 'openai-codex',
-      label: this.config?.label ?? 'OpenAI CodeX',
+      label: this.config?.label ?? 'OpenAI Codex',
       description:
         this.config?.description ??
-        t('Authenticate using OpenAI CodeX OAuth (ChatGPT Plus/Pro)'),
+        t('Authenticate using OpenAI Codex OAuth (ChatGPT Plus/Pro)'),
     };
   }
 

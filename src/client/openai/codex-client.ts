@@ -77,7 +77,7 @@ function sanitizeCodexHeaders(headersInit: HeadersInit | undefined): Headers {
   return headers;
 }
 
-export class OpenAICodeXProvider extends OpenAIResponsesProvider {
+export class OpenAICodexProvider extends OpenAIResponsesProvider {
   protected override buildHeaders(
     sessionId: string,
     credential?: AuthTokenInfo,

@@ -481,7 +481,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     models: ['kat-coder-pro-v1'],
   },
   {
-    name: 'OpenAI CodeX (ChatGPT Plus/Pro)',
+    name: 'OpenAI Codex (ChatGPT Plus/Pro)',
     category: 'Experimental',
     type: 'openai-codex',
     baseUrl: 'https://chatgpt.com/backend-api/codex/responses',
