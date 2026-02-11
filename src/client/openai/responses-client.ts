@@ -247,13 +247,37 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
     if (part instanceof vscode.LanguageModelTextPart) {
       if (part.value.trim()) {
-        const content = { type: 'input_text', text: part.value } as const;
-        return role === 'from_tool_result'
-          ? [content]
-          : {
-              role: roleStr,
-              content: [content],
+        switch (role) {
+          case vscode.LanguageModelChatMessageRole.Assistant:
+            return {
+              role: 'assistant',
+              content: [
+                {
+                  type: 'output_text' as 'input_text',
+                  text: part.value,
+                },
+              ],
             };
+
+          case 'from_tool_result':
+            return [
+              {
+                type: 'input_text',
+                text: part.value,
+              },
+            ];
+
+          default:
+            return {
+              role: roleStr,
+              content: [
+                {
+                  type: 'input_text',
+                  text: part.value,
+                },
+              ],
+            };
+        }
       } else {
         return undefined;
       }
