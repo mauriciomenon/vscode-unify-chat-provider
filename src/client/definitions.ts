@@ -8,6 +8,7 @@ import { GoogleGeminiCLIProvider } from './google/gemini-cli-client';
 import { VertexAIProvider } from './google/vertex-ai-client';
 import { ProviderDefinition } from './interface';
 import { GitHubCopilotProvider } from './github-copilot/client';
+import { IFlowCLIProvider } from './iflow/client';
 import { OllamaProvider } from './ollama/client';
 import { OpenAIChatCompletionProvider } from './openai/chat-completion-client';
 import { OpenAICodeXProvider } from './openai/codex-client';
@@ -25,6 +26,7 @@ export type ProviderType =
   | 'google-gemini-cli'
   | 'github-copilot'
   | 'openai-chat-completion'
+  | 'iflow-cli'
   | 'qwen-code'
   | 'openai-codex'
   | 'openai-responses'
@@ -114,6 +116,13 @@ export const PROVIDER_TYPES: Record<ProviderType, ProviderDefinition> = {
     description: '/backend-api/codex/responses',
     category: 'Experimental',
     class: OpenAICodeXProvider,
+  },
+  'iflow-cli': {
+    type: 'iflow-cli',
+    label: t('iFlow CLI'),
+    description: '/v1/chat/completions',
+    category: 'Experimental',
+    class: IFlowCLIProvider,
   },
 };
 
@@ -383,10 +392,19 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api.z.ai',
     ],
     customCheckers: [
-      // Checker for iFlow GLM models:
-      (model, provider) =>
-        matchProvider(provider.baseUrl, 'apis.iflow.cn') &&
-        matchModelFamily(model.family ?? getBaseModelId(model.id), ['glm-']),
+      // Checker for iFlow enable_thinking models:
+      (model, provider) => {
+        if (!matchProvider(provider.baseUrl, 'apis.iflow.cn')) {
+          return false;
+        }
+        const family = (model.family ?? getBaseModelId(model.id)).toLowerCase();
+        return (
+          family.startsWith('glm-') ||
+          family === 'qwen3-max-preview' ||
+          family === 'deepseek-v3.2' ||
+          family === 'deepseek-v3.1'
+        );
+      },
       // Checker for Nvidia GLM models:
       (model, provider) =>
         matchProvider(provider.baseUrl, 'integrate.api.nvidia.com') &&
@@ -458,10 +476,19 @@ export const FEATURES: Record<FeatureId, Feature> = {
       'api.longcat.chat',
     ],
     customCheckers: [
-      // Checker for iFlow GLM models:
-      (model, provider) =>
-        matchProvider(provider.baseUrl, 'apis.iflow.cn') &&
-        matchModelFamily(model.family ?? getBaseModelId(model.id), ['glm-']),
+      // Checker for iFlow enable_thinking models:
+      (model, provider) => {
+        if (!matchProvider(provider.baseUrl, 'apis.iflow.cn')) {
+          return false;
+        }
+        const family = (model.family ?? getBaseModelId(model.id)).toLowerCase();
+        return (
+          family.startsWith('glm-') ||
+          family === 'qwen3-max-preview' ||
+          family === 'deepseek-v3.2' ||
+          family === 'deepseek-v3.1'
+        );
+      },
       // Checker for Nvidia GLM models:
       (model, provider) =>
         matchProvider(provider.baseUrl, 'integrate.api.nvidia.com') &&

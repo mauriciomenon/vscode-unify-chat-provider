@@ -541,7 +541,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
   {
     name: 'iFlow',
     category: 'Experimental',
-    type: 'openai-chat-completion',
+    type: 'iflow-cli',
     baseUrl: 'https://apis.iflow.cn/v1',
     authTypes: ['iflow-cli', 'api-key'],
     extraHeaders: {
