@@ -485,7 +485,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     category: 'Experimental',
     type: 'openai-codex',
     baseUrl: 'https://chatgpt.com/backend-api/codex/responses',
-    authTypes: ['openai-codex'],
+    authTypes: ['api-key', 'openai-codex'],
     models: [],
     autoFetchOfficialModels: true,
   },

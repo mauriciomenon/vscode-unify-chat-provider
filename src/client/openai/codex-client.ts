@@ -78,14 +78,6 @@ function sanitizeCodexHeaders(headersInit: HeadersInit | undefined): Headers {
 }
 
 export class OpenAICodeXProvider extends OpenAIResponsesProvider {
-  private assertCodexAuth(): void {
-    if (this.config.auth?.method !== 'openai-codex') {
-      throw new Error(
-        'OpenAI CodeX provider requires auth method "openai-codex".',
-      );
-    }
-  }
-
   protected override buildHeaders(
     sessionId: string,
     credential?: AuthTokenInfo,
@@ -145,7 +137,10 @@ export class OpenAICodeXProvider extends OpenAIResponsesProvider {
     const baseFetch = createCustomFetch({
       connectionTimeoutMs: requestTimeoutMs,
       logger,
-      urlTransformer: rewriteToCodexEndpoint,
+      urlTransformer:
+        this.config.auth?.method === 'openai-codex'
+          ? rewriteToCodexEndpoint
+          : undefined,
       type: mode,
       abortSignal,
     });
@@ -175,7 +170,6 @@ export class OpenAICodeXProvider extends OpenAIResponsesProvider {
   override async getAvailableModels(
     _credential: AuthTokenInfo,
   ): Promise<ModelConfig[]> {
-    this.assertCodexAuth();
     return [
       { id: 'gpt-5.1-codex-max', maxOutputTokens: undefined },
       { id: 'gpt-5.1-codex-mini', maxOutputTokens: undefined },
@@ -196,8 +190,6 @@ export class OpenAICodeXProvider extends OpenAIResponsesProvider {
     logger: RequestLogger,
     credential: AuthTokenInfo,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
-    this.assertCodexAuth();
-
     const systemTextParts: string[] = [];
     for (const message of messages) {
       if (message.role !== vscode.LanguageModelChatMessageRole.System) {
