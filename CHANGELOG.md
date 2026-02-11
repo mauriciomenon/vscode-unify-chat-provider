@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.6.1 - 2026-02-11
+
+### Fixes
+- CodeX -> Codex (bbc124a, SmallMain)
+
 ## v4.6.0 - 2026-02-11
 
 ### Features
@@ -506,3 +511,4 @@
 ### Features
 
 - Initial release of the project.
+
