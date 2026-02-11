@@ -426,6 +426,7 @@
   "Gemini CLI appears to be configured for Vertex AI without API keys (ADC / Login with Google). This migration only supports GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_APPLICATION_CREDENTIALS.": "Gemini CLI 似乎配置为在没有 API Key 的情况下使用 Vertex AI（ADC / Login with Google）。此迁移仅支持 GEMINI_API_KEY、GOOGLE_API_KEY 或 GOOGLE_APPLICATION_CREDENTIALS。",
   "No supported Gemini CLI authentication variables found. Set one of GEMINI_API_KEY (Gemini API key), GOOGLE_API_KEY (Google Cloud API key), or GOOGLE_APPLICATION_CREDENTIALS (Vertex service account JSON key).": "未找到受支持的 Gemini CLI 身份验证变量。请设置 GEMINI_API_KEY（Gemini API key）、GOOGLE_API_KEY（Google Cloud API key）或 GOOGLE_APPLICATION_CREDENTIALS（Vertex 服务账号 JSON key）之一。",
   "Response timeout: No data received for {0}ms": "响应超时：{0}ms 内未收到任何数据",
+  "Timeout: Request aborted after {0}ms": "请求超时：超过 {0}ms 未完成，已中断",
   "Browse...": "浏览...",
   "Custom path...": "自定义路径...",
   "Import from config content": "从配置内容导入",

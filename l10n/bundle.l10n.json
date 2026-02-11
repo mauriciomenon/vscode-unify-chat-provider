@@ -424,6 +424,7 @@
   "Gemini CLI appears to be configured for Vertex AI without API keys (ADC / Login with Google). This migration only supports GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_APPLICATION_CREDENTIALS.": "Gemini CLI appears to be configured for Vertex AI without API keys (ADC / Login with Google). This migration only supports GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_APPLICATION_CREDENTIALS.",
   "No supported Gemini CLI authentication variables found. Set one of GEMINI_API_KEY (Gemini API key), GOOGLE_API_KEY (Google Cloud API key), or GOOGLE_APPLICATION_CREDENTIALS (Vertex service account JSON key).": "No supported Gemini CLI authentication variables found. Set one of GEMINI_API_KEY (Gemini API key), GOOGLE_API_KEY (Google Cloud API key), or GOOGLE_APPLICATION_CREDENTIALS (Vertex service account JSON key).",
   "Response timeout: No data received for {0}ms": "Response timeout: No data received for {0}ms",
+  "Timeout: Request aborted after {0}ms": "Timeout: Request aborted after {0}ms",
   "Browse...": "Browse...",
   "Custom path...": "Custom path...",
   "Import from config content": "Import from config content",

@@ -602,6 +602,11 @@ export async function fetchWithRetryUsingFetch(
     // Create timeout controller for connection timeout
     const timeoutController = new AbortController();
     const existingSignal = fetchOptions.signal;
+    const timeoutMessage = t(
+      'Timeout: Request aborted after {0}ms',
+      connTimeout,
+    );
+    let didTimeout = false;
 
     // Combine with existing signal if present
     throwIfAborted(existingSignal);
@@ -619,8 +624,9 @@ export async function fetchWithRetryUsingFetch(
     }
 
     const timeoutId = setTimeout(() => {
+      didTimeout = true;
       timeoutController.abort(
-        new Error(`Connection timeout after ${connTimeout}ms`),
+        new Error(timeoutMessage),
       );
     }, connTimeout);
 
@@ -676,6 +682,30 @@ export async function fetchWithRetryUsingFetch(
     } catch (error) {
       clearTimeout(timeoutId);
       throwIfAborted(existingSignal);
+
+      // Normalize undici's `TypeError: terminated` (and other abort surfaces)
+      // when we know this request was cancelled due to our own timeout.
+      if (didTimeout) {
+        const timeoutError = new Error(timeoutMessage);
+        timeoutError.name = 'TimeoutError';
+        lastError = timeoutError;
+
+        if (attempt < maxRetries) {
+          const delayMs = calculateBackoffDelay(attempt, {
+            initialDelayMs,
+            maxDelayMs,
+            backoffMultiplier,
+            jitterFactor,
+          });
+
+          throwIfAborted(existingSignal);
+          logger?.retry(attempt + 1, maxRetries, 0, delayMs);
+          await delay(delayMs, existingSignal);
+        }
+
+        attempt++;
+        continue;
+      }
 
       // Retryable connection/network errors.
       if (
