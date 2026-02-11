@@ -11,6 +11,7 @@ import type { AuthTokenInfo } from '../../auth/types';
 import OpenAI from 'openai';
 import {
   decodeStatefulMarkerPart,
+  createStatefulMarkerIdentity,
   DEFAULT_CHAT_TIMEOUT_CONFIG,
   DEFAULT_NORMAL_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
@@ -20,6 +21,7 @@ import {
   isInternalMarker,
   normalizeImageMimeType,
   parseThinkingTags,
+  sanitizeMessagesForModelSwitch,
   StreamingThinkingTagParser,
   withIdleTimeout,
 } from '../../utils';
@@ -136,6 +138,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     messages: readonly vscode.LanguageModelChatRequestMessage[],
     shouldApplyCacheControl: boolean,
     reasoningType: 'content' | 'details' | 'field' | 'none',
+    expectedIdentity: string,
   ): ChatCompletionMessageParam[] {
     const outMessages: ChatCompletionMessageParam[] = [];
     const rawMap = new Map<
@@ -165,24 +168,33 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
           break;
 
         case vscode.LanguageModelChatMessageRole.Assistant:
-          const rawPart = msg.content.find(
-            (v) => v instanceof vscode.LanguageModelDataPart,
-          ) as vscode.LanguageModelDataPart | undefined;
-          if (rawPart) {
-            try {
-              const raw = decodeStatefulMarkerPart<ChatCompletionMessageParam>(
-                encodedModelId,
-                rawPart,
-              );
-              const message: ChatCompletionAssistantMessageParam = {
-                role: 'assistant',
-                content: undefined,
-                tool_calls: undefined,
-              };
-              rawMap.set(message, raw);
-              outMessages.push(message);
-            } catch (error) {}
-          } else {
+          {
+            const markerParts = msg.content.filter(
+              (v): v is vscode.LanguageModelDataPart =>
+                v instanceof vscode.LanguageModelDataPart &&
+                isInternalMarker(v),
+            );
+
+            if (markerParts.length === 1) {
+              try {
+                const raw = decodeStatefulMarkerPart<ChatCompletionMessageParam>(
+                  expectedIdentity,
+                  encodedModelId,
+                  markerParts[0],
+                );
+                const message: ChatCompletionAssistantMessageParam = {
+                  role: 'assistant',
+                  content: undefined,
+                  tool_calls: undefined,
+                };
+                rawMap.set(message, raw);
+                outMessages.push(message);
+                break;
+              } catch {
+                // fall back to best-effort conversion
+              }
+            }
+
             for (const part of msg.content) {
               const parts = this.convertPart(msg.role, part, reasoningType) as
                 | ChatCompletionAssistantMessageParam
@@ -706,17 +718,24 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
             ? 'field'
             : 'none';
 
+    const expectedIdentity = createStatefulMarkerIdentity(this.config, model);
+    const sanitizedMessages = sanitizeMessagesForModelSwitch(messages, {
+      modelId: encodedModelId,
+      expectedIdentity,
+    });
+
     const convertedMessages = this.convertMessages(
       encodedModelId,
-      messages,
+      sanitizedMessages,
       shouldApplyCacheControl,
       reasoningType,
+      expectedIdentity,
     );
     const tools = this.convertTools(options.tools, shouldApplyCacheControl);
     const toolChoice = this.convertToolChoice(options.toolMode, tools);
     const streamEnabled = model.stream ?? true;
 
-    const headers = this.buildHeaders(credential, model, messages);
+    const headers = this.buildHeaders(credential, model, sanitizedMessages);
 
     const baseBody: ChatCompletionCreateParamsBase = {
       model: getBaseModelId(model.id),
@@ -790,6 +809,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
           token,
           logger,
           performanceTrace,
+          expectedIdentity,
         );
       } else {
         const data = await client.chat.completions.create(
@@ -799,7 +819,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
             signal: abortController.signal,
           },
         );
-        yield* this.parseMessage(data, performanceTrace, logger);
+        yield* this.parseMessage(data, performanceTrace, logger, expectedIdentity);
       }
     } finally {
       cancellationListener.dispose();
@@ -810,6 +830,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     message: ChatCompletion,
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     // NOTE: The current behavior of VSCode is such that all Parts returned here will be
     // aggregated into a single Part during the next request, and only the Thinking part
@@ -860,7 +881,10 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
       }
     }
 
-    yield encodeStatefulMarkerPart<ChatCompletionMessageParam>(raw);
+    yield encodeStatefulMarkerPart<ChatCompletionMessageParam>(
+      expectedIdentity,
+      raw,
+    );
 
     if (message.usage) {
       this.processUsage(message.usage, performanceTrace, logger);
@@ -990,6 +1014,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     let snapshot: ChatCompletionSnapshot | undefined;
     let usage: CompletionUsage | null | undefined;
@@ -1054,15 +1079,18 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
           }
         }
 
-        yield encodeStatefulMarkerPart<ChatCompletionMessageParam>({
-          role: 'assistant',
-          ...(content ? { content } : {}),
-          ...(refusal ? { refusal } : {}),
-          ...(tool_calls ? { tool_calls } : {}),
-          ...(reasoning ? { reasoning } : {}),
-          ...(reasoning_content ? { reasoning_content } : {}),
-          ...(reasoning_details ? { reasoning_details } : {}),
-        });
+        yield encodeStatefulMarkerPart<ChatCompletionMessageParam>(
+          expectedIdentity,
+          {
+            role: 'assistant',
+            ...(content ? { content } : {}),
+            ...(refusal ? { refusal } : {}),
+            ...(tool_calls ? { tool_calls } : {}),
+            ...(reasoning ? { reasoning } : {}),
+            ...(reasoning_content ? { reasoning_content } : {}),
+            ...(reasoning_details ? { reasoning_details } : {}),
+          },
+        );
       }
     }
 

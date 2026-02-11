@@ -23,6 +23,7 @@ import type { ProviderHttpLogger } from '../../logger';
 import {
   bodyInitToLoggableValue,
   decodeStatefulMarkerPart,
+  createStatefulMarkerIdentity,
   DEFAULT_CHAT_TIMEOUT_CONFIG,
   DEFAULT_NORMAL_TIMEOUT_CONFIG,
   FetchMode,
@@ -32,6 +33,7 @@ import {
   isImageMarker,
   isInternalMarker,
   normalizeImageMimeType,
+  sanitizeMessagesForModelSwitch,
   withIdleTimeout,
 } from '../../utils';
 import { getBaseModelId } from '../../model-id-utils';
@@ -243,6 +245,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
   protected convertMessages(
     encodedModelId: string,
     messages: readonly vscode.LanguageModelChatRequestMessage[],
+    expectedIdentity: string,
   ): { systemInstruction?: ContentUnion; contents: Content[] } {
     const systemParts: Part[] = [];
     let contents: Content[] = [];
@@ -274,14 +277,16 @@ export class GoogleAIStudioProvider implements ApiProvider {
         }
 
         case vscode.LanguageModelChatMessageRole.Assistant: {
-          const rawPart = msg.content.find(
-            (v) => v instanceof vscode.LanguageModelDataPart,
-          ) as vscode.LanguageModelDataPart | undefined;
-          if (rawPart) {
+          const markerParts = msg.content.filter(
+            (v): v is vscode.LanguageModelDataPart =>
+              v instanceof vscode.LanguageModelDataPart && isInternalMarker(v),
+          );
+          if (markerParts.length === 1) {
             try {
               const raw = decodeStatefulMarkerPart<Content[]>(
+                expectedIdentity,
                 encodedModelId,
-                rawPart,
+                markerParts[0],
               );
               for (const content of raw) {
                 contents.push(content);
@@ -697,9 +702,16 @@ export class GoogleAIStudioProvider implements ApiProvider {
       model,
     );
 
+    const expectedIdentity = createStatefulMarkerIdentity(this.config, model);
+    const sanitizedMessages = sanitizeMessagesForModelSwitch(messages, {
+      modelId: encodedModelId,
+      expectedIdentity,
+    });
+
     const { systemInstruction, contents } = this.convertMessages(
       encodedModelId,
-      messages,
+      sanitizedMessages,
+      expectedIdentity,
     );
     const tools = this.convertTools(options.tools);
     const functionCallingConfig = this.buildFunctionCallingConfig(
@@ -764,6 +776,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
           token,
           logger,
           performanceTrace,
+          expectedIdentity,
         );
       } else {
         const data = await withGoogleFetchLogger(logger, async () => {
@@ -773,7 +786,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
             config: generateConfig,
           });
         });
-        yield* this.parseMessage(data, performanceTrace, logger);
+        yield* this.parseMessage(data, performanceTrace, logger, expectedIdentity);
       }
     } finally {
       cancellationListener.dispose();
@@ -784,6 +797,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
     message: GenerateContentResponse,
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     logger.providerResponseChunk(JSON.stringify(message));
 
@@ -830,7 +844,10 @@ export class GoogleAIStudioProvider implements ApiProvider {
       yield new vscode.LanguageModelThinkingPart('', undefined, metadata);
     }
 
-    yield encodeStatefulMarkerPart<Content[]>(content ? [content] : []);
+    yield encodeStatefulMarkerPart<Content[]>(
+      expectedIdentity,
+      content ? [content] : [],
+    );
 
     if (message.usageMetadata) {
       this.processUsage(message.usageMetadata, performanceTrace, logger);
@@ -842,6 +859,7 @@ export class GoogleAIStudioProvider implements ApiProvider {
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     const recordFirstToken = createFirstTokenRecorder(performanceTrace);
 
@@ -908,14 +926,17 @@ export class GoogleAIStudioProvider implements ApiProvider {
       outputContents.length > 0 &&
       outputContents.every((content) => content.role !== undefined)
     ) {
-      yield encodeStatefulMarkerPart<Content[]>(outputContents);
+      yield encodeStatefulMarkerPart<Content[]>(expectedIdentity, outputContents);
     } else {
-      yield encodeStatefulMarkerPart<Content[]>([
-        {
-          role: 'model',
-          parts: [],
-        } as Content,
-      ]);
+      yield encodeStatefulMarkerPart<Content[]>(
+        expectedIdentity,
+        [
+          {
+            role: 'model',
+            parts: [],
+          } as Content,
+        ],
+      );
     }
 
     if (lastUsage) {

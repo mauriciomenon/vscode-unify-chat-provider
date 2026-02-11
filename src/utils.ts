@@ -708,11 +708,38 @@ export function isImageMarker(part: vscode.LanguageModelDataPart): boolean {
   return part.mimeType.startsWith('image/');
 }
 
+export interface StatefulMarkerEnvelope<T extends object> {
+  identity: string;
+  data: T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Create a stable identity hash for stateful markers.
+ *
+ * This is used to detect cross-provider or cross-model history and decide whether
+ * to restore raw state or fall back to text-only history.
+ */
+export function createStatefulMarkerIdentity(
+  provider: ProviderConfig,
+  model: ModelConfig,
+): string {
+  const normalizedBaseUrl = normalizeBaseUrlInput(provider.baseUrl);
+  const seed = `ucp_stateful_marker:v1|${provider.type}|${normalizedBaseUrl}|${model.id}`;
+  const hash = createHash('sha256').update(seed, 'utf8').digest('hex');
+  return `v1:${hash}`;
+}
+
 export function encodeStatefulMarkerPart<T extends object>(
-  raw: T,
+  identity: string,
+  data: T,
 ): vscode.LanguageModelDataPart {
+  const envelope: StatefulMarkerEnvelope<T> = { identity, data };
   const rawBase64: StatefulMarkerData = `[MODELID]\\${Buffer.from(
-    JSON.stringify(raw),
+    JSON.stringify(envelope),
   ).toString('base64')}`;
   return new vscode.LanguageModelDataPart(
     Buffer.from(rawBase64),
@@ -721,6 +748,7 @@ export function encodeStatefulMarkerPart<T extends object>(
 }
 
 export function decodeStatefulMarkerPart<T extends object>(
+  expectedIdentity: string,
   modelId: string,
   part: vscode.LanguageModelDataPart,
 ): T {
@@ -735,7 +763,158 @@ export function decodeStatefulMarkerPart<T extends object>(
     throw new Error('Invalid raw message stateful marker data format');
   }
   const rawJson = Buffer.from(match[1], 'base64').toString('utf-8');
-  return JSON.parse(rawJson) as T;
+  const decoded: unknown = JSON.parse(rawJson);
+
+  if (!isRecord(decoded)) {
+    throw new Error('Invalid raw message stateful marker data format');
+  }
+
+  const identity = decoded.identity;
+  const data = decoded.data;
+
+  if (typeof identity !== 'string' || !identity.trim()) {
+    throw new Error('Invalid raw message stateful marker identity');
+  }
+
+  if (typeof data !== 'object' || data === null) {
+    throw new Error('Invalid raw message stateful marker data');
+  }
+
+  if (identity !== expectedIdentity) {
+    throw new Error('Stateful marker identity mismatch');
+  }
+
+  return data as T;
+}
+
+export function tryDecodeStatefulMarkerPart<T extends object>(
+  expectedIdentity: string,
+  modelId: string,
+  part: vscode.LanguageModelDataPart,
+): T | undefined {
+  try {
+    return decodeStatefulMarkerPart<T>(expectedIdentity, modelId, part);
+  } catch {
+    return undefined;
+  }
+}
+
+export function sanitizeMessagesForModelSwitch(
+  messages: readonly vscode.LanguageModelChatRequestMessage[],
+  options: { modelId: string; expectedIdentity: string },
+): vscode.LanguageModelChatRequestMessage[] {
+  const out: vscode.LanguageModelChatRequestMessage[] = [];
+
+  let round: vscode.LanguageModelChatRequestMessage[] = [];
+  let roundHasAssistant = false;
+
+  const flush = (): void => {
+    if (round.length === 0) {
+      roundHasAssistant = false;
+      return;
+    }
+
+    if (!roundHasAssistant) {
+      out.push(...round);
+      round = [];
+      roundHasAssistant = false;
+      return;
+    }
+
+    const isRoundValid = (): boolean => {
+      for (const message of round) {
+        if (message.role !== vscode.LanguageModelChatMessageRole.Assistant) {
+          continue;
+        }
+
+        const markerParts = message.content.filter(
+          (part): part is vscode.LanguageModelDataPart =>
+            part instanceof vscode.LanguageModelDataPart &&
+            part.mimeType === DataPartMimeTypes.StatefulMarker,
+        );
+
+        if (markerParts.length !== 1) {
+          return false;
+        }
+
+        const decoded = tryDecodeStatefulMarkerPart<object>(
+          options.expectedIdentity,
+          options.modelId,
+          markerParts[0],
+        );
+        if (!decoded) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    if (isRoundValid()) {
+      out.push(...round);
+      round = [];
+      roundHasAssistant = false;
+      return;
+    }
+
+    for (const message of round) {
+      if (
+        message.role !== vscode.LanguageModelChatMessageRole.User &&
+        message.role !== vscode.LanguageModelChatMessageRole.Assistant
+      ) {
+        out.push(message);
+        continue;
+      }
+
+      const textParts = message.content.filter(
+        (part): part is vscode.LanguageModelTextPart =>
+          part instanceof vscode.LanguageModelTextPart,
+      );
+
+      if (textParts.length === 0) {
+        continue;
+      }
+
+      out.push({
+        role: message.role,
+        name: message.name,
+        content: textParts,
+      });
+    }
+
+    round = [];
+    roundHasAssistant = false;
+  };
+
+  for (const message of messages) {
+    switch (message.role) {
+      case vscode.LanguageModelChatMessageRole.System:
+        flush();
+        out.push(message);
+        break;
+
+      case vscode.LanguageModelChatMessageRole.User:
+        if (roundHasAssistant) {
+          flush();
+        }
+        round.push(message);
+        break;
+
+      case vscode.LanguageModelChatMessageRole.Assistant:
+        roundHasAssistant = true;
+        round.push(message);
+        break;
+
+      default:
+        flush();
+        out.push(message);
+        break;
+    }
+  }
+
+  flush();
+
+  return out;
 }
 
 const SUPPORTED_BASE64_IMAGE_MIME_TYPES = [

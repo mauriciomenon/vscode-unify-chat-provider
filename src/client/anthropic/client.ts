@@ -20,6 +20,7 @@ import { createSimpleHttpLogger } from '../../logger';
 import type { ProviderHttpLogger, RequestLogger } from '../../logger';
 import { ApiProvider } from '../interface';
 import {
+  createStatefulMarkerIdentity,
   DEFAULT_CHAT_TIMEOUT_CONFIG,
   DEFAULT_NORMAL_TIMEOUT_CONFIG,
   FetchMode,
@@ -30,6 +31,7 @@ import {
   decodeStatefulMarkerPart,
   normalizeImageMimeType,
   parseThinkingTags,
+  sanitizeMessagesForModelSwitch,
   StreamingThinkingTagParser,
   withIdleTimeout,
 } from '../../utils';
@@ -173,6 +175,7 @@ export class AnthropicProvider implements ApiProvider {
   private convertMessages(
     encodedModelId: string,
     messages: readonly vscode.LanguageModelChatRequestMessage[],
+    expectedIdentity: string,
   ): {
     system?: string | BetaTextBlockParam[];
     messages: BetaMessageParam[];
@@ -202,29 +205,37 @@ export class AnthropicProvider implements ApiProvider {
           break;
 
         case vscode.LanguageModelChatMessageRole.Assistant:
-          const rawPart = msg.content.find(
-            (v) => v instanceof vscode.LanguageModelDataPart,
-          ) as vscode.LanguageModelDataPart | undefined;
-          if (rawPart) {
-            try {
-              const decoded = decodeStatefulMarkerPart<{
-                raw: BetaMessage;
-                userId?: string;
-              }>(encodedModelId, rawPart);
-              const raw = decoded.raw;
-              if (firstHistoryUserId == null && decoded.userId) {
-                firstHistoryUserId = decoded.userId;
+          {
+            const markerParts = msg.content.filter(
+              (v): v is vscode.LanguageModelDataPart =>
+                v instanceof vscode.LanguageModelDataPart &&
+                isInternalMarker(v),
+            );
+
+            if (markerParts.length === 1) {
+              try {
+                const decoded = decodeStatefulMarkerPart<{
+                  raw: BetaMessage;
+                  userId?: string;
+                }>(expectedIdentity, encodedModelId, markerParts[0]);
+                const raw = decoded.raw;
+                if (firstHistoryUserId == null && decoded.userId) {
+                  firstHistoryUserId = decoded.userId;
+                }
+                if (raw) {
+                  const message: BetaMessageParam = {
+                    role: 'assistant',
+                    content: '',
+                  };
+                  rawMap.set(message, raw);
+                  outMessages.push(message);
+                  break;
+                }
+              } catch {
+                // fall back to best-effort conversion
               }
-              if (raw) {
-                const message: BetaMessageParam = {
-                  role: 'assistant',
-                  content: '',
-                };
-                rawMap.set(message, raw);
-                outMessages.push(message);
-              }
-            } catch (error) {}
-          } else {
+            }
+
             for (const part of msg.content) {
               const blocks = this.convertPart(msg.role, part);
               if (blocks)
@@ -675,6 +686,12 @@ export class AnthropicProvider implements ApiProvider {
       return;
     }
 
+    const expectedIdentity = createStatefulMarkerIdentity(this.config, model);
+    const sanitizedMessages = sanitizeMessagesForModelSwitch(messages, {
+      modelId: encodedModelId,
+      expectedIdentity,
+    });
+
     const thinkingType = model.thinking?.type;
     const thinkingEnabled =
       thinkingType === 'enabled' || thinkingType === 'auto';
@@ -694,7 +711,7 @@ export class AnthropicProvider implements ApiProvider {
       system,
       messages: anthropicMessages,
       historyUserId,
-    } = this.convertMessages(encodedModelId, messages);
+    } = this.convertMessages(encodedModelId, sanitizedMessages, expectedIdentity);
 
     // Convert tools with model config for web search and memory tool support
     // Also add tools if web search is enabled even without explicit tools
@@ -869,6 +886,7 @@ export class AnthropicProvider implements ApiProvider {
           performanceTrace,
           fineGrainedToolStreamingEnabled,
           requestState,
+          expectedIdentity,
         );
       } else {
         const result = await client.beta.messages.create(
@@ -886,6 +904,7 @@ export class AnthropicProvider implements ApiProvider {
           performanceTrace,
           logger,
           requestState,
+          expectedIdentity,
         );
       }
     } finally {
@@ -898,6 +917,7 @@ export class AnthropicProvider implements ApiProvider {
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
     state: { userId?: string },
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     // NOTE: The current behavior of VSCode is such that all Parts returned here will be
     // aggregated into a single Part during the next request, and only the Thinking part
@@ -961,10 +981,13 @@ export class AnthropicProvider implements ApiProvider {
           throw new Error(`Unsupported message block type: ${block.type}`);
       }
     }
-    yield encodeStatefulMarkerPart<{ raw: BetaMessage; userId?: string }>({
-      raw,
-      userId: state.userId,
-    });
+    yield encodeStatefulMarkerPart<{ raw: BetaMessage; userId?: string }>(
+      expectedIdentity,
+      {
+        raw,
+        userId: state.userId,
+      },
+    );
 
     if (message.usage) {
       this.processUsage(message.usage, performanceTrace, logger);
@@ -978,6 +1001,7 @@ export class AnthropicProvider implements ApiProvider {
     performanceTrace: PerformanceTrace,
     fineGrainedToolStreamingEnabled: boolean,
     state: { userId?: string },
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     let raw: BetaMessage | undefined;
 
@@ -1089,6 +1113,7 @@ export class AnthropicProvider implements ApiProvider {
 
         case 'message_stop': {
           yield encodeStatefulMarkerPart<{ raw: BetaMessage; userId?: string }>(
+            expectedIdentity,
             {
               raw,
               userId: state.userId,

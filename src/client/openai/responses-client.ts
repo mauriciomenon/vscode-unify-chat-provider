@@ -12,6 +12,7 @@ import OpenAI from 'openai';
 import type { AuthTokenInfo } from '../../auth/types';
 import {
   decodeStatefulMarkerPart,
+  createStatefulMarkerIdentity,
   DEFAULT_CHAT_TIMEOUT_CONFIG,
   DEFAULT_NORMAL_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
@@ -20,6 +21,7 @@ import {
   isImageMarker,
   isInternalMarker,
   normalizeImageMimeType,
+  sanitizeMessagesForModelSwitch,
   withIdleTimeout,
 } from '../../utils';
 import {
@@ -135,6 +137,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
   private convertMessages(
     encodedModelId: string,
     messages: readonly vscode.LanguageModelChatRequestMessage[],
+    expectedIdentity: string,
   ): { input: ResponseInput; sessionId: string } {
     let firstSessionId: string | null = null;
     const outItems: ResponseInputItem[] = [];
@@ -163,15 +166,19 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
         case vscode.LanguageModelChatMessageRole.Assistant:
           {
-            const rawPart = msg.content.find(
-              (v) => v instanceof vscode.LanguageModelDataPart,
-            ) as vscode.LanguageModelDataPart | undefined;
-            if (rawPart) {
+            const markerParts = msg.content.filter(
+              (v): v is vscode.LanguageModelDataPart =>
+                v instanceof vscode.LanguageModelDataPart &&
+                isInternalMarker(v),
+            );
+
+            if (markerParts.length === 1) {
               try {
                 const { data: raw, sessionId } =
                   decodeStatefulMarkerPart<OpenAIResponsesMarkerData>(
+                    expectedIdentity,
                     encodedModelId,
-                    rawPart,
+                    markerParts[0],
                   );
                 if (firstSessionId == null && sessionId) {
                   firstSessionId = sessionId;
@@ -183,16 +190,18 @@ export class OpenAIResponsesProvider implements ApiProvider {
                 rawMap.set(item, raw);
                 outItems.push(item);
                 break;
-              } catch (error) {}
-            } else {
-              for (const part of msg.content) {
-                const parts = this.convertPart(msg.role, part) as
-                  | EasyInputMessage
-                  | ResponseFunctionToolCall
-                  | ResponseReasoningItem
-                  | undefined;
-                if (parts) outItems.push(parts);
+              } catch {
+                // fall back to best-effort conversion
               }
+            }
+
+            for (const part of msg.content) {
+              const parts = this.convertPart(msg.role, part) as
+                | EasyInputMessage
+                | ResponseFunctionToolCall
+                | ResponseReasoningItem
+                | undefined;
+              if (parts) outItems.push(parts);
             }
           }
           break;
@@ -457,9 +466,16 @@ export class OpenAIResponsesProvider implements ApiProvider {
       return;
     }
 
+    const expectedIdentity = createStatefulMarkerIdentity(this.config, model);
+    const sanitizedMessages = sanitizeMessagesForModelSwitch(messages, {
+      modelId: encodedModelId,
+      expectedIdentity,
+    });
+
     const { input: convertedMessages, sessionId } = this.convertMessages(
       encodedModelId,
-      messages,
+      sanitizedMessages,
+      expectedIdentity,
     );
     const tools = this.convertTools(options.tools);
     const toolChoice = this.convertToolChoice(options.toolMode, tools);
@@ -502,7 +518,12 @@ export class OpenAIResponsesProvider implements ApiProvider {
 
     Object.assign(baseBody, this.config.extraBody, model.extraBody);
 
-    const headers = this.buildHeaders(sessionId, credential, model, messages);
+    const headers = this.buildHeaders(
+      sessionId,
+      credential,
+      model,
+      sanitizedMessages,
+    );
 
     const client = this.createClient(
       logger,
@@ -536,6 +557,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
           token,
           logger,
           performanceTrace,
+          expectedIdentity,
         );
       } else {
         const data = await client.responses.create(
@@ -545,7 +567,13 @@ export class OpenAIResponsesProvider implements ApiProvider {
             signal: abortController.signal,
           },
         );
-        yield* this.parseMessage(data, sessionId, performanceTrace, logger);
+        yield* this.parseMessage(
+          data,
+          sessionId,
+          performanceTrace,
+          logger,
+          expectedIdentity,
+        );
       }
     } finally {
       cancellationListener.dispose();
@@ -557,6 +585,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
     sessionId: string,
     performanceTrace: PerformanceTrace,
     logger: RequestLogger,
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     // NOTE: The current behavior of VSCode is such that all Parts returned here will be
     // aggregated into a single Part during the next request, and only the Thinking part
@@ -613,10 +642,13 @@ export class OpenAIResponsesProvider implements ApiProvider {
       }
     }
 
-    yield encodeStatefulMarkerPart<OpenAIResponsesMarkerData>({
-      data: message.output,
-      sessionId,
-    });
+    yield encodeStatefulMarkerPart<OpenAIResponsesMarkerData>(
+      expectedIdentity,
+      {
+        data: message.output,
+        sessionId,
+      },
+    );
 
     if (message.usage) {
       this.processUsage(message.usage, performanceTrace, logger);
@@ -699,6 +731,7 @@ export class OpenAIResponsesProvider implements ApiProvider {
     token: vscode.CancellationToken,
     logger: RequestLogger,
     performanceTrace: PerformanceTrace,
+    expectedIdentity: string,
   ): AsyncGenerator<vscode.LanguageModelResponsePart2> {
     let usage: ResponseUsage | undefined;
 
@@ -765,10 +798,13 @@ export class OpenAIResponsesProvider implements ApiProvider {
             'metadata-only',
           );
 
-          yield encodeStatefulMarkerPart<OpenAIResponsesMarkerData>({
-            data: response.output,
-            sessionId,
-          });
+          yield encodeStatefulMarkerPart<OpenAIResponsesMarkerData>(
+            expectedIdentity,
+            {
+              data: response.output,
+              sessionId,
+            },
+          );
           break;
         }
 

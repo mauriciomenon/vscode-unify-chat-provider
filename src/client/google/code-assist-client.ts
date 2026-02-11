@@ -16,10 +16,12 @@ import type { RequestLogger } from '../../logger';
 import type { AuthTokenInfo } from '../../auth/types';
 import { ModelConfig, PerformanceTrace } from '../../types';
 import {
+  createStatefulMarkerIdentity,
   DEFAULT_CHAT_RETRY_CONFIG,
   DEFAULT_CHAT_TIMEOUT_CONFIG,
   isAbortError,
   isRetryableStatusCode,
+  sanitizeMessagesForModelSwitch,
   withIdleTimeout,
   type RetryConfig,
 } from '../../utils';
@@ -1633,7 +1635,17 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
     const modelIdLower = resolvedModel.requestModelId.toLowerCase();
     const isClaudeModel = modelIdLower.includes('claude');
 
-    const convertedMessages = this.convertMessages(encodedModelId, messages);
+    const expectedIdentity = createStatefulMarkerIdentity(this.config, model);
+    const sanitizedMessages = sanitizeMessagesForModelSwitch(messages, {
+      modelId: encodedModelId,
+      expectedIdentity,
+    });
+
+    const convertedMessages = this.convertMessages(
+      encodedModelId,
+      sanitizedMessages,
+      expectedIdentity,
+    );
 
     const { systemInstruction, contents } = convertedMessages;
 
@@ -2024,6 +2036,7 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
           token,
           logger,
           performanceTrace,
+          expectedIdentity,
         );
       } else {
         const payload: unknown = await response.json();
@@ -2035,6 +2048,7 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
           toGenerateContentResponse(raw),
           performanceTrace,
           logger,
+          expectedIdentity,
         );
       }
     } finally {
