@@ -328,6 +328,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     authTypes: ['api-key'],
     models: [
+      'glm-5',
       'glm-4.7',
       'glm-4.6v',
       'glm-4.7-flashx',
@@ -341,7 +342,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     type: 'openai-chat-completion',
     baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
     authTypes: ['api-key'],
-    models: ['glm-4.7', 'glm-4.6', 'glm-4.7-flashx', 'glm-4.7-flash'],
+    models: ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.7-flashx', 'glm-4.7-flash'],
   },
   {
     name: 'Z.AI',
@@ -350,6 +351,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     baseUrl: 'https://api.z.ai/api/paas/v4',
     authTypes: ['api-key'],
     models: [
+      'glm-5',
       'glm-4.7',
       'glm-4.6v',
       'glm-4.7-flashx',
@@ -363,7 +365,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     type: 'openai-chat-completion',
     baseUrl: 'https://api.z.ai/api/coding/paas/v4',
     authTypes: ['api-key'],
-    models: ['glm-4.7', 'glm-4.6', 'glm-4.7-flashx', 'glm-4.7-flash'],
+    models: ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.7-flashx', 'glm-4.7-flash'],
   },
   {
     name: 'MiniMax (China)',
@@ -547,7 +549,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     extraHeaders: {
       'User-Agent': 'iFlow-Cli',
     },
-    models: ['glm-4.7', 'MiniMax-M2.1', 'kimi-k2.5'],
+    models: ['glm-5', 'glm-4.7', 'MiniMax-M2.1', 'kimi-k2.5'],
     autoFetchOfficialModels: true,
   },
 ];

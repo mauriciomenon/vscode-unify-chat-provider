@@ -2312,6 +2312,35 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
+    id: 'glm-5',
+    overrides: ['z-ai/glm5'],
+    name: 'GLM-5',
+    maxInputTokens: 200000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
+    id: 'glm-5-code',
+    name: 'GLM-5-Code',
+    maxInputTokens: 200000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: false,
+    },
+  },
+  {
     id: 'glm-4.7',
     overrides: [
       'z-ai/glm4.7',

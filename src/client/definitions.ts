@@ -506,10 +506,13 @@ export const FEATURES: Record<FeatureId, Feature> = {
         matchModelFamily(model.family ?? getBaseModelId(model.id), [
           'zai-glm-4.7',
         ]),
-      // Checker for iFlow GLM 4.7 model:
+      // Checker for iFlow GLM 4.7 / GLM 5 model:
       (model, provider) =>
         matchProvider(provider.baseUrl, 'apis.iflow.cn') &&
-        matchModelFamily(model.family ?? getBaseModelId(model.id), ['glm-4.7']),
+        matchModelFamily(model.family ?? getBaseModelId(model.id), [
+          'glm-4.7',
+          'glm-5',
+        ]),
       // Checker for Nvidia GLM 4.7 model:
       (model, provider) =>
         matchProvider(provider.baseUrl, 'integrate.api.nvidia.com') &&
