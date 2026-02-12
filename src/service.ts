@@ -11,10 +11,13 @@ import { getBaseModelId } from './model-id-utils';
 import { createProvider } from './client/utils';
 import { formatModelDetail } from './ui/form-utils';
 import {
+  calculateBackoffDelay,
+  delay,
   getAllModelsForProvider,
   getAllModelsForProviderSync,
   isAbortError,
   isPlaceholderModelId,
+  resolveChatNetwork,
 } from './utils';
 import { SecretStore } from './secret';
 import { AuthManager } from './auth';
@@ -356,37 +359,74 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     logger.vscodeInput(messages, options);
 
     const client = this.getClient(provider);
+    const retryConfig = resolveChatNetwork(provider).retry;
 
-    // Stream the response
-    const stream = client.streamChat(
-      model.id,
-      modelConfig,
-      messages,
-      options,
-      performanceTrace,
-      token,
-      logger,
-      credential,
-    );
+    let emptyStreamAttempt = 0;
 
-    try {
-      for await (const part of stream) {
-        if (token.isCancellationRequested) {
-          break;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (emptyStreamAttempt > 0) {
+        // Reset performance trace for retry
+        performanceTrace.tts = Date.now();
+        performanceTrace.ttf = 0;
+        performanceTrace.ttft = 0;
+        performanceTrace.tps = 0;
+        performanceTrace.tl = 0;
+      }
+
+      let partCount = 0;
+
+      // Stream the response
+      const stream = client.streamChat(
+        model.id,
+        modelConfig,
+        messages,
+        options,
+        performanceTrace,
+        token,
+        logger,
+        credential,
+      );
+
+      try {
+        for await (const part of stream) {
+          if (token.isCancellationRequested) {
+            break;
+          }
+          partCount++;
+          // Log VSCode output (verbose only)
+          logger.vscodeOutput(part);
+          progress.report(part);
         }
-        // Log VSCode output (verbose only)
-        logger.vscodeOutput(part);
-        progress.report(part);
+      } catch (error) {
+        if (token.isCancellationRequested && isAbortError(error)) {
+          // User cancelled the request; treat provider abort errors as expected.
+        } else {
+          // sometimes, the chat panel in VSCode does not display the specific error,
+          // but instead shows the output from `stackTrace.format`.
+          logger.error(error);
+          throw error;
+        }
       }
-    } catch (error) {
-      if (token.isCancellationRequested && isAbortError(error)) {
-        // User cancelled the request; treat provider abort errors as expected.
-      } else {
-        // sometimes, the chat panel in VSCode does not display the specific error,
-        // but instead shows the output from `stackTrace.format`.
-        logger.error(error);
-        throw error;
+
+      // If the stream produced data or was cancelled, we're done
+      if (partCount > 0 || token.isCancellationRequested) {
+        break;
       }
+
+      // Empty stream (200 OK but no data) — treat as transient and retry
+      if (emptyStreamAttempt >= retryConfig.maxRetries) {
+        break;
+      }
+
+      const delayMs = calculateBackoffDelay(emptyStreamAttempt, retryConfig);
+      logger.emptyStreamRetry(
+        emptyStreamAttempt + 1,
+        retryConfig.maxRetries,
+        delayMs,
+      );
+      await delay(delayMs);
+      emptyStreamAttempt++;
     }
 
     performanceTrace.tl = Date.now() - performanceTrace.tts;

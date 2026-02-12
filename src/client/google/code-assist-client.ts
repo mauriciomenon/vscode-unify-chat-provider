@@ -18,6 +18,7 @@ import { ModelConfig, PerformanceTrace } from '../../types';
 import {
   createStatefulMarkerIdentity,
   DEFAULT_CHAT_RETRY_CONFIG,
+  describeNetworkError,
   isAbortError,
   isRetryableStatusCode,
   resolveChatNetwork,
@@ -1974,7 +1975,14 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
               backoffMultiplier,
               jitterFactor,
             });
-            logger?.retry(attempt + 1, maxRetries, 0, delayMs);
+            logger?.retry(
+              attempt + 1,
+              maxRetries,
+              0,
+              delayMs,
+              undefined,
+              describeNetworkError(error),
+            );
             await delay(delayMs, abortController.signal);
             attempt++;
           }

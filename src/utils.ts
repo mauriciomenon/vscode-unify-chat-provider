@@ -416,7 +416,10 @@ function throwIfAborted(signal: AbortSignal | null | undefined): void {
   }
 }
 
-function delay(ms: number, abortSignal?: AbortSignal | null): Promise<void> {
+export function delay(
+  ms: number,
+  abortSignal?: AbortSignal | null,
+): Promise<void> {
   if (ms <= 0) {
     return Promise.resolve();
   }
@@ -469,7 +472,7 @@ function escapeRegExp(value: string): string {
  * @param config Retry configuration
  * @returns Delay in milliseconds
  */
-function calculateBackoffDelay(
+export function calculateBackoffDelay(
   attempt: number,
   config: {
     initialDelayMs: number;
@@ -490,6 +493,31 @@ function calculateBackoffDelay(
   const jitter = (Math.random() * 2 - 1) * jitterRange;
 
   return Math.round(cappedDelay + jitter);
+}
+
+/**
+ * Build a human-readable detail string for network-level errors.
+ * Used when logging retries for errors that don't have an HTTP status code.
+ */
+export function describeNetworkError(error: unknown): string {
+  const tryCode = (value: unknown): string | undefined => {
+    if (typeof value === 'object' && value !== null && 'code' in value) {
+      const code = (value as { code: unknown }).code;
+      return typeof code === 'string' ? code : undefined;
+    }
+    return undefined;
+  };
+
+  const code =
+    tryCode(error) ??
+    (typeof error === 'object' && error !== null && 'cause' in error
+      ? tryCode((error as { cause: unknown }).cause)
+      : undefined);
+  const message = error instanceof Error ? error.message : String(error);
+  if (code) {
+    return `${code}: ${message}`;
+  }
+  return message;
 }
 
 /**
@@ -697,7 +725,14 @@ export async function fetchWithRetryUsingFetch(
           });
 
           throwIfAborted(existingSignal);
-          logger?.retry(attempt + 1, maxRetries, 0, delayMs);
+          logger?.retry(
+            attempt + 1,
+            maxRetries,
+            0,
+            delayMs,
+            undefined,
+            describeNetworkError(timeoutError),
+          );
           await delay(delayMs, existingSignal);
         }
 
@@ -724,7 +759,14 @@ export async function fetchWithRetryUsingFetch(
           });
 
           throwIfAborted(existingSignal);
-          logger?.retry(attempt + 1, maxRetries, 0, delayMs);
+          logger?.retry(
+            attempt + 1,
+            maxRetries,
+            0,
+            delayMs,
+            undefined,
+            describeNetworkError(error),
+          );
           await delay(delayMs, existingSignal);
         }
 
