@@ -389,6 +389,25 @@
                           "description": "%configuration.endpoints.models.maxOutputTokens.description%",
                           "default": 8192
                         },
+                        "tokenizer": {
+                          "type": "string",
+                          "description": "%configuration.endpoints.models.tokenizer.description%",
+                          "default": "default",
+                          "enum": [
+                            "default",
+                            "legacy-char4"
+                          ],
+                          "enumDescriptions": [
+                            "%configuration.endpoints.models.tokenizer.enumDescriptions.0%",
+                            "%configuration.endpoints.models.tokenizer.enumDescriptions.1%"
+                          ]
+                        },
+                        "tokenCountMultiplier": {
+                          "type": "number",
+                          "description": "%configuration.endpoints.models.tokenCountMultiplier.description%",
+                          "default": 1.0,
+                          "exclusiveMinimum": 0
+                        },
                         "capabilities": {
                           "type": "object",
                           "description": "%configuration.endpoints.models.capabilities.description%",

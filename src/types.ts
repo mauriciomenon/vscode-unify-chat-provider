@@ -1,6 +1,7 @@
 import { AuthConfig } from './auth/types';
 import { ProviderType } from './client/definitions';
 import type { RetryConfig } from './utils';
+import type { TokenizerId } from './tokenizer/tokenizers';
 
 /**
  * Configuration for a single provider endpoint
@@ -65,6 +66,18 @@ export interface ModelConfig {
    * others treat it as optional and apply a server-side default if omitted.
    */
   maxOutputTokens?: number;
+  /**
+   * Tokenizer used for VS Code token counting (`provideTokenCount`).
+   *
+   * Default: `default`
+   */
+  tokenizer?: TokenizerId;
+  /**
+   * Multiplier applied to the final token count before returning to VS Code.
+   *
+   * Default: `1.0`
+   */
+  tokenCountMultiplier?: number;
   /** Model capabilities */
   capabilities?: ModelCapabilities;
   /** Whether to stream the response */

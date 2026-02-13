@@ -15,6 +15,12 @@ import {
 } from '../model-id-utils';
 import type { ProviderType } from '../client/definitions';
 import { ModelConfig } from '../types';
+import {
+  DEFAULT_TOKEN_COUNT_MULTIPLIER,
+  TOKENIZERS,
+  resolveTokenCountMultiplier,
+  resolveTokenizerId,
+} from '../tokenizer/tokenizers';
 
 /**
  * Context for model form fields.
@@ -34,6 +40,7 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
     { id: 'details', label: t('Detailed Fields') },
     { id: 'capabilities', label: t('Capabilities') },
     { id: 'parameters', label: t('Parameters') },
+    { id: 'tokenization', label: t('Tokenization') },
     { id: 'others', label: t('others') },
   ],
   fields: [
@@ -74,7 +81,11 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
               ctx.models,
             );
             const choice = await vscode.window.showWarningMessage(
-              t("A model with the ID '{0}' already exists.\nWould you like to add a version suffix to '{1}'?", trimmed, autoVersionedId),
+              t(
+                "A model with the ID '{0}' already exists.\nWould you like to add a version suffix to '{1}'?",
+                trimmed,
+                autoVersionedId,
+              ),
               { modal: true },
               t('Yes'),
             );
@@ -125,7 +136,9 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
       prompt: (_draft, context) => {
         const providerType = (context as ModelFieldContext).providerType;
         if (!providerType) return t('Enter max input/context tokens');
-        return t('Enter max input/context tokens (leave blank to let the provider decide)');
+        return t(
+          'Enter max input/context tokens (leave blank to let the provider decide)',
+        );
       },
       placeholder: t('Leave blank for default'),
       positiveInteger: true,
@@ -150,9 +163,14 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
         const providerType = (context as ModelFieldContext).providerType;
         if (!providerType) return t('Enter max output tokens');
         if (providerType === 'anthropic') {
-          return t('Enter max output tokens (leave blank to send default: {0})', DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString());
+          return t(
+            'Enter max output tokens (leave blank to send default: {0})',
+            DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString(),
+          );
         }
-        return t('Enter max output tokens (leave blank to let the provider decide)');
+        return t(
+          'Enter max output tokens (leave blank to let the provider decide)',
+        );
       },
       placeholder: t('Leave blank for default'),
       positiveInteger: true,
@@ -233,8 +251,8 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
         typeof draft.capabilities?.toolCalling === 'number'
           ? t('Enabled (max {0})', draft.capabilities.toolCalling)
           : draft.capabilities?.toolCalling
-          ? t('Enabled')
-          : t('Disabled'),
+            ? t('Enabled')
+            : t('Disabled'),
     },
     // Parallel Tool Calling
     {
@@ -266,8 +284,8 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
         draft.parallelToolCalling === undefined
           ? t('default')
           : draft.parallelToolCalling
-          ? t('enable')
-          : t('disable'),
+            ? t('enable')
+            : t('disable'),
     },
     // Image Input (custom because it modifies capabilities nested object)
     {
@@ -441,7 +459,8 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
       getDescription: (draft) => {
         if (!draft.thinking) return t('default');
         if (draft.thinking.type === 'disabled') return t('disabled');
-        const typeLabel = draft.thinking.type === 'auto' ? t('auto') : t('enabled');
+        const typeLabel =
+          draft.thinking.type === 'auto' ? t('auto') : t('enabled');
         const details: string[] = [];
         if (draft.thinking.budgetTokens !== undefined) {
           details.push(t('{0} tokens', draft.thinking.budgetTokens));
@@ -554,6 +573,52 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
           ? t('default')
           : draft.presencePenalty.toString(),
     },
+    // Tokenizer
+    {
+      key: 'tokenizer',
+      type: 'picker',
+      label: t('Tokenizer'),
+      icon: 'symbol-enum',
+      section: 'tokenization',
+      title: t('Tokenizer'),
+      placeholder: t('Select a tokenizer'),
+      options: () => {
+        const defs = Object.entries(TOKENIZERS).map(([id, def]) => ({
+          label: t(def.label),
+          description: def.description ? t(def.description) : undefined,
+          value: id,
+        }));
+
+        return defs;
+      },
+      getDescription: (draft) => {
+        const resolved = resolveTokenizerId(draft.tokenizer);
+        return t(TOKENIZERS[resolved].label);
+      },
+    },
+    // Token Count Multiplier
+    {
+      key: 'tokenCountMultiplier',
+      type: 'number',
+      label: t('Token Count Multiplier'),
+      icon: 'dashboard',
+      section: 'tokenization',
+      prompt: t('Enter token count multiplier'),
+      placeholder: t('Leave blank for default'),
+      positiveInteger: true,
+      getDescription: (draft) => {
+        const resolved = resolveTokenCountMultiplier(
+          draft.tokenCountMultiplier,
+        );
+        if (
+          draft.tokenCountMultiplier === undefined ||
+          draft.tokenCountMultiplier !== resolved
+        ) {
+          return t('default: {0}', DEFAULT_TOKEN_COUNT_MULTIPLIER.toFixed(1));
+        }
+        return resolved.toString();
+      },
+    },
     // Extra Headers
     {
       key: 'extraHeaders',
@@ -590,7 +655,9 @@ export const modelFormSchema: FormSchema<ModelConfig> = {
       edit: async () => {
         vscode.window
           .showInformationMessage(
-            t('Extra body parameters must be configured in VS Code settings (JSON).'),
+            t(
+              'Extra body parameters must be configured in VS Code settings (JSON).',
+            ),
             t('Open Settings'),
           )
           .then((choice) => {

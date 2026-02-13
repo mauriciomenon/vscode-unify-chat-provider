@@ -25,6 +25,11 @@ import type { AuthCredential, AuthTokenInfo } from './auth/types';
 import { t } from './i18n';
 import { runUiStack } from './ui/router/stack-router';
 import type { UiContext } from './ui/router/types';
+import {
+  TOKENIZERS,
+  resolveTokenCountMultiplier,
+  resolveTokenizerId,
+} from './tokenizer/tokenizers';
 
 export class UnifyChatService implements vscode.LanguageModelChatProvider {
   private readonly clients = new Map<string, ApiProvider>();
@@ -439,33 +444,31 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
   async provideTokenCount(
     model: vscode.LanguageModelChatInformation,
     text: string | vscode.LanguageModelChatRequestMessage,
-    _token: vscode.CancellationToken,
+    token: vscode.CancellationToken,
   ): Promise<number> {
-    const found = await this.findProviderAndModel(model.id);
-
-    // Extract text content
-    let content: string;
-    if (typeof text === 'string') {
-      content = text;
-    } else {
-      content = text.content
-        .map((part) => {
-          if (part instanceof vscode.LanguageModelTextPart) {
-            return part.value;
-          }
-          return '';
-        })
-        .join('');
+    let found: { provider: ProviderConfig; model: ModelConfig } | null = null;
+    try {
+      found = await this.findProviderAndModel(model.id);
+    } catch {
+      // Never fail token count; fall back to defaults.
+      found = null;
     }
 
-    // Use client's estimation if available, otherwise use default
-    if (found) {
-      const client = this.getClient(found.provider);
-      return client.estimateTokenCount(content);
-    }
+    const tokenizerId = resolveTokenizerId(found?.model.tokenizer);
+    const baseRaw = await TOKENIZERS[tokenizerId].provideTokenCount(
+      model,
+      text,
+      token,
+    );
+    const base =
+      typeof baseRaw === 'number' && Number.isFinite(baseRaw) && baseRaw > 0
+        ? baseRaw
+        : 0;
 
-    // Default estimation: ~4 characters per token
-    return Math.ceil(content.length / 4);
+    const multiplier = resolveTokenCountMultiplier(
+      found?.model.tokenCountMultiplier,
+    );
+    return Math.ceil(base * multiplier);
   }
 
   /**

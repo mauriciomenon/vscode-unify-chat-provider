@@ -447,6 +447,8 @@ The following fields correspond to `ModelConfig` (field names used in import/exp
 | Model Family           | `family`                   | A grouping identifier for grouping/matching models (e.g., `gpt-4`, `claude-3`).                                                            |
 | Max Input Tokens       | `maxInputTokens`           | Maximum input/context tokens (some providers interpret this as total context for “input + output”).                                        |
 | Max Output Tokens      | `maxOutputTokens`          | Maximum generated tokens (required by some providers, e.g., Anthropic’s `max_tokens`).                                                     |
+| Tokenizer              | `tokenizer`                | Tokenizer used for VS Code token counting (`provideTokenCount`). Default: `default`.                                                      |
+| Token Count Multiplier | `tokenCountMultiplier`     | Multiplier applied to the token count before returning it to VS Code. Default: `1.0`.                                                     |
 | Capabilities           | `capabilities`             | Capability declaration (for UI and routing logic; may also affect request construction).                                                   |
 | Tool Calling           | `capabilities.toolCalling` | Whether tool/function calling is supported; if a number, it represents the maximum tool count.                                             |
 | Image Input            | `capabilities.imageInput`  | Whether image input is supported.                                                                                                          |

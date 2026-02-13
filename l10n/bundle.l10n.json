@@ -668,5 +668,14 @@
   "Vertex AI Authentication": "Vertex AI Authentication",
   "e.g., my-project-123": "e.g., my-project-123",
   "e.g., us-central1": "e.g., us-central1",
-  "iFlow CLI": "iFlow CLI"
+  "iFlow CLI": "iFlow CLI",
+  "Tokenization": "Tokenization",
+  "Tokenizer": "Tokenizer",
+  "Select a tokenizer": "Select a tokenizer",
+  "conservative": "conservative",
+  "A conservative tokenizer based on UTF-8 bytes ensures that the model’s context limit is not exceeded, but it may trigger context compression more quickly due to significant deviations from actual token consumption.": "A conservative tokenizer based on UTF-8 bytes ensures that the model’s context limit is not exceeded, but it may trigger context compression more quickly due to significant deviations from actual token consumption.",
+  "legacy": "legacy",
+  "The approximate algorithm used by VS Code officially (about 4 characters per token).": "The approximate algorithm used by VS Code officially (about 4 characters per token).",
+  "Token Count Multiplier": "Token Count Multiplier",
+  "Enter token count multiplier": "Enter token count multiplier"
 }

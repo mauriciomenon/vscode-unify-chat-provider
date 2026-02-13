@@ -1,4 +1,5 @@
 import { ModelConfig, ProviderConfig, type ProviderConfigPersistedKey } from './types';
+import { resolveTokenCountMultiplier, resolveTokenizerId } from './tokenizer/tokenizers';
 
 export const MODEL_CONFIG_KEYS = [
   'id',
@@ -6,6 +7,8 @@ export const MODEL_CONFIG_KEYS = [
   'family',
   'maxInputTokens',
   'maxOutputTokens',
+  'tokenizer',
+  'tokenCountMultiplier',
   'capabilities',
   'stream',
   'temperature',
@@ -123,6 +126,10 @@ export function toComparableModelConfig(model: ModelConfig): ModelConfig {
   cloned.id = cloned.id.trim();
   cloned.name = cloned.name?.trim() ?? '';
   cloned.family = cloned.family?.trim() ?? '';
+  cloned.tokenizer = resolveTokenizerId(cloned.tokenizer);
+  cloned.tokenCountMultiplier = resolveTokenCountMultiplier(
+    cloned.tokenCountMultiplier,
+  );
 
   const capabilities = cloned.capabilities ?? {};
   cloned.capabilities = {
