@@ -2,7 +2,7 @@
   "name": "vscode-unify-chat-provider",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "4.6.4",
+  "version": "4.7.0",
   "categories": [
     "AI",
     "Chat"
@@ -405,7 +405,7 @@
                         "tokenCountMultiplier": {
                           "type": "number",
                           "description": "%configuration.endpoints.models.tokenCountMultiplier.description%",
-                          "default": 1.0,
+                          "default": 1,
                           "exclusiveMinimum": 0
                         },
                         "capabilities": {

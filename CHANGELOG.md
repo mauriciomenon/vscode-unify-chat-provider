@@ -1,5 +1,19 @@
 # Changelog
 
+## v4.7.0 - 2026-02-13
+
+### Features
+- add custom tokenizer and token count multiplier support (0799e6d, SmallMain)
+- add support for MiniMax M2.5 models (bf93418, SmallMain)
+
+### Fixes
+- enhance well-known models and providers configuration (295d2ad, SmallMain)
+- refine reasoning effort handling in thinking_with_reasoning_effort case (6f05bd9, SmallMain)
+
+### Chores
+- update MiniMax model series in documentation (a4cb415, SmallMain)
+- update roadmap (ad13eb8, SmallMain)
+
 ## v4.6.4 - 2026-02-12
 
 ### Features
