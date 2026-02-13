@@ -674,7 +674,7 @@
   "Select a tokenizer": "选择分词器",
   "conservative": "conservative",
   "A conservative tokenizer based on UTF-8 bytes ensures that the model’s context limit is not exceeded, but it may trigger context compression more quickly due to significant deviations from actual token consumption.": "基于 UTF-8 字节的保守分词器，可以确保不会超出模型上下文限制，但由于可能与实际消耗的偏差较大导致更快地触发上下文压缩。",
-  "legacy": "legacy",
+  "char4": "char4",
   "The approximate algorithm used by VS Code officially (about 4 characters per token).": "VS Code 官方使用的近似算法（约 4 字符/Token）。",
   "Token Count Multiplier": "Token 计数倍率",
   "Enter token count multiplier": "输入 Token 计数倍率"

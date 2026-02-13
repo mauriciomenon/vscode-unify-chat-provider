@@ -395,7 +395,7 @@
                           "default": "default",
                           "enum": [
                             "default",
-                            "legacy-char4"
+                            "char4"
                           ],
                           "enumDescriptions": [
                             "%configuration.endpoints.models.tokenizer.enumDescriptions.0%",

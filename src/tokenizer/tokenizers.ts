@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
-import { provideTokenCountDefault } from './default';
-import { provideTokenCountLegacyChar4 } from './legacy-char4';
+import { provideTokenCountConservative } from './conservative';
+import { provideTokenCountChar4 } from './char4';
 
 export type ProvideTokenCountFn = (
   model: vscode.LanguageModelChatInformation,
@@ -19,16 +19,22 @@ export const DEFAULT_TOKEN_COUNT_MULTIPLIER = 1.0;
 
 export const TOKENIZERS = {
   default: {
+    label: 'default',
+    description:
+      'The approximate algorithm used by VS Code officially (about 4 characters per token).',
+    provideTokenCount: provideTokenCountChar4,
+  },
+  conservative: {
     label: 'conservative',
     description:
       'A conservative tokenizer based on UTF-8 bytes ensures that the model’s context limit is not exceeded, but it may trigger context compression more quickly due to significant deviations from actual token consumption.',
-    provideTokenCount: provideTokenCountDefault,
+    provideTokenCount: provideTokenCountConservative,
   },
-  'legacy-char4': {
-    label: 'legacy',
+  'char4': {
+    label: 'char4',
     description:
       'The approximate algorithm used by VS Code officially (about 4 characters per token).',
-    provideTokenCount: provideTokenCountLegacyChar4,
+    provideTokenCount: provideTokenCountChar4,
   },
 } as const satisfies Record<string, TokenizerDef>;
 

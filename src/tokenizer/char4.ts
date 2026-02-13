@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 
 /**
- * Legacy token count estimator (~4 characters per token).
+ * token count estimator (~4 characters per token).
  *
  * This is intentionally kept as a lightweight fallback for users who prefer
  * the old approximation behavior.
  */
-export function provideTokenCountLegacyChar4(
+export function provideTokenCountChar4(
   _model: vscode.LanguageModelChatInformation,
   text: string | vscode.LanguageModelChatRequestMessage,
   _token: vscode.CancellationToken,
@@ -27,4 +27,3 @@ export function provideTokenCountLegacyChar4(
 
   return Math.ceil(content.length / 4);
 }
-

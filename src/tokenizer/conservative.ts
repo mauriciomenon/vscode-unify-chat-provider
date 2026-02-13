@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
-import { isCacheControlMarker, isImageMarker, isInternalMarker } from '../utils';
+import {
+  isCacheControlMarker,
+  isImageMarker,
+  isInternalMarker,
+} from '../utils';
 
 /**
  * Default conservative token count estimator.
@@ -50,7 +54,8 @@ function countUnknown(state: CountState, value: unknown): void {
   }
 
   if (value instanceof vscode.LanguageModelThinkingPart) {
-    const contents = typeof value.value === 'string' ? [value.value] : value.value;
+    const contents =
+      typeof value.value === 'string' ? [value.value] : value.value;
     addUtf8Bytes(state, contents.join(''));
     return;
   }
@@ -96,7 +101,7 @@ function countUnknown(state: CountState, value: unknown): void {
   addUtf8Bytes(state, stringifyUnknown(value));
 }
 
-export function provideTokenCountDefault(
+export function provideTokenCountConservative(
   _model: vscode.LanguageModelChatInformation,
   text: string | vscode.LanguageModelChatRequestMessage,
   _token: vscode.CancellationToken,
@@ -120,4 +125,3 @@ export function provideTokenCountDefault(
   }
   return total;
 }
-
