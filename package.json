@@ -395,11 +395,17 @@
                           "default": "default",
                           "enum": [
                             "default",
-                            "char4"
+                            "conservative",
+                            "char4",
+                            "openai",
+                            "deepseek"
                           ],
                           "enumDescriptions": [
                             "%configuration.endpoints.models.tokenizer.enumDescriptions.0%",
-                            "%configuration.endpoints.models.tokenizer.enumDescriptions.1%"
+                            "%configuration.endpoints.models.tokenizer.enumDescriptions.1%",
+                            "%configuration.endpoints.models.tokenizer.enumDescriptions.2%",
+                            "%configuration.endpoints.models.tokenizer.enumDescriptions.3%",
+                            "%configuration.endpoints.models.tokenizer.enumDescriptions.4%"
                           ]
                         },
                         "tokenCountMultiplier": {
@@ -664,9 +670,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.73.0",
     "@google/genai": "^1.40.0",
+    "@huggingface/tokenizers": "^0.1.1",
     "@iarna/toml": "^2.2.5",
     "@vscode/l10n": "^0.0.18",
     "ollama": "^0.6.3",
-    "openai": "^6.18.0"
+    "openai": "^6.18.0",
+    "tiktoken": "^1.0.22"
   }
 }

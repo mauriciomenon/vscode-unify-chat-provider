@@ -365,6 +365,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'xhigh',
@@ -380,6 +381,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'xhigh',
@@ -395,6 +397,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'xhigh',
@@ -410,6 +413,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'xhigh',
@@ -425,6 +429,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -436,6 +441,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -451,6 +457,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -466,6 +473,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -480,6 +488,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -494,6 +503,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -509,6 +519,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'xhigh',
@@ -524,6 +535,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -539,6 +551,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 128000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -553,6 +566,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 400000,
     maxOutputTokens: 272000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -568,6 +582,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -579,6 +594,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -590,6 +606,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -601,6 +618,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -612,6 +630,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 1047576,
     maxOutputTokens: 32768,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -623,6 +642,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 1047576,
     maxOutputTokens: 32768,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -634,6 +654,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 1047576,
     maxOutputTokens: 32768,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -655,6 +676,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 131072,
     maxOutputTokens: 131072,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -671,6 +693,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 131072,
     maxOutputTokens: 131072,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -686,6 +709,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -697,6 +721,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -712,6 +737,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: false,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -727,6 +753,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 65536,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -741,6 +768,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 32768,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -756,6 +784,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -771,6 +800,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -785,6 +815,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: false,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -800,6 +831,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
       effort: 'high',
@@ -815,6 +847,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -829,6 +862,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 200000,
     maxOutputTokens: 100000,
     stream: true,
+    tokenizer: 'openai',
     thinking: {
       type: 'enabled',
     },
@@ -843,6 +877,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -854,6 +889,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -865,6 +901,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 8192,
     maxOutputTokens: 1024,
     stream: false,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -876,6 +913,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 16384,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -887,6 +925,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 4096,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: true,
       imageInput: true,
@@ -898,6 +937,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 4096,
     stream: false,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -909,6 +949,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 8192,
     maxOutputTokens: 8192,
     stream: true,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -920,6 +961,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 16385,
     maxOutputTokens: 4096,
     stream: false,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -931,6 +973,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 4096,
     maxOutputTokens: 4096,
     stream: false,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -941,6 +984,7 @@ const _WELL_KNOWN_MODELS = [
     name: 'babbage-002',
     maxOutputTokens: 16384,
     stream: false,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -951,6 +995,7 @@ const _WELL_KNOWN_MODELS = [
     name: 'davinci-002',
     maxOutputTokens: 16384,
     stream: false,
+    tokenizer: 'openai',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -1078,6 +1123,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1090,6 +1136,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 64000,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1106,6 +1153,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1121,6 +1169,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1136,6 +1185,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1152,6 +1202,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1168,6 +1219,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1183,6 +1235,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1195,6 +1248,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1208,6 +1262,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 32768,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1224,6 +1279,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 32768,
     stream: true,
+    tokenizer: 'deepseek',
     thinking: {
       type: 'enabled',
     },
@@ -1239,6 +1295,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1251,6 +1308,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1263,6 +1321,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 16384,
     maxOutputTokens: 4096,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1275,6 +1334,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 128000,
     maxOutputTokens: 8000,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: true,
       imageInput: false,
@@ -1287,6 +1347,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 4096,
     maxOutputTokens: 4096,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: false,
       imageInput: false,
@@ -1299,6 +1360,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 4096,
     maxOutputTokens: 4096,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: false,
       imageInput: true,
@@ -1311,6 +1373,7 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 4096,
     maxOutputTokens: 4096,
     stream: true,
+    tokenizer: 'deepseek',
     capabilities: {
       toolCalling: false,
       imageInput: true,

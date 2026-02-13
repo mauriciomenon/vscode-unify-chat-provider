@@ -674,8 +674,21 @@
   "Select a tokenizer": "Select a tokenizer",
   "conservative": "conservative",
   "char4": "char4",
+  "openai": "openai",
+  "deepseek": "deepseek",
   "A conservative tokenizer based on UTF-8 bytes ensures that the model’s context limit is not exceeded, but it may trigger context compression more quickly due to significant deviations from actual token consumption.": "A conservative tokenizer based on UTF-8 bytes ensures that the model’s context limit is not exceeded, but it may trigger context compression more quickly due to significant deviations from actual token consumption.",
   "The approximate algorithm used by VS Code officially (about 4 characters per token).": "The approximate algorithm used by VS Code officially (about 4 characters per token).",
+  "Tokenization powered by OpenAI tiktoken with model-aware encoding selection.": "Tokenization powered by OpenAI tiktoken with model-aware encoding selection.",
+  "Tokenization powered by DeepSeek official tokenizer files.": "Tokenization powered by DeepSeek official tokenizer files.",
   "Token Count Multiplier": "Token Count Multiplier",
-  "Enter token count multiplier": "Enter token count multiplier"
+  "Enter token count multiplier": "Enter token count multiplier",
+  "Claude Code OAuth detected{0}. Please re-authenticate.": "Claude Code OAuth detected{0}. Please re-authenticate.",
+  "Claude Code provider not found in well-known providers.": "Claude Code provider not found in well-known providers.",
+  "Codex OAuth detected. Please re-authenticate.": "Codex OAuth detected. Please re-authenticate.",
+  "Codex provider not found in well-known providers.": "Codex provider not found in well-known providers.",
+  "Gemini CLI OAuth detected. Please re-authenticate.": "Gemini CLI OAuth detected. Please re-authenticate.",
+  "Google Gemini CLI provider not found in well-known providers.": "Google Gemini CLI provider not found in well-known providers.",
+  "Google revoked your refresh token. Please sign in again.": "Google revoked your refresh token. Please sign in again.",
+  "Vertex AI (ADC) is missing required env var(s): {0}.": "Vertex AI (ADC) is missing required env var(s): {0}.",
+  "Vertex AI (service account JSON key) is missing required env var: GOOGLE_CLOUD_LOCATION.": "Vertex AI (service account JSON key) is missing required env var: GOOGLE_CLOUD_LOCATION."
 }

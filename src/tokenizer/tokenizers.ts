@@ -1,6 +1,8 @@
 import type * as vscode from 'vscode';
 import { provideTokenCountConservative } from './conservative';
 import { provideTokenCountChar4 } from './char4';
+import { provideTokenCountOpenAI } from './openai';
+import { provideTokenCountDeepSeek } from './deepseek';
 
 export type ProvideTokenCountFn = (
   model: vscode.LanguageModelChatInformation,
@@ -35,6 +37,17 @@ export const TOKENIZERS = {
     description:
       'The approximate algorithm used by VS Code officially (about 4 characters per token).',
     provideTokenCount: provideTokenCountChar4,
+  },
+  openai: {
+    label: 'openai',
+    description:
+      'Tokenization powered by OpenAI tiktoken with model-aware encoding selection.',
+    provideTokenCount: provideTokenCountOpenAI,
+  },
+  deepseek: {
+    label: 'deepseek',
+    description: 'Tokenization powered by DeepSeek official tokenizer files.',
+    provideTokenCount: provideTokenCountDeepSeek,
   },
 } as const satisfies Record<string, TokenizerDef>;
 
