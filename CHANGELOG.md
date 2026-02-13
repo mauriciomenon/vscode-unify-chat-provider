@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.8.0 - 2026-02-13
+
+### Fixes
+- update tokenizer (8305081, SmallMain)
+
 ## v4.7.0 - 2026-02-13
 
 ### Features
