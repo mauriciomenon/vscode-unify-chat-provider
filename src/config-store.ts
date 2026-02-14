@@ -13,6 +13,10 @@ import {
 import { ProviderConfig, ModelConfig } from './types';
 
 const CONFIG_NAMESPACE = 'unifyChatProvider';
+const DEFAULT_BALANCE_REFRESH_INTERVAL_MS = 60_000;
+const DEFAULT_BALANCE_THROTTLE_WINDOW_MS = 10_000;
+const MIN_BALANCE_REFRESH_INTERVAL_MS = 1_000;
+const MIN_BALANCE_THROTTLE_WINDOW_MS = 0;
 
 /**
  * Extension configuration stored in workspace settings
@@ -20,6 +24,8 @@ const CONFIG_NAMESPACE = 'unifyChatProvider';
 export interface ExtensionConfiguration {
   endpoints: ProviderConfig[];
   storeApiKeyInSettings: boolean;
+  balanceRefreshIntervalMs: number;
+  balanceThrottleWindowMs: number;
   verbose: boolean;
 }
 
@@ -81,14 +87,61 @@ export class ConfigStore {
   }
 
   /**
+   * Global periodic refresh interval for provider balances (milliseconds).
+   */
+  get balanceRefreshIntervalMs(): number {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceRefreshIntervalMs',
+      DEFAULT_BALANCE_REFRESH_INTERVAL_MS,
+    );
+    return this.readIntegerAtLeast(
+      raw,
+      DEFAULT_BALANCE_REFRESH_INTERVAL_MS,
+      MIN_BALANCE_REFRESH_INTERVAL_MS,
+    );
+  }
+
+  /**
+   * Global throttle window for provider balance refresh (milliseconds).
+   */
+  get balanceThrottleWindowMs(): number {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceThrottleWindowMs',
+      DEFAULT_BALANCE_THROTTLE_WINDOW_MS,
+    );
+    return this.readIntegerAtLeast(
+      raw,
+      DEFAULT_BALANCE_THROTTLE_WINDOW_MS,
+      MIN_BALANCE_THROTTLE_WINDOW_MS,
+    );
+  }
+
+  /**
    * Get the full extension configuration
    */
   get configuration(): ExtensionConfiguration {
     return {
       endpoints: this.endpoints,
       storeApiKeyInSettings: this.storeApiKeyInSettings,
+      balanceRefreshIntervalMs: this.balanceRefreshIntervalMs,
+      balanceThrottleWindowMs: this.balanceThrottleWindowMs,
       verbose: this.verbose,
     };
+  }
+
+  private readIntegerAtLeast(
+    value: unknown,
+    fallback: number,
+    min: number,
+  ): number {
+    return typeof value === 'number' &&
+      Number.isInteger(value) &&
+      Number.isFinite(value) &&
+      value >= min
+      ? value
+      : fallback;
   }
 
   /**

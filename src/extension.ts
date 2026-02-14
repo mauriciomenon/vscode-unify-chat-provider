@@ -51,10 +51,11 @@ export async function activate(
   await migrateProviderTypes(configStore);
   await migrateApiKeyToAuth(configStore);
 
-  balanceManager.initialize({
+  await balanceManager.initialize({
     configStore,
     secretStore,
     authManager,
+    extensionContext: context,
   });
   context.subscriptions.push(balanceManager);
 

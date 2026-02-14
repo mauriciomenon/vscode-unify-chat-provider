@@ -187,6 +187,18 @@
           "description": "%configuration.storeApiKeyInSettings.description%",
           "default": false
         },
+        "unifyChatProvider.balanceRefreshIntervalMs": {
+          "type": "integer",
+          "description": "%configuration.balanceRefreshIntervalMs.description%",
+          "default": 60000,
+          "minimum": 1000
+        },
+        "unifyChatProvider.balanceThrottleWindowMs": {
+          "type": "integer",
+          "description": "%configuration.balanceThrottleWindowMs.description%",
+          "default": 10000,
+          "minimum": 0
+        },
         "unifyChatProvider.networkSettings": {
           "type": "object",
           "description": "%configuration.networkSettings.description%",

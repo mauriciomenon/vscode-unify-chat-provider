@@ -9,12 +9,31 @@ import { createBalanceProvider } from './create-balance-provider';
 import type { BalanceProviderContext } from './balance-provider';
 import type {
   BalanceConfig,
+  BalanceSnapshot,
   BalanceProviderState,
   BalanceStatusViewItem,
 } from './types';
 
-const PERIODIC_REFRESH_MS = 60_000;
-const THROTTLE_WINDOW_MS = 10_000;
+const DEFAULT_PERIODIC_REFRESH_MS = 60_000;
+const DEFAULT_THROTTLE_WINDOW_MS = 10_000;
+const STATE_KEY = 'balanceState';
+const STATE_VERSION = 1;
+
+type PersistedProviderState = {
+  snapshot?: BalanceSnapshot;
+  lastError?: string;
+  lastAttemptAt?: number;
+  lastRefreshAt?: number;
+};
+
+type PersistedState = {
+  version: number;
+  providers: Record<string, PersistedProviderState>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
 
 type RefreshReason =
   | 'periodic'
@@ -27,32 +46,39 @@ export class BalanceManager implements vscode.Disposable {
   private configStore?: ConfigStore;
   private secretStore?: SecretStore;
   private authManager?: AuthManager;
+  private extensionContext?: vscode.ExtensionContext;
 
   private readonly states = new Map<string, BalanceProviderState>();
   private readonly configSignatures = new Map<string, string>();
   private readonly refreshInFlight = new Map<string, Promise<void>>();
   private readonly trailingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private periodicTimer?: ReturnType<typeof setInterval>;
+  private persistChain: Promise<void> = Promise.resolve();
 
   private readonly disposables: vscode.Disposable[] = [];
   private readonly onDidUpdateEmitter = new vscode.EventEmitter<string>();
 
   readonly onDidUpdate = this.onDidUpdateEmitter.event;
 
-  initialize(options: {
+  async initialize(options: {
     configStore: ConfigStore;
     secretStore: SecretStore;
     authManager?: AuthManager;
-  }): void {
+    extensionContext: vscode.ExtensionContext;
+  }): Promise<void> {
     this.disposeRuntime();
 
     this.configStore = options.configStore;
     this.secretStore = options.secretStore;
     this.authManager = options.authManager;
+    this.extensionContext = options.extensionContext;
+
+    await this.loadState();
 
     this.disposables.push(
       options.configStore.onDidChange(() => {
         this.reconcileStates();
+        this.startPeriodicRefresh();
       }),
     );
 
@@ -181,7 +207,7 @@ export class BalanceManager implements vscode.Disposable {
 
     state.pendingTrailing = true;
     state.lastRequestEndAt = now;
-    this.scheduleTrailingTimer(providerName, now + THROTTLE_WINDOW_MS);
+    this.scheduleTrailingTimer(providerName, now + this.getThrottleWindowMs());
     this.onDidUpdateEmitter.fire(providerName);
   }
 
@@ -262,7 +288,7 @@ export class BalanceManager implements vscode.Disposable {
     }
 
     const dueAt =
-      (state.lastRequestEndAt ?? Date.now()) + THROTTLE_WINDOW_MS;
+      (state.lastRequestEndAt ?? Date.now()) + this.getThrottleWindowMs();
 
     if (dueAt <= Date.now()) {
       void this.flushTrailingRefresh(providerName);
@@ -282,11 +308,13 @@ export class BalanceManager implements vscode.Disposable {
     state.isRefreshing = true;
     state.lastAttemptAt = Date.now();
     this.onDidUpdateEmitter.fire(provider.name);
+    this.queuePersistState();
 
     if (!balanceProvider) {
       state.isRefreshing = false;
       state.lastError = 'Balance provider is not available.';
       this.onDidUpdateEmitter.fire(provider.name);
+      this.queuePersistState();
       return;
     }
 
@@ -309,6 +337,7 @@ export class BalanceManager implements vscode.Disposable {
     } finally {
       state.isRefreshing = false;
       this.onDidUpdateEmitter.fire(provider.name);
+      this.queuePersistState();
       balanceProvider.dispose?.();
     }
   }
@@ -396,8 +425,16 @@ export class BalanceManager implements vscode.Disposable {
   ): boolean {
     return (
       state.lastAttemptAt !== undefined &&
-      now - state.lastAttemptAt < THROTTLE_WINDOW_MS
+      now - state.lastAttemptAt < this.getThrottleWindowMs()
     );
+  }
+
+  private getPeriodicRefreshMs(): number {
+    return this.configStore?.balanceRefreshIntervalMs ?? DEFAULT_PERIODIC_REFRESH_MS;
+  }
+
+  private getThrottleWindowMs(): number {
+    return this.configStore?.balanceThrottleWindowMs ?? DEFAULT_THROTTLE_WINDOW_MS;
   }
 
   private hasConfiguredBalanceProvider(provider: ProviderConfig): boolean {
@@ -420,7 +457,7 @@ export class BalanceManager implements vscode.Disposable {
 
     this.periodicTimer = setInterval(() => {
       void this.runPeriodicRefresh();
-    }, PERIODIC_REFRESH_MS);
+    }, this.getPeriodicRefreshMs());
   }
 
   private async runPeriodicRefresh(): Promise<void> {
@@ -467,10 +504,29 @@ export class BalanceManager implements vscode.Disposable {
 
     for (const provider of activeProviders) {
       const state = this.states.get(provider.name);
-      if (!state?.snapshot && !state?.isRefreshing) {
+      if (this.shouldRefreshOnReconcile(state)) {
         void this.refreshProvider(provider, 'ui', false);
       }
     }
+  }
+
+  private shouldRefreshOnReconcile(
+    state: BalanceProviderState | undefined,
+  ): boolean {
+    if (state?.isRefreshing) {
+      return false;
+    }
+
+    const lastCheckpoint =
+      state?.lastAttemptAt ??
+      state?.lastRefreshAt ??
+      state?.snapshot?.updatedAt;
+
+    if (lastCheckpoint === undefined) {
+      return true;
+    }
+
+    return Date.now() - lastCheckpoint >= this.getPeriodicRefreshMs();
   }
 
   private clearProviderState(providerName: string): void {
@@ -484,6 +540,133 @@ export class BalanceManager implements vscode.Disposable {
     }
 
     this.onDidUpdateEmitter.fire(providerName);
+    this.queuePersistState();
+  }
+
+  private async loadState(): Promise<void> {
+    if (!this.extensionContext) {
+      return;
+    }
+
+    const persisted =
+      this.extensionContext.globalState.get<PersistedState>(STATE_KEY);
+
+    if (!persisted || persisted.version !== STATE_VERSION || !isRecord(persisted.providers)) {
+      return;
+    }
+
+    for (const [providerName, rawState] of Object.entries(persisted.providers)) {
+      const state = this.toRuntimeState(rawState);
+      if (state) {
+        this.states.set(providerName, state);
+      }
+    }
+  }
+
+  private toRuntimeState(rawState: unknown): BalanceProviderState | undefined {
+    if (!isRecord(rawState)) {
+      return undefined;
+    }
+
+    const snapshot = this.toSnapshot(rawState.snapshot);
+    const lastError = this.toString(rawState.lastError);
+    const lastAttemptAt = this.toTimestamp(rawState.lastAttemptAt);
+    const lastRefreshAt = this.toTimestamp(rawState.lastRefreshAt);
+
+    if (
+      !snapshot &&
+      lastError === undefined &&
+      lastAttemptAt === undefined &&
+      lastRefreshAt === undefined
+    ) {
+      return undefined;
+    }
+
+    return {
+      isRefreshing: false,
+      pendingTrailing: false,
+      snapshot,
+      lastError,
+      lastAttemptAt,
+      lastRefreshAt,
+    };
+  }
+
+  private toSnapshot(rawSnapshot: unknown): BalanceSnapshot | undefined {
+    if (!isRecord(rawSnapshot)) {
+      return undefined;
+    }
+
+    const summary = this.toString(rawSnapshot.summary);
+    const updatedAt = this.toTimestamp(rawSnapshot.updatedAt);
+    if (summary === undefined || updatedAt === undefined) {
+      return undefined;
+    }
+
+    const detailsValue = rawSnapshot.details;
+    const details = Array.isArray(detailsValue)
+      ? detailsValue.filter((item): item is string => typeof item === 'string')
+      : [];
+
+    return {
+      summary,
+      details,
+      updatedAt,
+    };
+  }
+
+  private toString(value: unknown): string | undefined {
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private toTimestamp(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0
+      ? value
+      : undefined;
+  }
+
+  private queuePersistState(): void {
+    if (!this.extensionContext) {
+      return;
+    }
+
+    this.persistChain = this.persistChain
+      .catch(() => undefined)
+      .then(() => this.saveState())
+      .catch((error) => {
+        console.error('[unify-chat-provider] Failed to persist balance state.', error);
+      });
+  }
+
+  private async saveState(): Promise<void> {
+    if (!this.extensionContext) {
+      return;
+    }
+
+    const providers: Record<string, PersistedProviderState> = {};
+    for (const [providerName, state] of this.states) {
+      const snapshot = state.snapshot;
+      const hasData =
+        !!snapshot ||
+        state.lastError !== undefined ||
+        state.lastAttemptAt !== undefined ||
+        state.lastRefreshAt !== undefined;
+      if (!hasData) {
+        continue;
+      }
+
+      providers[providerName] = {
+        snapshot,
+        lastError: state.lastError,
+        lastAttemptAt: state.lastAttemptAt,
+        lastRefreshAt: state.lastRefreshAt,
+      };
+    }
+
+    await this.extensionContext.globalState.update(STATE_KEY, {
+      version: STATE_VERSION,
+      providers,
+    } satisfies PersistedState);
   }
 
   private disposeRuntime(): void {
@@ -504,6 +687,7 @@ export class BalanceManager implements vscode.Disposable {
     this.configSignatures.clear();
     this.states.clear();
     this.refreshInFlight.clear();
+    this.persistChain = Promise.resolve();
   }
 
   dispose(): void {
