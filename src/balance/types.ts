@@ -46,8 +46,6 @@ export interface SiliconFlowBalanceConfig {
 
 export interface AiHubMixBalanceConfig {
   method: 'aihubmix';
-  /** Optional APP-Code header for AIHubMix. */
-  appCode?: string;
 }
 
 export type BalanceConfig =

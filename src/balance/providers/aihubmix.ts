@@ -1,11 +1,13 @@
 import { t } from '../../i18n';
 import { createSimpleHttpLogger } from '../../logger';
 import { getToken } from '../../client/utils';
-import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
-import { showInput } from '../../ui/component';
+import {
+  fetchWithRetry,
+  getHeaderValueIgnoreCase,
+  normalizeBaseUrlInput,
+} from '../../utils';
 import type { SecretStore } from '../../secret';
 import type {
-  AiHubMixBalanceConfig,
   BalanceConfig,
   BalanceModelDisplayData,
   BalanceProviderState,
@@ -14,7 +16,6 @@ import type {
   BalanceStatusViewItem,
   BalanceUiStatusSnapshot,
 } from '../types';
-import { isAiHubMixBalanceConfig } from '../types';
 import type {
   BalanceConfigureResult,
   BalanceProvider,
@@ -98,13 +99,8 @@ function parseAiHubMixError(text: string): {
   };
 }
 
-function toAiHubMixConfig(config: BalanceConfig | undefined): AiHubMixBalanceConfig {
-  if (!isAiHubMixBalanceConfig(config)) {
-    return { method: 'aihubmix' };
-  }
-
-  const appCode = config.appCode?.trim();
-  return appCode ? { method: 'aihubmix', appCode } : { method: 'aihubmix' };
+function toAiHubMixConfig(_config: BalanceConfig | undefined): BalanceConfig {
+  return { method: 'aihubmix' };
 }
 
 function resolveRemainEndpoint(baseUrl: string): string {
@@ -240,9 +236,6 @@ export class AiHubMixBalanceProvider implements BalanceProvider {
   }): Promise<BalanceStatusViewItem[]> {
     const state = options.state;
     const snapshot = state?.snapshot;
-    const appCode = isAiHubMixBalanceConfig(this.config)
-      ? this.config.appCode?.trim()
-      : undefined;
 
     const description = state?.isRefreshing
       ? t('Refreshing...')
@@ -267,11 +260,6 @@ export class AiHubMixBalanceProvider implements BalanceProvider {
         detail: details,
       },
       {
-        label: `$(symbol-key) APP-Code`,
-        description: appCode ? t('Configured') : t('Not configured'),
-        detail: appCode || t('Not configured'),
-      },
-      {
         label: `$(refresh) ${t('Refresh now')}`,
         description: t('Fetch latest balance info'),
         action: {
@@ -285,25 +273,7 @@ export class AiHubMixBalanceProvider implements BalanceProvider {
   }
 
   async configure(): Promise<BalanceConfigureResult> {
-    const currentConfig = toAiHubMixConfig(this.config);
-    const appCode = await showInput({
-      title: t('AIHubMix APP-Code ({0})', this.context.providerLabel),
-      prompt: t('Optional APP-Code for AIHubMix balance query'),
-      placeHolder: t('Leave empty to skip'),
-      ignoreFocusOut: true,
-      value: currentConfig.appCode,
-      validateInput: () => null,
-    });
-
-    if (appCode === undefined) {
-      return { success: false };
-    }
-
-    const trimmed = appCode.trim();
-    const next: BalanceConfig = trimmed
-      ? { method: 'aihubmix', appCode: trimmed }
-      : { method: 'aihubmix' };
-
+    const next: BalanceConfig = { method: 'aihubmix' };
     this.config = next;
     await this.context.persistBalanceConfig?.(next);
     return { success: true, config: next };
@@ -326,8 +296,9 @@ export class AiHubMixBalanceProvider implements BalanceProvider {
 
     const baseUrl = normalizeBaseUrlInput(input.provider.baseUrl);
     const endpoint = resolveRemainEndpoint(baseUrl);
-    const config = toAiHubMixConfig(this.config);
-    const appCode = config.appCode?.trim();
+    const appCode = input.provider.extraHeaders
+      ? getHeaderValueIgnoreCase(input.provider.extraHeaders, 'APP-Code')?.trim()
+      : undefined;
 
     const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,

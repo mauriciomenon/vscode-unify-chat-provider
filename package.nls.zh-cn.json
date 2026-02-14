@@ -55,7 +55,6 @@
   "configuration.endpoints.balanceProvider.method.openrouter.description": "使用 OpenRouter 余额监控。",
   "configuration.endpoints.balanceProvider.method.siliconflow.description": "使用 SiliconFlow 余额监控。",
   "configuration.endpoints.balanceProvider.method.aihubmix.description": "使用 AIHubMix 余额监控。",
-  "configuration.endpoints.balanceProvider.aihubmix.appCode.description": "AIHubMix 余额查询的可选 APP-Code 请求头。",
   "configuration.endpoints.balanceProvider.method.kimiCode.description": "使用 Kimi Code 用量监控。",
   "configuration.endpoints.balanceProvider.method.newapi.description": "使用 New API 余额监控。",
   "configuration.endpoints.balanceProvider.newapi.userId.description": "New API 用户 ID。",

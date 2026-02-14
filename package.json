@@ -410,10 +410,6 @@
                         "type": "string",
                         "const": "aihubmix",
                         "description": "%configuration.endpoints.balanceProvider.method.aihubmix.description%"
-                      },
-                      "appCode": {
-                        "type": "string",
-                        "description": "%configuration.endpoints.balanceProvider.aihubmix.appCode.description%"
                       }
                     },
                     "required": [

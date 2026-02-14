@@ -23,8 +23,6 @@ import type {
 type DeepSeekBalanceItem = {
   currency: string;
   total: number;
-  toppedUp: number;
-  granted: number;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -143,8 +141,6 @@ function parseBalances(body: Record<string, unknown>): DeepSeekBalanceItem[] {
     balances.push({
       currency,
       total,
-      toppedUp,
-      granted,
     });
   }
 
@@ -367,13 +363,7 @@ export class DeepSeekBalanceProvider implements BalanceProvider {
 
       const primaryAmount = formatAmount(primary.currency, primary.total);
       const summary = t('Balance: {0}', primaryAmount);
-      const details = [
-        summary,
-        ...balances.map(
-          (item) =>
-            `${item.currency}: total ${formatAmount(item.currency, item.total)} | topped-up ${formatAmount(item.currency, item.toppedUp)} | granted ${formatAmount(item.currency, item.granted)}`,
-        ),
-      ];
+      const details = [summary];
 
       const currencySymbol = getCurrencySymbol(primary.currency);
       const modelDisplay: BalanceModelDisplayData = {

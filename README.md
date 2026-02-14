@@ -402,7 +402,7 @@ Use this feature to monitor provider balances in `Provider Settings`.
   - `DeepSeek Balance`: no extra config required; uses provider `baseUrl` and API key.
   - `OpenRouter Balance`: no extra config required; uses provider `baseUrl` and API key.
   - `SiliconFlow Balance`: no extra config required; uses provider `baseUrl` and API key.
-  - `AIHubMix Balance`: optional `APP-Code`; uses provider `baseUrl` and API key.
+  - `AIHubMix Balance`: no extra balance config required; uses provider `baseUrl`, API key, and optional `APP-Code` from provider `extraHeaders`.
   - `Kimi Code Usage`: no extra config required; uses provider `baseUrl` and API key.
   - `New API Balance`: always shows API key balance; user balance is optional and requires `userId` + `systemToken` (sensitive data).
 - Run the VS Code command `Unify Chat Provider: Refresh All Providers' Balances` to force refresh balances for all configured providers.

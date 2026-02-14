@@ -319,11 +319,7 @@ export class SiliconFlowBalanceProvider implements BalanceProvider {
 
       const amount = `¥${formatSignedNumber(total)}`;
       const summary = t('Balance: {0}', amount);
-      const details = [
-        summary,
-        t('Paid balance: {0}', `¥${formatSignedNumber(paid)}`),
-        t('Granted balance: {0}', `¥${formatSignedNumber(granted)}`),
-      ];
+      const details = [summary];
 
       const modelDisplay: BalanceModelDisplayData = {
         badge: { text: amount, kind: 'amount' },
