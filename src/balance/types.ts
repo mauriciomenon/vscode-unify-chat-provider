@@ -33,20 +33,58 @@ export type BalanceConfig =
 /**
  * Structured balance display data for model list rendering.
  *
- * Priority for short badge rendering:
+ * Priority for short badge rendering (if provider chooses to auto-generate):
  * 1) remainingPercent
- * 2) expiration
+ * 2) time
  * 3) amount
  */
-export interface BalanceModelDisplayData {
+export type BalanceModelDisplayBadgeKind =
+  | 'percent'
+  | 'time'
+  | 'amount'
+  | 'custom';
+
+export interface BalanceModelDisplayBadge {
   /** Preformatted short badge text without wrapper punctuation (e.g. "50%", "expiration：2013.2.3 10:11:00", "¥10.00"). */
-  badge?: string;
+  text: string;
+  kind?: BalanceModelDisplayBadgeKind;
+}
+
+export interface BalanceModelDisplayAmount {
+  /** Formatted amount with currency symbol (e.g. "¥10.00"). */
+  text: string;
+  /** Optional numeric value for threshold evaluation (currency ignored). */
+  value?: number;
+  /** Optional symbol (e.g. "$", "¥"). */
+  currencySymbol?: string;
+}
+
+export type BalanceModelDisplayTimeKind = 'expiresAt' | 'resetAt';
+
+export interface BalanceModelDisplayTime {
+  /** Semantic meaning of the time value. */
+  kind: BalanceModelDisplayTimeKind;
+  /** Raw time value from provider (prefer parseable datetime / ISO string). */
+  value: string;
+  /** Optional parsed timestamp for threshold evaluation. */
+  timestampMs?: number;
+  /** Optional preformatted display text. */
+  display?: string;
+}
+
+export interface BalanceModelDisplayTokens {
+  used?: number;
+  limit?: number;
+  remaining?: number;
+}
+
+export interface BalanceModelDisplayData {
   /** Remaining percentage in range 0-100 (e.g. 50 => "50%"). */
   remainingPercent?: number;
-  /** Expiration text (prefer parseable datetime / ISO string). */
-  expiration?: string;
-  /** Formatted amount with currency symbol (e.g. "¥10.00"). */
-  amount?: string;
+  badge?: BalanceModelDisplayBadge;
+  time?: BalanceModelDisplayTime;
+  amount?: BalanceModelDisplayAmount;
+  tokens?: BalanceModelDisplayTokens;
 }
 
 export interface BalanceSnapshot {

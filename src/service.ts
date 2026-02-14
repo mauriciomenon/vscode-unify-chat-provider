@@ -31,6 +31,7 @@ import {
   resolveTokenizerId,
 } from './tokenizer/tokenizers';
 import type { BalanceManager } from './balance';
+import { evaluateBalanceWarning } from './balance/warning-utils';
 
 export class UnifyChatService implements vscode.LanguageModelChatProvider {
   private readonly clients = new Map<string, ApiProvider>();
@@ -93,6 +94,14 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     const detail = formatProviderDetail(provider.name, balanceSnapshot);
     const tooltip = formatModelTooltip(provider, model, balanceSnapshot);
 
+    const warning = evaluateBalanceWarning(
+      balanceSnapshot?.modelDisplay,
+      this.configStore.balanceWarning,
+    );
+    const statusIcon = warning.isNearThreshold
+      ? new vscode.ThemeIcon('warning')
+      : undefined;
+
     return {
       id: modelId,
       name: model.name ?? model.id,
@@ -111,6 +120,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
       detail,
       tooltip,
       isUserSelectable: true,
+      statusIcon,
     };
   }
 

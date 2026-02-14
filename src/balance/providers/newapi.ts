@@ -626,8 +626,12 @@ export class NewAPIBalanceProvider implements BalanceProvider {
       const amount = '$' + formatSigned(totalAvailable);
       summary = t('API Key balance: {0}', amount);
       modelDisplay = {
-        badge: amount,
-        amount,
+        badge: { text: amount, kind: 'amount' },
+        amount: {
+          text: amount,
+          value: Number.isFinite(totalAvailable) ? totalAvailable : undefined,
+          currencySymbol: '$',
+        },
       };
     }
 
@@ -684,8 +688,12 @@ export class NewAPIBalanceProvider implements BalanceProvider {
       const amount = '$' + formatSigned(actualQuota);
       summary = t('Balance: {0}', amount);
       modelDisplay = {
-        badge: amount,
-        amount,
+        badge: { text: amount, kind: 'amount' },
+        amount: {
+          text: amount,
+          value: Number.isFinite(actualQuota) ? actualQuota : undefined,
+          currencySymbol: '$',
+        },
       };
     }
 

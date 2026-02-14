@@ -6,10 +6,7 @@ import {
   withoutKeys,
 } from './config-ops';
 import { normalizeBaseUrlInput } from './utils';
-import {
-  PROVIDER_KEYS,
-  ProviderType,
-} from './client/definitions';
+import { PROVIDER_KEYS, ProviderType } from './client/definitions';
 import { ProviderConfig, ModelConfig } from './types';
 
 const CONFIG_NAMESPACE = 'unifyChatProvider';
@@ -17,6 +14,13 @@ const DEFAULT_BALANCE_REFRESH_INTERVAL_MS = 60_000;
 const DEFAULT_BALANCE_THROTTLE_WINDOW_MS = 10_000;
 const MIN_BALANCE_REFRESH_INTERVAL_MS = 1_000;
 const MIN_BALANCE_THROTTLE_WINDOW_MS = 0;
+const DEFAULT_BALANCE_WARNING_ENABLED = true;
+const DEFAULT_BALANCE_WARNING_TIME_THRESHOLD_DAYS = 1;
+const DEFAULT_BALANCE_WARNING_AMOUNT_THRESHOLD = 1;
+const DEFAULT_BALANCE_WARNING_TOKEN_THRESHOLD_MILLIONS = 1;
+const MIN_BALANCE_WARNING_TIME_THRESHOLD_DAYS = 0;
+const MIN_BALANCE_WARNING_AMOUNT_THRESHOLD = 0;
+const MIN_BALANCE_WARNING_TOKEN_THRESHOLD_MILLIONS = 0;
 
 /**
  * Extension configuration stored in workspace settings
@@ -26,7 +30,18 @@ export interface ExtensionConfiguration {
   storeApiKeyInSettings: boolean;
   balanceRefreshIntervalMs: number;
   balanceThrottleWindowMs: number;
+  balanceWarning: BalanceWarningConfiguration;
   verbose: boolean;
+}
+
+export interface BalanceWarningConfiguration {
+  enabled: boolean;
+  /** Threshold in days (supports decimals). */
+  timeThresholdDays: number;
+  /** Unitless amount threshold (currency ignored). */
+  amountThreshold: number;
+  /** Token remaining threshold in millions. */
+  tokenThresholdMillions: number;
 }
 
 /**
@@ -118,6 +133,63 @@ export class ConfigStore {
     );
   }
 
+  get balanceWarningEnabled(): boolean {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceWarning.enabled',
+      DEFAULT_BALANCE_WARNING_ENABLED,
+    );
+    return typeof raw === 'boolean' ? raw : DEFAULT_BALANCE_WARNING_ENABLED;
+  }
+
+  get balanceWarningTimeThresholdDays(): number {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceWarning.timeThresholdDays',
+      DEFAULT_BALANCE_WARNING_TIME_THRESHOLD_DAYS,
+    );
+    return this.readNumberAtLeast(
+      raw,
+      DEFAULT_BALANCE_WARNING_TIME_THRESHOLD_DAYS,
+      MIN_BALANCE_WARNING_TIME_THRESHOLD_DAYS,
+    );
+  }
+
+  get balanceWarningAmountThreshold(): number {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceWarning.amountThreshold',
+      DEFAULT_BALANCE_WARNING_AMOUNT_THRESHOLD,
+    );
+    return this.readNumberAtLeast(
+      raw,
+      DEFAULT_BALANCE_WARNING_AMOUNT_THRESHOLD,
+      MIN_BALANCE_WARNING_AMOUNT_THRESHOLD,
+    );
+  }
+
+  get balanceWarningTokenThresholdMillions(): number {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceWarning.tokenThresholdMillions',
+      DEFAULT_BALANCE_WARNING_TOKEN_THRESHOLD_MILLIONS,
+    );
+    return this.readNumberAtLeast(
+      raw,
+      DEFAULT_BALANCE_WARNING_TOKEN_THRESHOLD_MILLIONS,
+      MIN_BALANCE_WARNING_TOKEN_THRESHOLD_MILLIONS,
+    );
+  }
+
+  get balanceWarning(): BalanceWarningConfiguration {
+    return {
+      enabled: this.balanceWarningEnabled,
+      timeThresholdDays: this.balanceWarningTimeThresholdDays,
+      amountThreshold: this.balanceWarningAmountThreshold,
+      tokenThresholdMillions: this.balanceWarningTokenThresholdMillions,
+    };
+  }
+
   /**
    * Get the full extension configuration
    */
@@ -127,6 +199,7 @@ export class ConfigStore {
       storeApiKeyInSettings: this.storeApiKeyInSettings,
       balanceRefreshIntervalMs: this.balanceRefreshIntervalMs,
       balanceThrottleWindowMs: this.balanceThrottleWindowMs,
+      balanceWarning: this.balanceWarning,
       verbose: this.verbose,
     };
   }
@@ -140,6 +213,16 @@ export class ConfigStore {
       Number.isInteger(value) &&
       Number.isFinite(value) &&
       value >= min
+      ? value
+      : fallback;
+  }
+
+  private readNumberAtLeast(
+    value: unknown,
+    fallback: number,
+    min: number,
+  ): number {
+    return typeof value === 'number' && Number.isFinite(value) && value >= min
       ? value
       : fallback;
   }

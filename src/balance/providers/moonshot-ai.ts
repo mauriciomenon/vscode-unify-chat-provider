@@ -306,8 +306,12 @@ export class MoonshotAIBalanceProvider implements BalanceProvider {
       const summary = t('Balance: {0}', amount);
       const details = [summary];
       const modelDisplay: BalanceModelDisplayData = {
-        badge: amount,
-        amount,
+        badge: { text: amount, kind: 'amount' },
+        amount: {
+          text: amount,
+          value: Number.isFinite(available) ? available : undefined,
+          currencySymbol: '¥',
+        },
       };
       return {
         success: true,

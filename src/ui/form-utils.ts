@@ -257,7 +257,7 @@ export function formatProviderDetail(
   providerName: string,
   snapshot: BalanceSnapshot | undefined,
 ): string {
-  const badge = snapshot?.modelDisplay?.badge?.trim();
+  const badge = snapshot?.modelDisplay?.badge?.text?.trim();
   if (!badge) {
     return providerName;
   }
@@ -341,12 +341,13 @@ function formatBalanceDetails(
       return `${Math.round(display.remainingPercent)}%`;
     }
 
-    const expiration = normalizeTooltipValue(display.expiration);
-    if (expiration) {
-      return expiration;
+    const time = display.time;
+    const timeValue = normalizeTooltipValue(time?.display ?? time?.value);
+    if (timeValue) {
+      return timeValue;
     }
 
-    const amount = normalizeTooltipValue(display.amount);
+    const amount = normalizeTooltipValue(display.amount?.text);
     if (amount) {
       return amount;
     }

@@ -10,6 +10,12 @@ import type { BalanceProviderContext } from './balance-provider';
 import type {
   BalanceConfig,
   BalanceModelDisplayData,
+  BalanceModelDisplayAmount,
+  BalanceModelDisplayBadge,
+  BalanceModelDisplayBadgeKind,
+  BalanceModelDisplayTime,
+  BalanceModelDisplayTimeKind,
+  BalanceModelDisplayTokens,
   BalanceSnapshot,
   BalanceProviderState,
   BalanceStatusViewItem,
@@ -18,7 +24,7 @@ import type {
 const DEFAULT_PERIODIC_REFRESH_MS = 60_000;
 const DEFAULT_THROTTLE_WINDOW_MS = 10_000;
 const STATE_KEY = 'balanceState';
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 
 type PersistedProviderState = {
   snapshot?: BalanceSnapshot;
@@ -643,27 +649,132 @@ export class BalanceManager implements vscode.Disposable {
       return undefined;
     }
 
-    const badge = this.toString(rawModelDisplay.badge);
     const remainingPercent = this.toFiniteNumber(
       rawModelDisplay.remainingPercent,
     );
-    const expiration = this.toString(rawModelDisplay.expiration);
-    const amount = this.toString(rawModelDisplay.amount);
+
+    const badge = this.toBadge(rawModelDisplay.badge);
+    const amount = this.toAmount(rawModelDisplay.amount);
+    const tokens = this.toTokens(rawModelDisplay.tokens);
+
+    const time = this.toTime(rawModelDisplay.time);
 
     if (
       badge === undefined &&
       remainingPercent === undefined &&
-      expiration === undefined &&
-      amount === undefined
+      time === undefined &&
+      amount === undefined &&
+      tokens === undefined
     ) {
       return undefined;
     }
 
     return {
-      badge,
-      remainingPercent,
-      expiration,
-      amount,
+      ...(remainingPercent !== undefined ? { remainingPercent } : {}),
+      ...(badge !== undefined ? { badge } : {}),
+      ...(time !== undefined ? { time } : {}),
+      ...(amount !== undefined ? { amount } : {}),
+      ...(tokens !== undefined ? { tokens } : {}),
+    };
+  }
+
+  private toBadgeKind(
+    value: unknown,
+  ): BalanceModelDisplayBadgeKind | undefined {
+    if (
+      value === 'percent' ||
+      value === 'time' ||
+      value === 'amount' ||
+      value === 'custom'
+    ) {
+      return value;
+    }
+    return undefined;
+  }
+
+  private toBadge(raw: unknown): BalanceModelDisplayBadge | undefined {
+    if (!isRecord(raw)) {
+      return undefined;
+    }
+
+    const text = this.toString(raw.text)?.trim();
+    if (!text) {
+      return undefined;
+    }
+
+    const kind = this.toBadgeKind(raw.kind);
+    return {
+      text,
+      ...(kind !== undefined ? { kind } : {}),
+    };
+  }
+
+  private toTimeKind(value: unknown): BalanceModelDisplayTimeKind | undefined {
+    if (value === 'expiresAt' || value === 'resetAt') {
+      return value;
+    }
+    return undefined;
+  }
+
+  private toTime(raw: unknown): BalanceModelDisplayTime | undefined {
+    if (!isRecord(raw)) {
+      return undefined;
+    }
+
+    const kind = this.toTimeKind(raw.kind);
+    const value = this.toString(raw.value)?.trim();
+    if (!kind || !value) {
+      return undefined;
+    }
+
+    const timestampMs = this.toTimestamp(raw.timestampMs);
+    const display = this.toString(raw.display)?.trim();
+
+    return {
+      kind,
+      value,
+      ...(timestampMs !== undefined ? { timestampMs } : {}),
+      ...(display ? { display } : {}),
+    };
+  }
+
+  private toTokens(raw: unknown): BalanceModelDisplayTokens | undefined {
+    if (!isRecord(raw)) {
+      return undefined;
+    }
+
+    const used = this.toFiniteNumber(raw.used);
+    const limit = this.toFiniteNumber(raw.limit);
+    const remaining = this.toFiniteNumber(raw.remaining);
+
+    if (used === undefined && limit === undefined && remaining === undefined) {
+      return undefined;
+    }
+
+    return {
+      ...(used !== undefined ? { used } : {}),
+      ...(limit !== undefined ? { limit } : {}),
+      ...(remaining !== undefined ? { remaining } : {}),
+    };
+  }
+
+  private toAmount(raw: unknown): BalanceModelDisplayAmount | undefined {
+    if (!isRecord(raw)) {
+      return undefined;
+    }
+
+    const text = this.toString(raw.text)?.trim();
+    if (!text) {
+      return undefined;
+    }
+
+    const value = this.toFiniteNumber(raw.value);
+    const currencySymbol = this.toString(raw.currencySymbol)?.trim();
+
+    return {
+      text,
+      ...(value !== undefined ? { value } : {}),
+      ...(currencySymbol ? { currencySymbol } : {}),
     };
   }
 

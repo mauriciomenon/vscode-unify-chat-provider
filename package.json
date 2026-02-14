@@ -199,6 +199,33 @@
           "default": 10000,
           "minimum": 0
         },
+        "unifyChatProvider.balanceWarning.enabled": {
+          "type": "boolean",
+          "description": "%configuration.balanceWarning.enabled.description%",
+          "default": true,
+          "order": 1
+        },
+        "unifyChatProvider.balanceWarning.timeThresholdDays": {
+          "type": "number",
+          "description": "%configuration.balanceWarning.timeThresholdDays.description%",
+          "default": 1,
+          "minimum": 0,
+          "order": 2
+        },
+        "unifyChatProvider.balanceWarning.amountThreshold": {
+          "type": "number",
+          "description": "%configuration.balanceWarning.amountThreshold.description%",
+          "default": 1,
+          "minimum": 0,
+          "order": 3
+        },
+        "unifyChatProvider.balanceWarning.tokenThresholdMillions": {
+          "type": "number",
+          "description": "%configuration.balanceWarning.tokenThresholdMillions.description%",
+          "default": 1,
+          "minimum": 0,
+          "order": 4
+        },
         "unifyChatProvider.networkSettings": {
           "type": "object",
           "description": "%configuration.networkSettings.description%",

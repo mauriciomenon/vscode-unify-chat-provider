@@ -552,19 +552,47 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
       if (ratio !== undefined) {
         const percent = Math.round(ratio * 100);
         modelDisplay.remainingPercent = percent;
-        modelDisplay.badge = `${percent}%`;
+        modelDisplay.badge = { text: `${percent}%`, kind: 'percent' };
       }
+
+      if (summaryRow) {
+        const used = summaryRow.used;
+        const limit = summaryRow.limit;
+        const hasLimit = Number.isFinite(limit) && limit > 0;
+        const hasUsed = Number.isFinite(used) && used >= 0;
+        if (hasLimit || hasUsed) {
+          modelDisplay.tokens = {
+            ...(hasUsed ? { used } : {}),
+            ...(hasLimit
+              ? { limit, remaining: Math.max(0, limit - used) }
+              : {}),
+          };
+        }
+      }
+
       if (summaryRow?.resetAt) {
-        modelDisplay.expiration = summaryRow.resetAt;
+        const value = summaryRow.resetAt;
+        const timestampMs = new Date(value).getTime();
+        modelDisplay.time = {
+          kind: 'resetAt',
+          value,
+          timestampMs: Number.isFinite(timestampMs) ? timestampMs : undefined,
+          display: formatExpiration(value),
+        };
         if (!modelDisplay.badge) {
-          modelDisplay.badge = `expiration：${formatExpiration(summaryRow.resetAt)}`;
+          modelDisplay.badge = {
+            text: `expiration：${formatExpiration(value)}`,
+            kind: 'time',
+          };
         }
       }
 
       const hasModelDisplay =
         modelDisplay.badge !== undefined ||
         modelDisplay.remainingPercent !== undefined ||
-        modelDisplay.expiration !== undefined;
+        modelDisplay.time !== undefined ||
+        modelDisplay.amount !== undefined ||
+        modelDisplay.tokens !== undefined;
 
       return {
         success: true,
