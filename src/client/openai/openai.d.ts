@@ -191,6 +191,7 @@ declare module 'openai/resources/chat/completions' {
      */
     cache_control?: {
       type: 'ephemeral';
+      ttl?: '5m' | '1h';
     };
   }
   interface ChatCompletionFunctionTool {
@@ -201,6 +202,7 @@ declare module 'openai/resources/chat/completions' {
      */
     cache_control?: {
       type: 'ephemeral';
+      ttl?: '5m' | '1h';
     };
   }
   namespace ChatCompletionChunk {

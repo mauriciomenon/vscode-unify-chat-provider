@@ -7,7 +7,7 @@ import {
 } from './config-ops';
 import { normalizeBaseUrlInput } from './utils';
 import { PROVIDER_KEYS, ProviderType } from './client/definitions';
-import { ProviderConfig, ModelConfig } from './types';
+import { ContextCacheConfig, ModelConfig, ProviderConfig } from './types';
 
 const CONFIG_NAMESPACE = 'unifyChatProvider';
 const DEFAULT_BALANCE_REFRESH_INTERVAL_MS = 60_000;
@@ -297,8 +297,41 @@ export class ConfigStore {
 
     provider.extraHeaders = this.normalizeStringRecord(provider.extraHeaders);
     provider.extraBody = this.normalizeObjectRecord(provider.extraBody);
+    provider.contextCache = this.normalizeContextCacheConfig(provider.contextCache);
 
     return provider;
+  }
+
+  private normalizeContextCacheConfig(
+    raw: unknown,
+  ): ContextCacheConfig | undefined {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return undefined;
+    }
+
+    const record = raw as Record<string, unknown>;
+    const out: ContextCacheConfig = {};
+
+    const typeValue = record['type'];
+    if (typeValue === 'only-free' || typeValue === 'allow-paid') {
+      out.type = typeValue;
+    }
+
+    const ttlValue = record['ttl'];
+    if (
+      typeof ttlValue === 'number' &&
+      Number.isFinite(ttlValue) &&
+      Number.isInteger(ttlValue) &&
+      ttlValue > 0
+    ) {
+      out.ttl = ttlValue;
+    }
+
+    if (out.type === undefined && out.ttl === undefined) {
+      return undefined;
+    }
+
+    return out;
   }
 
   private normalizeObjectRecord(

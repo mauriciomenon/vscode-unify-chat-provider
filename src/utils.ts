@@ -2,7 +2,13 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { DataPartMimeTypes, StatefulMarkerData } from './client/types';
 import type { ProviderHttpLogger } from './logger';
 import { officialModelsManager } from './official-models-manager';
-import type { ModelConfig, ProviderConfig, TimeoutConfig } from './types';
+import type {
+  ContextCacheConfig,
+  ContextCacheType,
+  ModelConfig,
+  ProviderConfig,
+  TimeoutConfig,
+} from './types';
 import * as vscode from 'vscode';
 import { t } from './i18n';
 
@@ -11,6 +17,9 @@ import { t } from './i18n';
  * Uses double underscores to clearly distinguish from real model IDs.
  */
 export const PLACEHOLDER_MODEL_ID = '__PLACEHOLDER__';
+
+export const DEFAULT_CONTEXT_CACHE_TTL_SECONDS = 300;
+export const DEFAULT_CONTEXT_CACHE_TYPE: ContextCacheType = 'only-free';
 
 /**
  * Check if a model ID is a placeholder.
@@ -141,6 +150,19 @@ function readPositiveInteger(value: unknown): number | undefined {
     return undefined;
   }
   return n;
+}
+
+export function resolveContextCacheConfig(
+  raw: ContextCacheConfig | undefined,
+): { type: ContextCacheType; ttlSeconds: number } {
+  const type =
+    raw?.type === 'only-free' || raw?.type === 'allow-paid'
+      ? raw.type
+      : DEFAULT_CONTEXT_CACHE_TYPE;
+
+  const ttlSeconds = readPositiveInteger(raw?.ttl) ?? DEFAULT_CONTEXT_CACHE_TTL_SECONDS;
+
+  return { type, ttlSeconds };
 }
 
 function readBackoffMultiplier(value: unknown): number | undefined {

@@ -21,6 +21,7 @@ import type { ProviderHttpLogger, RequestLogger } from '../../logger';
 import { ApiProvider } from '../interface';
 import {
   createStatefulMarkerIdentity,
+  DEFAULT_CONTEXT_CACHE_TTL_SECONDS,
   DEFAULT_NORMAL_TIMEOUT_CONFIG,
   FetchMode,
   isCacheControlMarker,
@@ -30,6 +31,7 @@ import {
   decodeStatefulMarkerPart,
   normalizeImageMimeType,
   parseThinkingTags,
+  resolveContextCacheConfig,
   resolveChatNetwork,
   sanitizeMessagesForModelSwitch,
   StreamingThinkingTagParser,
@@ -270,9 +272,19 @@ export class AnthropicProvider implements ApiProvider {
     system: Anthropic.Beta.Messages.BetaTextBlockParam[],
     outMessages: Anthropic.Beta.Messages.BetaMessageParam[],
   ) {
+    const resolved = resolveContextCacheConfig(this.config.contextCache);
+    const useOneHourTtl =
+      resolved.type === 'allow-paid' &&
+      Math.abs(resolved.ttlSeconds - 3600) <
+        Math.abs(resolved.ttlSeconds - DEFAULT_CONTEXT_CACHE_TTL_SECONDS);
+
+    const cacheControl = useOneHourTtl
+      ? { type: 'ephemeral' as const, ttl: '1h' as const }
+      : { type: 'ephemeral' as const };
+
     const lastSystem = system.at(-1);
     if (lastSystem) {
-      lastSystem.cache_control = { type: 'ephemeral' };
+      lastSystem.cache_control = cacheControl;
     }
     const lastUser = outMessages.filter((m) => m.role === 'user').at(-1);
     if (lastUser) {
@@ -287,13 +299,13 @@ export class AnthropicProvider implements ApiProvider {
           : lastUser.content;
       const lastContent = newContents.at(-1);
       if (lastContent && this.isCacheControlApplicableBlock(lastContent)) {
-        lastContent.cache_control = { type: 'ephemeral' };
+        lastContent.cache_control = cacheControl;
       } else {
         newContents.push({
           type: 'text',
           // Anthropic does not accept empty string text blocks
           text: ' ',
-          cache_control: { type: 'ephemeral' },
+          cache_control: cacheControl,
         } satisfies BetaTextBlockParam);
       }
     }

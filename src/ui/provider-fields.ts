@@ -9,9 +9,14 @@ import {
   validateProviderNameUnique,
   type ProviderFormDraft,
 } from './form-utils';
-import { normalizeBaseUrlInput } from '../utils';
+import {
+  DEFAULT_CONTEXT_CACHE_TTL_SECONDS,
+  DEFAULT_CONTEXT_CACHE_TYPE,
+  normalizeBaseUrlInput,
+  resolveContextCacheConfig,
+} from '../utils';
 import { ProviderType, PROVIDER_TYPES } from '../client/definitions';
-import type { ProviderConfig } from '../types';
+import type { ContextCacheConfig, ContextCacheType, ProviderConfig } from '../types';
 import { type SecretStore } from '../secret';
 import type { EventedUriHandler } from '../uri-handler';
 import {
@@ -202,6 +207,26 @@ export const providerFormSchema: FormSchema<ProviderFormDraft> = {
           ? draft.models.map((m) => m.name || m.id).join(', ')
           : t('(No models configured)'),
     },
+    {
+      key: 'contextCache',
+      type: 'custom',
+      label: t('Context Cache'),
+      icon: 'database',
+      section: 'content',
+      edit: async (draft) => {
+        await editContextCacheField(draft);
+      },
+      getDescription: (draft) => {
+        const resolved = resolveContextCacheConfig(draft.contextCache);
+        const typeLabel =
+          resolved.type === 'only-free' ? t('Only Free') : t('Allow Paid');
+        const summary = `${typeLabel}, ${resolved.ttlSeconds}s`;
+        const isDefault =
+          resolved.type === DEFAULT_CONTEXT_CACHE_TYPE &&
+          resolved.ttlSeconds === DEFAULT_CONTEXT_CACHE_TTL_SECONDS;
+        return isDefault ? t('default ({0})', summary) : summary;
+      },
+    },
     // Extra Headers
     {
       key: 'extraHeaders',
@@ -302,6 +327,163 @@ export const providerFormSchema: FormSchema<ProviderFormDraft> = {
     },
   ],
 };
+
+type ContextCacheSettingsItem = vscode.QuickPickItem & {
+  action?: 'back' | 'reset';
+  edit?: 'type' | 'ttl';
+};
+
+type ContextCacheTypePickItem = vscode.QuickPickItem & {
+  typeValue: ContextCacheType;
+};
+
+function validatePositiveFiniteIntegerOrEmpty(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+    return t('Please enter a positive integer');
+  }
+  return null;
+}
+
+async function editContextCacheField(draft: ProviderFormDraft): Promise<void> {
+  const { pickQuickItem, showInput } = await import('./component');
+
+  let typeValue: ContextCacheType | undefined = draft.contextCache?.type;
+  let ttlValue: number | undefined = draft.contextCache?.ttl;
+
+  const buildItems = (): ContextCacheSettingsItem[] => {
+    const resolved = resolveContextCacheConfig({ type: typeValue, ttl: ttlValue });
+    const resolvedTypeLabel =
+      resolved.type === 'only-free' ? t('Only Free') : t('Allow Paid');
+
+    const typeDesc =
+      resolved.type === DEFAULT_CONTEXT_CACHE_TYPE
+        ? t('default ({0})', resolvedTypeLabel)
+        : resolvedTypeLabel;
+
+    const ttlDesc =
+      resolved.ttlSeconds === DEFAULT_CONTEXT_CACHE_TTL_SECONDS
+        ? t('default ({0})', `${DEFAULT_CONTEXT_CACHE_TTL_SECONDS}s`)
+        : `${resolved.ttlSeconds}s`;
+
+    return [
+      { label: `$(arrow-left) ${t('Back')}`, action: 'back' },
+      { label: '', kind: vscode.QuickPickItemKind.Separator },
+      {
+        label: `$(symbol-enum) ${t('Cache Type')}`,
+        description: typeDesc,
+        edit: 'type',
+      },
+      {
+        label: `$(clock) ${t('TTL (seconds)')}`,
+        description: ttlDesc,
+        edit: 'ttl',
+      },
+      { label: '', kind: vscode.QuickPickItemKind.Separator },
+      { label: `$(refresh) ${t('Reset to Defaults')}`, action: 'reset' },
+    ];
+  };
+
+  while (true) {
+    const picked = await pickQuickItem<ContextCacheSettingsItem>({
+      title: t('Context Cache'),
+      placeholder: t('Select a setting to edit'),
+      ignoreFocusOut: true,
+      items: buildItems(),
+    });
+
+    if (!picked || picked.action === 'back') {
+      break;
+    }
+
+    if (picked.action === 'reset') {
+      typeValue = undefined;
+      ttlValue = undefined;
+      continue;
+    }
+
+    if (picked.edit === 'type') {
+      const resolved = resolveContextCacheConfig({
+        type: typeValue,
+        ttl: ttlValue,
+      });
+      const typePicked = await pickQuickItem<ContextCacheTypePickItem>({
+        title: t('Cache Type'),
+        placeholder: t('Select cache type'),
+        ignoreFocusOut: true,
+        items: [
+          {
+            label: t('Only Free'),
+            description: t('Use context cache only when free'),
+            detail: t('default'),
+            picked: resolved.type === 'only-free',
+            typeValue: 'only-free',
+          },
+          {
+            label: t('Allow Paid'),
+            description: t('Use context cache even if it incurs cost'),
+            picked: resolved.type === 'allow-paid',
+            typeValue: 'allow-paid',
+          },
+        ],
+      });
+      if (typePicked) {
+        typeValue = typePicked.typeValue;
+      }
+      continue;
+    }
+
+    if (picked.edit === 'ttl') {
+      const resolved = resolveContextCacheConfig({
+        type: typeValue,
+        ttl: ttlValue,
+      });
+      const ttlRaw = await showInput({
+        title: t('TTL (seconds)'),
+        prompt: t('Enter TTL in seconds'),
+        placeHolder: t('Leave blank for default'),
+        value: ttlValue?.toString() ?? '',
+        ignoreFocusOut: true,
+        validateInput: validatePositiveFiniteIntegerOrEmpty,
+      });
+      if (ttlRaw !== undefined) {
+        const trimmed = ttlRaw.trim();
+        if (!trimmed) {
+          ttlValue = undefined;
+        } else {
+          const parsed = Number(trimmed);
+          ttlValue =
+            Number.isFinite(parsed) && Number.isInteger(parsed) && parsed > 0
+              ? parsed
+              : resolved.ttlSeconds;
+        }
+      }
+      continue;
+    }
+  }
+
+  const resolved = resolveContextCacheConfig({ type: typeValue, ttl: ttlValue });
+
+  const isDefault =
+    resolved.type === DEFAULT_CONTEXT_CACHE_TYPE &&
+    resolved.ttlSeconds === DEFAULT_CONTEXT_CACHE_TTL_SECONDS;
+
+  if (isDefault) {
+    draft.contextCache = undefined;
+    return;
+  }
+
+  const next: ContextCacheConfig = {};
+  if (resolved.type !== DEFAULT_CONTEXT_CACHE_TYPE) {
+    next.type = resolved.type;
+  }
+  if (resolved.ttlSeconds !== DEFAULT_CONTEXT_CACHE_TTL_SECONDS) {
+    next.ttl = resolved.ttlSeconds;
+  }
+  draft.contextCache = next;
+}
 
 type AuthAction =
   | { kind: 'none' }

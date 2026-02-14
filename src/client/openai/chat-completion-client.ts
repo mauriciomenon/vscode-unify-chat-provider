@@ -12,6 +12,7 @@ import OpenAI from 'openai';
 import {
   decodeStatefulMarkerPart,
   createStatefulMarkerIdentity,
+  DEFAULT_CONTEXT_CACHE_TTL_SECONDS,
   DEFAULT_NORMAL_TIMEOUT_CONFIG,
   encodeStatefulMarkerPart,
   FetchMode,
@@ -20,6 +21,7 @@ import {
   isInternalMarker,
   normalizeImageMimeType,
   parseThinkingTags,
+  resolveContextCacheConfig,
   resolveChatNetwork,
   sanitizeMessagesForModelSwitch,
   StreamingThinkingTagParser,
@@ -248,21 +250,32 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
   }
 
   private applyCacheControl(messages: ChatCompletionMessageParam[]): void {
+    const resolved = resolveContextCacheConfig(this.config.contextCache);
+    const useOneHourTtl =
+      resolved.type === 'allow-paid' &&
+      Math.abs(resolved.ttlSeconds - 3600) <
+        Math.abs(resolved.ttlSeconds - DEFAULT_CONTEXT_CACHE_TTL_SECONDS);
+
+    const cacheControl = useOneHourTtl
+      ? { type: 'ephemeral' as const, ttl: '1h' as const }
+      : { type: 'ephemeral' as const };
+
     const lastSystemMessage = messages
       .filter((m) => m.role === 'system')
       .at(-1);
     if (lastSystemMessage && 'content' in lastSystemMessage) {
-      this.applyCacheControlToContent(lastSystemMessage);
+      this.applyCacheControlToContent(lastSystemMessage, cacheControl);
     }
 
     const lastUserMessage = messages.filter((m) => m.role === 'user').at(-1);
     if (lastUserMessage && 'content' in lastUserMessage) {
-      this.applyCacheControlToContent(lastUserMessage);
+      this.applyCacheControlToContent(lastUserMessage, cacheControl);
     }
   }
 
   private applyCacheControlToContent(
     message: ChatCompletionMessageParam,
+    cacheControl: { type: 'ephemeral'; ttl?: '5m' | '1h' },
   ): void {
     if (!message.content) return;
 
@@ -271,7 +284,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
         {
           type: 'text',
           text: message.content,
-          cache_control: { type: 'ephemeral' },
+          cache_control: cacheControl,
         },
       ];
       return;
@@ -284,7 +297,7 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
           (part): part is ChatCompletionContentPartText => part.type === 'text',
         );
       if (lastTextBlock) {
-        lastTextBlock.cache_control = { type: 'ephemeral' };
+        lastTextBlock.cache_control = cacheControl;
       }
     }
   }
@@ -498,8 +511,18 @@ export class OpenAIChatCompletionProvider implements ApiProvider {
 
     // Add cache control to last tool to prevent reuse across requests
     if (shouldApplyCacheControl) {
+      const resolved = resolveContextCacheConfig(this.config.contextCache);
+      const useOneHourTtl =
+        resolved.type === 'allow-paid' &&
+        Math.abs(resolved.ttlSeconds - 3600) <
+          Math.abs(resolved.ttlSeconds - DEFAULT_CONTEXT_CACHE_TTL_SECONDS);
+
+      const cacheControl = useOneHourTtl
+        ? { type: 'ephemeral' as const, ttl: '1h' as const }
+        : { type: 'ephemeral' as const };
+
       if (result.length > 0) {
-        result.at(-1)!.cache_control = { type: 'ephemeral' };
+        result.at(-1)!.cache_control = cacheControl;
       }
     }
 

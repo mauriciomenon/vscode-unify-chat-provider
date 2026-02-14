@@ -4,6 +4,14 @@ import type { RetryConfig } from './utils';
 import type { TokenizerId } from './tokenizer/tokenizers';
 import { BalanceConfig } from './balance/types';
 
+export type ContextCacheType = 'only-free' | 'allow-paid';
+
+export interface ContextCacheConfig {
+  type?: ContextCacheType;
+  /** TTL in seconds. */
+  ttl?: number;
+}
+
 /**
  * Configuration for a single provider endpoint
  */
@@ -39,6 +47,8 @@ export interface ProviderConfig {
   retry?: RetryConfig;
   /** Whether to auto-fetch official models from the provider API */
   autoFetchOfficialModels?: boolean;
+  /** Context cache / prompt caching configuration. */
+  contextCache?: ContextCacheConfig;
 }
 
 export type DeprecatedProviderConfigKey = 'apiKey';

@@ -37,6 +37,7 @@ export const PROVIDER_CONFIG_KEYS = [
   'timeout',
   'retry',
   'autoFetchOfficialModels',
+  'contextCache',
 ] as const satisfies ReadonlyArray<ProviderConfigPersistedKey>;
 
 type AssertNever<T extends never> = T;

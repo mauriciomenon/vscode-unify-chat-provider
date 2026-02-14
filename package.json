@@ -402,6 +402,28 @@
                   }
                 ]
               },
+              "contextCache": {
+                "type": "object",
+                "description": "%configuration.endpoints.contextCache.description%",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "%configuration.endpoints.contextCache.type.description%",
+                    "enum": ["only-free", "allow-paid"],
+                    "default": "only-free",
+                    "enumDescriptions": [
+                      "%configuration.endpoints.contextCache.type.enumDescriptions.0%",
+                      "%configuration.endpoints.contextCache.type.enumDescriptions.1%"
+                    ]
+                  },
+                  "ttl": {
+                    "type": "integer",
+                    "description": "%configuration.endpoints.contextCache.ttl.description%",
+                    "default": 300,
+                    "minimum": 1
+                  }
+                }
+              },
               "extraHeaders": {
                 "type": "object",
                 "description": "%configuration.endpoints.extraHeaders.description%",
