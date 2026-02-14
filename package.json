@@ -372,6 +372,58 @@
                     "properties": {
                       "method": {
                         "type": "string",
+                        "const": "deepseek",
+                        "description": "%configuration.endpoints.balanceProvider.method.deepseek.description%"
+                      }
+                    },
+                    "required": [
+                      "method"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "method": {
+                        "type": "string",
+                        "const": "openrouter",
+                        "description": "%configuration.endpoints.balanceProvider.method.openrouter.description%"
+                      }
+                    },
+                    "required": [
+                      "method"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "method": {
+                        "type": "string",
+                        "const": "siliconflow",
+                        "description": "%configuration.endpoints.balanceProvider.method.siliconflow.description%"
+                      }
+                    },
+                    "required": [
+                      "method"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "method": {
+                        "type": "string",
+                        "const": "aihubmix",
+                        "description": "%configuration.endpoints.balanceProvider.method.aihubmix.description%"
+                      },
+                      "appCode": {
+                        "type": "string",
+                        "description": "%configuration.endpoints.balanceProvider.aihubmix.appCode.description%"
+                      }
+                    },
+                    "required": [
+                      "method"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "method": {
+                        "type": "string",
                         "const": "kimi-code",
                         "description": "%configuration.endpoints.balanceProvider.method.kimiCode.description%"
                       }

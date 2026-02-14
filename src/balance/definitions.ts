@@ -5,6 +5,10 @@ import type { BalanceConfig, BalanceMethod } from './types';
 import { MoonshotAIBalanceProvider } from './providers/moonshot-ai';
 import { KimiCodeBalanceProvider } from './providers/kimi-code';
 import { NewAPIBalanceProvider } from './providers/newapi';
+import { DeepSeekBalanceProvider } from './providers/deepseek';
+import { OpenRouterBalanceProvider } from './providers/openrouter';
+import { SiliconFlowBalanceProvider } from './providers/siliconflow';
+import { AiHubMixBalanceProvider } from './providers/aihubmix';
 
 export interface BalanceMethodDefinition {
   id: Exclude<BalanceMethod, 'none'>;
@@ -82,6 +86,58 @@ export const BALANCE_METHODS = {
     normalizeOnImport: NewAPIBalanceProvider.normalizeOnImport,
     prepareForDuplicate: NewAPIBalanceProvider.prepareForDuplicate,
     cleanupOnDiscard: NewAPIBalanceProvider.cleanupOnDiscard,
+  },
+  deepseek: {
+    id: 'deepseek',
+    label: t('DeepSeek Balance'),
+    description: t('Monitor balance via DeepSeek user balance API'),
+    category: 'General',
+    ctor: DeepSeekBalanceProvider,
+    supportsSensitiveDataInSettings:
+      DeepSeekBalanceProvider.supportsSensitiveDataInSettings,
+    redactForExport: DeepSeekBalanceProvider.redactForExport,
+    resolveForExport: DeepSeekBalanceProvider.resolveForExport,
+    normalizeOnImport: DeepSeekBalanceProvider.normalizeOnImport,
+    prepareForDuplicate: DeepSeekBalanceProvider.prepareForDuplicate,
+  },
+  openrouter: {
+    id: 'openrouter',
+    label: t('OpenRouter Balance'),
+    description: t('Monitor balance via OpenRouter credits API'),
+    category: 'General',
+    ctor: OpenRouterBalanceProvider,
+    supportsSensitiveDataInSettings:
+      OpenRouterBalanceProvider.supportsSensitiveDataInSettings,
+    redactForExport: OpenRouterBalanceProvider.redactForExport,
+    resolveForExport: OpenRouterBalanceProvider.resolveForExport,
+    normalizeOnImport: OpenRouterBalanceProvider.normalizeOnImport,
+    prepareForDuplicate: OpenRouterBalanceProvider.prepareForDuplicate,
+  },
+  siliconflow: {
+    id: 'siliconflow',
+    label: t('SiliconFlow Balance'),
+    description: t('Monitor balance via SiliconFlow user info API'),
+    category: 'General',
+    ctor: SiliconFlowBalanceProvider,
+    supportsSensitiveDataInSettings:
+      SiliconFlowBalanceProvider.supportsSensitiveDataInSettings,
+    redactForExport: SiliconFlowBalanceProvider.redactForExport,
+    resolveForExport: SiliconFlowBalanceProvider.resolveForExport,
+    normalizeOnImport: SiliconFlowBalanceProvider.normalizeOnImport,
+    prepareForDuplicate: SiliconFlowBalanceProvider.prepareForDuplicate,
+  },
+  aihubmix: {
+    id: 'aihubmix',
+    label: t('AIHubMix Balance'),
+    description: t('Monitor balance via AIHubMix remain API'),
+    category: 'General',
+    ctor: AiHubMixBalanceProvider,
+    supportsSensitiveDataInSettings:
+      AiHubMixBalanceProvider.supportsSensitiveDataInSettings,
+    redactForExport: AiHubMixBalanceProvider.redactForExport,
+    resolveForExport: AiHubMixBalanceProvider.resolveForExport,
+    normalizeOnImport: AiHubMixBalanceProvider.normalizeOnImport,
+    prepareForDuplicate: AiHubMixBalanceProvider.prepareForDuplicate,
   },
 } as const satisfies Record<
   Exclude<BalanceMethod, 'none'>,

@@ -2,7 +2,15 @@ import * as vscode from 'vscode';
 import type { AuthTokenInfo } from '../auth/types';
 import type { ProviderConfig } from '../types';
 
-export type BalanceMethod = 'none' | 'moonshot-ai' | 'kimi-code' | 'newapi';
+export type BalanceMethod =
+  | 'none'
+  | 'moonshot-ai'
+  | 'kimi-code'
+  | 'newapi'
+  | 'deepseek'
+  | 'openrouter'
+  | 'siliconflow'
+  | 'aihubmix';
 
 export interface NoBalanceConfig {
   method: 'none';
@@ -24,11 +32,33 @@ export interface NewAPIBalanceConfig {
   systemToken?: string;
 }
 
+export interface DeepSeekBalanceConfig {
+  method: 'deepseek';
+}
+
+export interface OpenRouterBalanceConfig {
+  method: 'openrouter';
+}
+
+export interface SiliconFlowBalanceConfig {
+  method: 'siliconflow';
+}
+
+export interface AiHubMixBalanceConfig {
+  method: 'aihubmix';
+  /** Optional APP-Code header for AIHubMix. */
+  appCode?: string;
+}
+
 export type BalanceConfig =
   | NoBalanceConfig
   | MoonshotAIBalanceConfig
   | KimiCodeBalanceConfig
-  | NewAPIBalanceConfig;
+  | NewAPIBalanceConfig
+  | DeepSeekBalanceConfig
+  | OpenRouterBalanceConfig
+  | SiliconFlowBalanceConfig
+  | AiHubMixBalanceConfig;
 
 /**
  * Structured balance display data for model list rendering.
@@ -146,4 +176,28 @@ export function isKimiCodeBalanceConfig(
   config: BalanceConfig | undefined,
 ): config is KimiCodeBalanceConfig {
   return config?.method === 'kimi-code';
+}
+
+export function isDeepSeekBalanceConfig(
+  config: BalanceConfig | undefined,
+): config is DeepSeekBalanceConfig {
+  return config?.method === 'deepseek';
+}
+
+export function isOpenRouterBalanceConfig(
+  config: BalanceConfig | undefined,
+): config is OpenRouterBalanceConfig {
+  return config?.method === 'openrouter';
+}
+
+export function isSiliconFlowBalanceConfig(
+  config: BalanceConfig | undefined,
+): config is SiliconFlowBalanceConfig {
+  return config?.method === 'siliconflow';
+}
+
+export function isAiHubMixBalanceConfig(
+  config: BalanceConfig | undefined,
+): config is AiHubMixBalanceConfig {
+  return config?.method === 'aihubmix';
 }

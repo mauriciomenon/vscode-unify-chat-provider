@@ -399,6 +399,11 @@ VS Code 的 Copilot Chat 本身就支持登录 GitHub Copilot 账号，所以一
 - 通过 `余额监控` 字段进行配置。
 - 当前内置方式：
   - `Moonshot AI 余额`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
+  - `DeepSeek 余额`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
+  - `OpenRouter 余额`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
+  - `SiliconFlow 余额`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
+  - `AIHubMix 余额`：可选配置 `APP-Code`，使用供应商 `baseUrl` 和 API Key。
+  - `Kimi Code 用量`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
   - `New API 余额`：默认显示 API Key 余额；用户余额为可选，需配置 `userId` + `systemToken`（敏感数据）。
 - 可通过 VS Code 命令 `Unify Chat Provider: 刷新所有供应商余额` 强制刷新所有已配置余额监控的供应商。
 
@@ -579,7 +584,8 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 | [Anthropic](https://www.anthropic.com/)                                               | <li>InterleavedThinking <li>FineGrainedToolStreaming            |                       |
 | [xAI](https://docs.x.ai/)                                                             |                                                                 |                       |
 | [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers) |                                                                 |                       |
-| [OpenRouter](https://openrouter.ai/)                                                  | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails        | [详情](#openrouter)   |
+| [OpenRouter](https://openrouter.ai/)                                                  | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails        | [详情](#openrouter)   |    ✅    |
+| [AIHubMix](https://aihubmix.com/)                                                     |                                                                 |                       |    ✅    |
 | [Cerebras](https://www.cerebras.ai/)                                                  | <li>ReasoningField <li>DisableReasoningParam <li>ClearThinking  | [详情](#cerebras)     |
 | [OpenCode Zen (OpenAI Chat Completion)](https://opencode.ai/)                         | <li>ReasoningContent                                            | [详情](#opencode-zen) |
 | [OpenCode Zen (OpenAI Responses)](https://opencode.ai/)                               | <li>ReasoningContent                                            | [详情](#opencode-zen) |
@@ -594,7 +600,7 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 | [火山引擎 (Coding Plan)](https://www.volcengine.com/activity/codingplan)              | <li>AutoThinking <li>ThinkingParam2                             |                       |
 | [Byte Plus](https://www.byteplus.com/en/product/modelark)                             | <li>AutoThinking <li>ThinkingParam2                             |                       |
 | [腾讯云 (中国站)](https://cloud.tencent.com/product/hunyuan)                          |                                                                 |                       |
-| [DeepSeek](https://www.deepseek.com/)                                                 | <li>ThinkingParam <li>ReasoningContent                          |                       |
+| [DeepSeek](https://www.deepseek.com/)                                                 | <li>ThinkingParam <li>ReasoningContent                          |                       |    ✅    |
 | [模力方舟](https://ai.gitee.com/)                                                     |                                                                 |                       |
 | [Xiaomi MIMO](https://mimo.xiaomi.com/)                                               | <li>ThinkingParam <li>ReasoningContent                          |                       |
 | [Ollama Local](https://ollama.com/)                                                   |                                                                 |                       |
@@ -616,8 +622,8 @@ vscode://SmallMain.vscode-unify-chat-provider/import-config?config=<input>&auth=
 | [快手万擎 (国际站)](https://www.streamlake.ai/)                                       |                                                                 | [详情](#快手万擎)     |
 | [快手万擎 (国际站, Coding Plan)](https://www.streamlake.ai/)                          |                                                                 |                       |
 | [iFlow](https://platform.iflow.cn/)                                                   | <li>ThinkingParam3 <li>ClearThinking <li>ReasoningSplitParam    | [详情](#iflow)        |
-| [硅基流动 (中国站)](https://siliconflow.cn/)                                          | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [详情](#硅基流动)     |
-| [硅基流动 (国际站)](https://siliconflow.com/)                                         | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [详情](#硅基流动)     |
+| [硅基流动 (中国站)](https://siliconflow.cn/)                                          | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [详情](#硅基流动)     |    ✅    |
+| [硅基流动 (国际站)](https://siliconflow.com/)                                         | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [详情](#硅基流动)     |    ✅    |
 
 实验性支持的供应商：
 

@@ -399,6 +399,11 @@ Use this feature to monitor provider balances in `Provider Settings`.
 - Configure it from the `Balance Monitor` field.
 - Built-in methods:
   - `Moonshot AI Balance`: no extra config required; uses provider `baseUrl` and API key.
+  - `DeepSeek Balance`: no extra config required; uses provider `baseUrl` and API key.
+  - `OpenRouter Balance`: no extra config required; uses provider `baseUrl` and API key.
+  - `SiliconFlow Balance`: no extra config required; uses provider `baseUrl` and API key.
+  - `AIHubMix Balance`: optional `APP-Code`; uses provider `baseUrl` and API key.
+  - `Kimi Code Usage`: no extra config required; uses provider `baseUrl` and API key.
   - `New API Balance`: always shows API key balance; user balance is optional and requires `userId` + `systemToken` (sensitive data).
 - Run the VS Code command `Unify Chat Provider: Refresh All Providers' Balances` to force refresh balances for all configured providers.
 
@@ -579,7 +584,8 @@ The providers listed below support [One-Click Configuration](#one-click-configur
 | [Anthropic](https://www.anthropic.com/)                                                         | <li>InterleavedThinking <li>FineGrainedToolStreaming            |                            |
 | [xAI](https://docs.x.ai/)                                                                       |                                                                 |                            |
 | [Hugging Face (Inference Providers)](https://huggingface.co/docs/inference-providers)           |                                                                 |                            |
-| [OpenRouter](https://openrouter.ai/)                                                            | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails        | [Details](#openrouter)     |
+| [OpenRouter](https://openrouter.ai/)                                                            | <li>CacheControl <li>ReasoningParam <li>ReasoningDetails        | [Details](#openrouter)     |       ✅        |
+| [AIHubMix](https://aihubmix.com/)                                                               |                                                                 |                            |       ✅        |
 | [Cerebras](https://www.cerebras.ai/)                                                            | <li>ReasoningField <li>DisableReasoningParam <li>ClearThinking  | [Details](#cerebras)       |
 | [OpenCode Zen (OpenAI Chat Completions)](https://opencode.ai/)                                  | <li>ReasoningContent                                            | [Details](#opencode-zen)   |
 | [OpenCode Zen (OpenAI Responses)](https://opencode.ai/)                                         | <li>ReasoningContent                                            | [Details](#opencode-zen)   |
@@ -594,7 +600,7 @@ The providers listed below support [One-Click Configuration](#one-click-configur
 | [Volcano Engine (Coding Plan)](https://www.volcengine.com/activity/codingplan)                  | <li>AutoThinking <li>ThinkingParam2                             |                            |
 | [Byte Plus](https://www.byteplus.com/en/product/modelark)                                       | <li>AutoThinking <li>ThinkingParam2                             |                            |
 | [Tencent Cloud (China)](https://cloud.tencent.com/product/hunyuan)                              |                                                                 |                            |
-| [DeepSeek](https://www.deepseek.com/)                                                           | <li>ThinkingParam <li>ReasoningContent                          |                            |
+| [DeepSeek](https://www.deepseek.com/)                                                           | <li>ThinkingParam <li>ReasoningContent                          |                            |       ✅        |
 | [Gitee AI](https://ai.gitee.com/)                                                               |                                                                 |                            |
 | [Xiaomi MiMo](https://mimo.xiaomi.com/)                                                         | <li>ThinkingParam <li>ReasoningContent                          |                            |
 | [Ollama Local](https://ollama.com/)                                                             |                                                                 |                            |
@@ -616,8 +622,8 @@ The providers listed below support [One-Click Configuration](#one-click-configur
 | [StreamLake Vanchin (International)](https://www.streamlake.ai/)                                |                                                                 | [Details](#streamlake)     |
 | [StreamLake Vanchin (International, Coding Plan)](https://www.streamlake.ai/)                   |                                                                 |                            |
 | [iFlow](https://platform.iflow.cn/)                                                             | <li>ThinkingParam3 <li>ClearThinking <li>ReasoningSplitParam    | [Details](#iflow)          |
-| [SiliconFlow (China)](https://siliconflow.cn/)                                                  | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [Details](#siliconflow)    |
-| [SiliconFlow (International)](https://siliconflow.com/)                                         | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [Details](#siliconflow)    |
+| [SiliconFlow (China)](https://siliconflow.cn/)                                                  | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [Details](#siliconflow)    |       ✅        |
+| [SiliconFlow (International)](https://siliconflow.com/)                                         | <li>ThinkingParam3 <li>ThinkingBudgetParam <li>ReasoningContent | [Details](#siliconflow)    |       ✅        |
 
 Experimental Supported Providers:
 
