@@ -12,6 +12,7 @@ import { ProviderConfig, ModelConfig } from './types';
 const CONFIG_NAMESPACE = 'unifyChatProvider';
 const DEFAULT_BALANCE_REFRESH_INTERVAL_MS = 60_000;
 const DEFAULT_BALANCE_THROTTLE_WINDOW_MS = 10_000;
+const DEFAULT_BALANCE_STATUS_BAR_ICON = '$(credit-card)';
 const MIN_BALANCE_REFRESH_INTERVAL_MS = 1_000;
 const MIN_BALANCE_THROTTLE_WINDOW_MS = 0;
 const DEFAULT_BALANCE_WARNING_ENABLED = true;
@@ -131,6 +132,16 @@ export class ConfigStore {
       DEFAULT_BALANCE_THROTTLE_WINDOW_MS,
       MIN_BALANCE_THROTTLE_WINDOW_MS,
     );
+  }
+
+  get balanceStatusBarIcon(): string {
+    const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+    const raw = config.get<unknown>(
+      'balanceStatusBarIcon',
+      DEFAULT_BALANCE_STATUS_BAR_ICON,
+    );
+
+    return typeof raw === 'string' ? raw : DEFAULT_BALANCE_STATUS_BAR_ICON;
   }
 
   get balanceWarningEnabled(): boolean {

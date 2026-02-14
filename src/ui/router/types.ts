@@ -18,6 +18,10 @@ export interface ProviderListRoute {
   kind: 'providerList';
 }
 
+export interface BalanceProviderListRoute {
+  kind: 'balanceProviderList';
+}
+
 export interface ProviderFormRoute {
   kind: 'providerForm';
   mode?: 'full' | 'settings';
@@ -129,6 +133,7 @@ export interface ImportModelConfigArrayRoute {
 
 export type UiRoute =
   | ProviderListRoute
+  | BalanceProviderListRoute
   | ProviderFormRoute
   | WellKnownProviderListRoute
   | WellKnownProviderNameRoute

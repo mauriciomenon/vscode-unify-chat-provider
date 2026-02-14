@@ -3,6 +3,7 @@
  */
 export {
   manageProviders,
+  manageBalances,
   addProvider,
   addProviderFromConfig,
   addProviderFromWellKnownList,

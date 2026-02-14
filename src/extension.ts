@@ -14,6 +14,7 @@ import {
   addProviderFromWellKnownList,
   exportAllProviders,
   importProviders,
+  manageBalances,
   manageProviders,
   removeProvider,
 } from './ui';
@@ -22,6 +23,7 @@ import { registerUriHandler, type EventedUriHandler } from './uri-handler';
 import { t } from './i18n';
 import { AuthManager } from './auth';
 import { balanceManager } from './balance';
+import { registerBalanceStatusBar } from './ui/balance-status-bar';
 
 const VENDOR_ID = 'unify-chat-provider';
 const CONFIG_NAMESPACE = 'unifyChatProvider';
@@ -77,6 +79,10 @@ export async function activate(
 
   // Register commands
   registerCommands(context, configStore, secretStore, uriHandler);
+
+  context.subscriptions.push(
+    registerBalanceStatusBar({ context, store: configStore }),
+  );
 
   registerSecretStorageMaintenance(context, configStore, secretStore);
   runSecretStorageMaintenanceOnStartup(configStore, secretStore);
@@ -143,6 +149,9 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('unifyChatProvider.manageProviders', () =>
       manageProviders(configStore, secretStore, uriHandler),
+    ),
+    vscode.commands.registerCommand('unifyChatProvider.manageBalances', () =>
+      manageBalances(configStore, secretStore, uriHandler),
     ),
     vscode.commands.registerCommand(
       'unifyChatProvider.refreshAllProvidersOfficialModels',

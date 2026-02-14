@@ -382,6 +382,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
 
       const { provider: resolvedProvider, model: resolvedModel } = resolved;
       providerForBalance = resolvedProvider;
+      this.balanceManager?.notifyChatRequestStarted(resolvedProvider.name);
 
       logger.start({
         providerName: resolvedProvider.name,

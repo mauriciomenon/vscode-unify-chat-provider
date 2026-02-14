@@ -36,6 +36,7 @@ type PersistedProviderState = {
 type PersistedState = {
   version: number;
   providers: Record<string, PersistedProviderState>;
+  lastUsedAt: Record<string, number>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,6 +57,7 @@ export class BalanceManager implements vscode.Disposable {
   private extensionContext?: vscode.ExtensionContext;
 
   private readonly states = new Map<string, BalanceProviderState>();
+  private readonly lastUsedAt = new Map<string, number>();
   private readonly configSignatures = new Map<string, string>();
   private readonly refreshInFlight = new Map<string, Promise<void>>();
   private readonly trailingTimers = new Map<
@@ -98,6 +100,20 @@ export class BalanceManager implements vscode.Disposable {
 
   getProviderState(providerName: string): BalanceProviderState | undefined {
     return this.states.get(providerName);
+  }
+
+  getProviderLastUsedAt(providerName: string): number | undefined {
+    return this.lastUsedAt.get(providerName);
+  }
+
+  notifyChatRequestStarted(providerName: string): void {
+    if (!this.configStore?.getProvider(providerName)) {
+      return;
+    }
+
+    this.lastUsedAt.set(providerName, Date.now());
+    this.onDidUpdateEmitter.fire(providerName);
+    this.queuePersistState();
   }
 
   notifyChatRequestFinished(
@@ -488,6 +504,18 @@ export class BalanceManager implements vscode.Disposable {
 
   private reconcileStates(): void {
     const providers = this.configStore?.endpoints ?? [];
+    const knownNames = new Set(providers.map((provider) => provider.name));
+    let prunedLastUsedAt = false;
+    for (const providerName of this.lastUsedAt.keys()) {
+      if (!knownNames.has(providerName)) {
+        this.lastUsedAt.delete(providerName);
+        prunedLastUsedAt = true;
+      }
+    }
+    if (prunedLastUsedAt) {
+      this.queuePersistState();
+    }
+
     const activeProviders = providers.filter((provider) =>
       this.hasConfiguredBalanceProvider(provider),
     );
@@ -572,7 +600,8 @@ export class BalanceManager implements vscode.Disposable {
     if (
       !persisted ||
       persisted.version !== STATE_VERSION ||
-      !isRecord(persisted.providers)
+      !isRecord(persisted.providers) ||
+      !isRecord(persisted.lastUsedAt)
     ) {
       return;
     }
@@ -583,6 +612,18 @@ export class BalanceManager implements vscode.Disposable {
       const state = this.toRuntimeState(rawState);
       if (state) {
         this.states.set(providerName, state);
+      }
+    }
+
+    for (const [providerName, timestamp] of Object.entries(
+      persisted.lastUsedAt,
+    )) {
+      if (
+        typeof timestamp === 'number' &&
+        Number.isFinite(timestamp) &&
+        timestamp >= 0
+      ) {
+        this.lastUsedAt.set(providerName, timestamp);
       }
     }
   }
@@ -835,9 +876,21 @@ export class BalanceManager implements vscode.Disposable {
       };
     }
 
+    const lastUsedAt: Record<string, number> = {};
+    for (const [providerName, timestamp] of this.lastUsedAt) {
+      if (
+        typeof timestamp === 'number' &&
+        Number.isFinite(timestamp) &&
+        timestamp >= 0
+      ) {
+        lastUsedAt[providerName] = timestamp;
+      }
+    }
+
     await this.extensionContext.globalState.update(STATE_KEY, {
       version: STATE_VERSION,
       providers,
+      lastUsedAt,
     } satisfies PersistedState);
   }
 
@@ -859,6 +912,7 @@ export class BalanceManager implements vscode.Disposable {
     this.configSignatures.clear();
     this.states.clear();
     this.refreshInFlight.clear();
+    this.lastUsedAt.clear();
     this.persistChain = Promise.resolve();
   }
 

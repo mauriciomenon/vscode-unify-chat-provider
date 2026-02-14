@@ -166,6 +166,10 @@
         "title": "%command.manageProviders.title%"
       },
       {
+        "command": "unifyChatProvider.manageBalances",
+        "title": "%command.manageBalances.title%"
+      },
+      {
         "command": "unifyChatProvider.refreshAllProvidersOfficialModels",
         "title": "%command.refreshAllProvidersOfficialModels.title%"
       },
@@ -198,6 +202,11 @@
           "description": "%configuration.balanceThrottleWindowMs.description%",
           "default": 10000,
           "minimum": 0
+        },
+        "unifyChatProvider.balanceStatusBarIcon": {
+          "type": "string",
+          "description": "%configuration.balanceStatusBarIcon.description%",
+          "default": "$(credit-card)"
         },
         "unifyChatProvider.balanceWarning.enabled": {
           "type": "boolean",

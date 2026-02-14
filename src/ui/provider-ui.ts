@@ -23,6 +23,15 @@ export async function manageProviders(
   await runUiStack(ctx, { kind: 'providerList' });
 }
 
+export async function manageBalances(
+  store: ConfigStore,
+  secretStore: SecretStore,
+  uriHandler?: EventedUriHandler,
+): Promise<void> {
+  const ctx: UiContext = { store, secretStore, uriHandler };
+  await runUiStack(ctx, { kind: 'balanceProviderList' });
+}
+
 export async function addProvider(
   store: ConfigStore,
   secretStore: SecretStore,

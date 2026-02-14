@@ -1246,6 +1246,13 @@ async function editBalanceField(
   }
 }
 
+export async function editBalanceMonitorField(
+  draft: ProviderFormDraft,
+  ctx: ProviderFieldContext,
+): Promise<void> {
+  await editBalanceField(draft, ctx);
+}
+
 function getStringProp(value: unknown, key: string): string | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;

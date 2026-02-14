@@ -7,6 +7,7 @@ import { runModelListScreen } from '../screens/model-list-screen';
 import { runModelSelectionScreen } from '../screens/model-selection-screen';
 import { runProviderFormScreen } from '../screens/provider-form-screen';
 import { runProviderListScreen } from '../screens/provider-list-screen';
+import { runBalanceProviderListScreen } from '../screens/balance-provider-list-screen';
 import { runTimeoutFormScreen } from '../screens/timeout-form-screen';
 import { runWellKnownProviderAuthScreen } from '../screens/well-known-provider-auth-screen';
 import { runWellKnownProviderListScreen } from '../screens/well-known-provider-list-screen';
@@ -66,6 +67,8 @@ async function dispatchRoute(
   switch (route.kind) {
     case 'providerList':
       return runProviderListScreen(ctx, route, resume);
+    case 'balanceProviderList':
+      return runBalanceProviderListScreen(ctx, route, resume);
     case 'providerForm':
       return runProviderFormScreen(ctx, route, resume);
     case 'wellKnownProviderList':
