@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
 import { confirmDelete, pickQuickItem, showDeletedMessage } from '../component';
 import { showCopiedBase64Config } from '../base64-config';
-import {
-  promptForProviderImportConfig,
-} from '../import-from-config';
+import { promptForProviderImportConfig } from '../import-from-config';
 import type {
   ProviderListRoute,
   UiContext,
@@ -20,6 +18,7 @@ import { createProviderDraft } from '../form-utils';
 import { getAllModelsForProvider } from '../../utils';
 import { deleteProviderApiKeySecretIfUnused } from '../../api-key-utils';
 import { resolveProvidersForExportOrShowError } from '../../auth/auth-transfer';
+import { balanceManager } from '../../balance';
 import { t } from '../../i18n';
 
 type ProviderListItem = vscode.QuickPickItem & {
@@ -124,7 +123,10 @@ export async function runProviderListScreen(
       };
     }
 
-    return { kind: 'push', route: { kind: 'providerForm', initialConfig: imported.config } };
+    return {
+      kind: 'push',
+      route: { kind: 'providerForm', initialConfig: imported.config },
+    };
   }
 
   if (selection.action === 'export-all') {
@@ -222,10 +224,21 @@ async function buildProviderListItems(
     items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
     const allModels = await getAllModelsForProvider(provider);
     const modelList = allModels.map((m) => m.name || m.id).join(', ');
+    const modelDetail = modelList
+      ? t('Models: {0}', modelList)
+      : t('No models');
+    const rawBalanceSummary = balanceManager.getProviderState(provider.name)
+      ?.snapshot?.summary;
+    const balanceSummary = rawBalanceSummary?.replace(/[\r\n]+/g, ' ').trim();
+    const detailParts = [modelDetail];
+    if (balanceSummary) {
+      detailParts.unshift(balanceSummary);
+    }
+
     items.push({
       label: provider.name,
       description: provider.baseUrl,
-      detail: modelList ? t('Models: {0}', modelList) : t('No models'),
+      detail: detailParts.join(' | '),
       action: 'provider',
       providerName: provider.name,
       buttons: [
