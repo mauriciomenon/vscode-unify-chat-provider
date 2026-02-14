@@ -7,6 +7,7 @@ import { createSecretRef, isSecretRef, type SecretStore } from '../../secret';
 import { pickQuickItem, showInput } from '../../ui/component';
 import type {
   BalanceConfig,
+  BalanceModelDisplayData,
   BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
@@ -30,6 +31,7 @@ type NewApiModePickItem = vscode.QuickPickItem & {
 type ParsedBalance = {
   summary: string;
   details: string[];
+  modelDisplay?: BalanceModelDisplayData;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -491,6 +493,7 @@ export class NewAPIBalanceProvider implements BalanceProvider {
 
       let userSummary: string | undefined;
       const userDetails: string[] = [];
+      let userBalance: ParsedBalance | undefined;
 
       const config = isNewAPIBalanceConfig(this.config)
         ? this.config
@@ -502,7 +505,7 @@ export class NewAPIBalanceProvider implements BalanceProvider {
           userDetails.push(t('Balance: missing system token secret.'));
         } else {
           try {
-            const userBalance = await this.fetchUserBalance(
+            userBalance = await this.fetchUserBalance(
               normalizedBaseUrl,
               config.userId.trim(),
               systemToken,
@@ -540,12 +543,15 @@ export class NewAPIBalanceProvider implements BalanceProvider {
         details.push(t('No data'));
       }
 
+      const modelDisplay = userBalance?.modelDisplay ?? keyBalance.modelDisplay;
+
       return {
         success: true,
         snapshot: {
           summary: summaryParts.join(' | '),
           details,
           updatedAt: Date.now(),
+          modelDisplay,
         },
       };
     } catch (error) {
@@ -615,12 +621,18 @@ export class NewAPIBalanceProvider implements BalanceProvider {
     }
 
     let summary = t('API Key balance: unavailable');
+    let modelDisplay: BalanceModelDisplayData | undefined;
     if (totalAvailable !== undefined) {
-      summary = t('API Key balance: {0}', '$' + formatSigned(totalAvailable));
+      const amount = '$' + formatSigned(totalAvailable);
+      summary = t('API Key balance: {0}', amount);
+      modelDisplay = {
+        badge: amount,
+        amount,
+      };
     }
 
     const details = [summary];
-    return { summary, details };
+    return { summary, details, modelDisplay };
   }
 
   private async fetchUserBalance(
@@ -665,14 +677,20 @@ export class NewAPIBalanceProvider implements BalanceProvider {
     // New API docs note: actual balance = quota / 500000
     const quota = pickNumberLike(payload, 'quota');
     let summary = t('Balance: unavailable');
+    let modelDisplay: BalanceModelDisplayData | undefined;
 
     if (quota !== undefined) {
       const actualQuota = quota / 500000;
-      summary = t('Balance: {0}', '$' + formatSigned(actualQuota));
+      const amount = '$' + formatSigned(actualQuota);
+      summary = t('Balance: {0}', amount);
+      modelDisplay = {
+        badge: amount,
+        amount,
+      };
     }
 
     const details = [summary];
-    return { summary, details };
+    return { summary, details, modelDisplay };
   }
 
   private async resolveSystemTokenValue(): Promise<string | undefined> {

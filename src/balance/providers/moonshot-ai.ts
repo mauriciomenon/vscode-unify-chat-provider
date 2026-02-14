@@ -4,15 +4,14 @@ import { getToken } from '../../client/utils';
 import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import type {
   BalanceConfig,
+  BalanceModelDisplayData,
   BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
   BalanceStatusViewItem,
   BalanceUiStatusSnapshot,
 } from '../types';
-import {
-  isMoonshotAIBalanceConfig,
-} from '../types';
+import { isMoonshotAIBalanceConfig } from '../types';
 import type {
   BalanceConfigureResult,
   BalanceProvider,
@@ -84,7 +83,9 @@ export class MoonshotAIBalanceProvider implements BalanceProvider {
   }
 
   static redactForExport(config: BalanceConfig): BalanceConfig {
-    return isMoonshotAIBalanceConfig(config) ? config : { method: 'moonshot-ai' };
+    return isMoonshotAIBalanceConfig(config)
+      ? config
+      : { method: 'moonshot-ai' };
   }
 
   static async resolveForExport(
@@ -176,12 +177,18 @@ export class MoonshotAIBalanceProvider implements BalanceProvider {
     const description = state?.isRefreshing
       ? t('Refreshing...')
       : snapshot
-        ? t('Last updated: {0}', new Date(snapshot.updatedAt).toLocaleTimeString())
+        ? t(
+            'Last updated: {0}',
+            new Date(snapshot.updatedAt).toLocaleTimeString(),
+          )
         : state?.lastError
           ? t('Error')
           : t('No data');
 
-    const details = snapshot?.details?.join(' | ') || state?.lastError || t('Not refreshed yet');
+    const details =
+      snapshot?.details?.join(' | ') ||
+      state?.lastError ||
+      t('Not refreshed yet');
 
     return [
       {
@@ -243,7 +250,12 @@ export class MoonshotAIBalanceProvider implements BalanceProvider {
         const text = await response.text().catch(() => '');
         return {
           success: false,
-          error: text.trim() || t('Failed to query Moonshot balance (HTTP {0}).', `${response.status}`),
+          error:
+            text.trim() ||
+            t(
+              'Failed to query Moonshot balance (HTTP {0}).',
+              `${response.status}`,
+            ),
         };
       }
 
@@ -258,14 +270,12 @@ export class MoonshotAIBalanceProvider implements BalanceProvider {
       }
 
       const status =
-        (body && pickBoolean(body, 'status')) ??
-        pickBoolean(payload, 'status');
+        (body && pickBoolean(body, 'status')) ?? pickBoolean(payload, 'status');
       const code =
         (body && pickNumberLike(body, 'code')) ??
         pickNumberLike(payload, 'code');
       const scode =
-        (body && pickString(body, 'scode')) ??
-        pickString(payload, 'scode');
+        (body && pickString(body, 'scode')) ?? pickString(payload, 'scode');
 
       const isSuccess =
         (status === undefined || status) &&
@@ -292,17 +302,20 @@ export class MoonshotAIBalanceProvider implements BalanceProvider {
         };
       }
 
-      const summary = t(
-        'Balance: {0}',
-        `¥${formatSignedNumber(available)}`,
-      );
+      const amount = `¥${formatSignedNumber(available)}`;
+      const summary = t('Balance: {0}', amount);
       const details = [summary];
+      const modelDisplay: BalanceModelDisplayData = {
+        badge: amount,
+        amount,
+      };
       return {
         success: true,
         snapshot: {
           summary,
           details,
           updatedAt: Date.now(),
+          modelDisplay,
         },
       };
     } catch (error) {

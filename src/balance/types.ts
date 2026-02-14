@@ -30,10 +30,30 @@ export type BalanceConfig =
   | KimiCodeBalanceConfig
   | NewAPIBalanceConfig;
 
+/**
+ * Structured balance display data for model list rendering.
+ *
+ * Priority for short badge rendering:
+ * 1) remainingPercent
+ * 2) expiration
+ * 3) amount
+ */
+export interface BalanceModelDisplayData {
+  /** Preformatted short badge text without wrapper punctuation (e.g. "50%", "expiration：2013.2.3 10:11:00", "¥10.00"). */
+  badge?: string;
+  /** Remaining percentage in range 0-100 (e.g. 50 => "50%"). */
+  remainingPercent?: number;
+  /** Expiration text (prefer parseable datetime / ISO string). */
+  expiration?: string;
+  /** Formatted amount with currency symbol (e.g. "¥10.00"). */
+  amount?: string;
+}
+
 export interface BalanceSnapshot {
   summary: string;
   details: string[];
   updatedAt: number;
+  modelDisplay?: BalanceModelDisplayData;
 }
 
 export interface BalanceProviderState {

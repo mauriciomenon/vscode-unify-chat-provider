@@ -2,6 +2,10 @@ import * as vscode from 'vscode';
 import { t } from '../i18n';
 import { ConfigStore } from '../config-store';
 import {
+  DEFAULT_MAX_INPUT_TOKENS,
+  DEFAULT_MAX_OUTPUT_TOKENS,
+} from '../defaults';
+import {
   deepClone,
   modelConfigEquals,
   stableStringify,
@@ -9,6 +13,7 @@ import {
 } from '../config-ops';
 import { normalizeBaseUrlInput } from '../utils';
 import { showValidationErrors } from './component';
+import type { BalanceSnapshot } from '../balance/types';
 import {
   ProviderConfig,
   ModelConfig,
@@ -246,6 +251,117 @@ export function formatModelDetail(model: ModelConfig): string | undefined {
     parts.push(t('Image'));
   }
   return parts.length > 0 ? parts.join(' | ') : undefined;
+}
+
+export function formatProviderDetail(
+  providerName: string,
+  snapshot: BalanceSnapshot | undefined,
+): string {
+  const badge = snapshot?.modelDisplay?.badge?.trim();
+  if (!badge) {
+    return providerName;
+  }
+
+  return `${providerName} (${badge})`;
+}
+
+export function formatModelTooltip(
+  provider: ProviderConfig,
+  model: ModelConfig,
+  snapshot: BalanceSnapshot | undefined,
+): string | undefined {
+  const lines: string[] = [];
+  const add = (label: string, value: string | undefined): void => {
+    const normalized = normalizeTooltipValue(value);
+    if (!normalized) {
+      return;
+    }
+    lines.push(`- ${label}: ${normalized}`);
+  };
+
+  const maxInput = String(model.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS);
+  const maxOutput = String(model.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS);
+
+  add(t('ID'), model.id);
+  add(t('Provider'), provider.name);
+  add(t('Max Input Tokens'), maxInput);
+  add(t('Max Output Tokens'), maxOutput);
+  add(t('Capabilities'), formatCapabilities(model));
+  add(t('Balance Details'), formatBalanceDetails(snapshot));
+
+  if (lines.length === 0) {
+    return undefined;
+  }
+
+  return lines.join('\n');
+}
+
+function formatCapabilities(model: ModelConfig): string {
+  const capabilities: string[] = [];
+
+  const toolCalling = model.capabilities?.toolCalling;
+  if (typeof toolCalling === 'number') {
+    capabilities.push(t('Tool (max {0})', `${toolCalling}`));
+  } else if (toolCalling) {
+    capabilities.push(t('Tool'));
+  }
+
+  if (model.capabilities?.imageInput) {
+    capabilities.push(t('Image'));
+  }
+
+  return capabilities.length > 0 ? capabilities.join('、') : t('None');
+}
+
+function formatBalanceDetails(
+  snapshot: BalanceSnapshot | undefined,
+): string | undefined {
+  if (!snapshot) {
+    return undefined;
+  }
+
+  const summary = snapshot.summary.trim();
+  const details: string[] = [];
+
+  for (const detail of snapshot.details) {
+    const normalized = detail.trim();
+    if (!normalized || normalized === summary || details.includes(normalized)) {
+      continue;
+    }
+    details.push(normalized);
+  }
+
+  if (details.length > 0) {
+    return details.join(' ｜ ');
+  }
+
+  const display = snapshot.modelDisplay;
+  if (display) {
+    if (typeof display.remainingPercent === 'number') {
+      return `${Math.round(display.remainingPercent)}%`;
+    }
+
+    const expiration = normalizeTooltipValue(display.expiration);
+    if (expiration) {
+      return expiration;
+    }
+
+    const amount = normalizeTooltipValue(display.amount);
+    if (amount) {
+      return amount;
+    }
+  }
+
+  return summary || undefined;
+}
+
+function normalizeTooltipValue(value: string | undefined): string | undefined {
+  const normalized = value?.replace(/[\r\n]+/g, ' ').trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized;
 }
 
 /**

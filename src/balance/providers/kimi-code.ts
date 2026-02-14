@@ -5,6 +5,7 @@ import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import type { SecretStore } from '../../secret';
 import type {
   BalanceConfig,
+  BalanceModelDisplayData,
   BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
@@ -24,6 +25,7 @@ type UsageRow = {
   used: number;
   limit: number;
   resetHint?: string;
+  resetAt?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -86,17 +88,54 @@ function formatResetAt(value: string): string {
   return t('Resets in {0}', formatDurationShort(deltaSeconds));
 }
 
-function resetHint(data: Record<string, unknown>): string | undefined {
+function formatExpiration(value: string): string {
+  const direct = value.match(
+    /^(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/,
+  );
+  if (direct) {
+    const [, y, m, d, hh, mm, ss] = direct;
+    const hours = String(Number(hh ?? '0')).padStart(2, '0');
+    const minutes = String(Number(mm ?? '0')).padStart(2, '0');
+    const seconds = String(Number(ss ?? '0')).padStart(2, '0');
+    return `${Number(y)}.${Number(m)}.${Number(d)} ${hours}:${minutes}:${seconds}`;
+  }
+
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return value;
+  }
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}.${month}.${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function resolveResetAt(data: Record<string, unknown>): string | undefined {
   for (const key of ['reset_at', 'resetAt', 'reset_time', 'resetTime']) {
     const raw = data[key];
     if (raw === undefined || raw === null) {
       continue;
     }
+
     const value = String(raw).trim();
     if (!value) {
       continue;
     }
-    return formatResetAt(value);
+
+    return value;
+  }
+
+  return undefined;
+}
+
+function resetHint(data: Record<string, unknown>): string | undefined {
+  const resetAt = resolveResetAt(data);
+  if (resetAt) {
+    return formatResetAt(resetAt);
   }
 
   for (const key of ['reset_in', 'resetIn', 'ttl', 'window']) {
@@ -140,6 +179,7 @@ function toUsageRow(
     used: used ?? 0,
     limit: limit ?? 0,
     resetHint: resetHint(data),
+    resetAt: resolveResetAt(data),
   };
 }
 
@@ -158,10 +198,8 @@ function formatRow(row: UsageRow): string {
   }
 
   const ratio = remainingRatio(row);
-  const percent =
-    ratio !== undefined ? Math.round(ratio * 100) : undefined;
-  const percentPart =
-    percent !== undefined ? ` (${percent}%)` : '';
+  const percent = ratio !== undefined ? Math.round(ratio * 100) : undefined;
+  const percentPart = percent !== undefined ? ` (${percent}%)` : '';
 
   return `${row.label}: ${row.used}/${row.limit}${percentPart}${hint}`;
 }
@@ -181,7 +219,9 @@ function limitLabel(options: {
     }
   }
 
-  const duration = toInt(window['duration'] ?? item['duration'] ?? detail['duration']);
+  const duration = toInt(
+    window['duration'] ?? item['duration'] ?? detail['duration'],
+  );
   const rawTimeUnit =
     pickString(window, 'timeUnit') ??
     pickString(item, 'timeUnit') ??
@@ -211,14 +251,17 @@ function limitLabel(options: {
   return t('Limit #{0}', `${index + 1}`);
 }
 
-function resolvePayload(value: Record<string, unknown>): Record<string, unknown> {
+function resolvePayload(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
   const data = value['data'];
   return isRecord(data) ? data : value;
 }
 
-function parseUsagePayload(
-  payload: Record<string, unknown>,
-): { usage?: UsageRow; limits: UsageRow[] } {
+function parseUsagePayload(payload: Record<string, unknown>): {
+  usage?: UsageRow;
+  limits: UsageRow[];
+} {
   const limits: UsageRow[] = [];
 
   const rawUsage = payload['usage'];
@@ -327,7 +370,9 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
     private readonly context: BalanceProviderContext,
     config?: BalanceConfig,
   ) {
-    this.config = isKimiCodeBalanceConfig(config) ? config : { method: 'kimi-code' };
+    this.config = isKimiCodeBalanceConfig(config)
+      ? config
+      : { method: 'kimi-code' };
   }
 
   private config: BalanceConfig;
@@ -377,13 +422,18 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
     const description = state?.isRefreshing
       ? t('Refreshing...')
       : snapshot
-        ? t('Last updated: {0}', new Date(snapshot.updatedAt).toLocaleTimeString())
+        ? t(
+            'Last updated: {0}',
+            new Date(snapshot.updatedAt).toLocaleTimeString(),
+          )
         : state?.lastError
           ? t('Error')
           : t('No data');
 
     const details =
-      snapshot?.details?.join(' | ') || state?.lastError || t('Not refreshed yet');
+      snapshot?.details?.join(' | ') ||
+      state?.lastError ||
+      t('Not refreshed yet');
 
     return [
       {
@@ -427,7 +477,9 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
     });
 
     const baseUrl = normalizeBaseUrlInput(input.provider.baseUrl);
-    const usagePath = baseUrl.toLowerCase().endsWith('/v1') ? 'usages' : 'v1/usages';
+    const usagePath = baseUrl.toLowerCase().endsWith('/v1')
+      ? 'usages'
+      : 'v1/usages';
     const endpoint = new URL(usagePath, `${baseUrl}/`).toString();
 
     try {
@@ -458,7 +510,10 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
           success: false,
           error:
             text.trim() ||
-            t('Failed to query Kimi Code usage (HTTP {0}).', `${response.status}`),
+            t(
+              'Failed to query Kimi Code usage (HTTP {0}).',
+              `${response.status}`,
+            ),
         };
       }
 
@@ -492,12 +547,32 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
         details.push(t('No data'));
       }
 
+      const modelDisplay: BalanceModelDisplayData = {};
+      const ratio = summaryRow ? remainingRatio(summaryRow) : undefined;
+      if (ratio !== undefined) {
+        const percent = Math.round(ratio * 100);
+        modelDisplay.remainingPercent = percent;
+        modelDisplay.badge = `${percent}%`;
+      }
+      if (summaryRow?.resetAt) {
+        modelDisplay.expiration = summaryRow.resetAt;
+        if (!modelDisplay.badge) {
+          modelDisplay.badge = `expiration：${formatExpiration(summaryRow.resetAt)}`;
+        }
+      }
+
+      const hasModelDisplay =
+        modelDisplay.badge !== undefined ||
+        modelDisplay.remainingPercent !== undefined ||
+        modelDisplay.expiration !== undefined;
+
       return {
         success: true,
         snapshot: {
           summary,
           details,
           updatedAt: Date.now(),
+          ...(hasModelDisplay ? { modelDisplay } : {}),
         },
       };
     } catch (error) {

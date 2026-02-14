@@ -20,9 +20,7 @@ import {
 import { officialModelsManager } from './official-models-manager';
 import { registerUriHandler, type EventedUriHandler } from './uri-handler';
 import { t } from './i18n';
-import {
-  AuthManager,
-} from './auth';
+import { AuthManager } from './auth';
 import { balanceManager } from './balance';
 
 const VENDOR_ID = 'unify-chat-provider';
@@ -38,11 +36,7 @@ export async function activate(
   const secretStore = new SecretStore(context.secrets);
 
   // Register URI handler (import-config + OAuth callbacks)
-  const uriHandler = registerUriHandler(
-    context,
-    configStore,
-    secretStore,
-  );
+  const uriHandler = registerUriHandler(context, configStore, secretStore);
 
   // Initialize auth system
   const authManager = new AuthManager(configStore, secretStore, uriHandler);
@@ -65,7 +59,6 @@ export async function activate(
     authManager,
     balanceManager,
   );
-
 
   // Initialize official models manager
   await officialModelsManager.initialize(context, secretStore, authManager);
@@ -101,6 +94,13 @@ export async function activate(
   // Re-register provider when official models are updated
   context.subscriptions.push(
     officialModelsManager.onDidUpdate(() => {
+      chatProvider.handleConfigurationChange();
+    }),
+  );
+
+  // Re-register provider when balance states are updated
+  context.subscriptions.push(
+    balanceManager.onDidUpdate(() => {
       chatProvider.handleConfigurationChange();
     }),
   );

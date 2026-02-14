@@ -9,7 +9,7 @@ import { createRequestLogger } from './logger';
 import { ModelConfig, PerformanceTrace, ProviderConfig } from './types';
 import { getBaseModelId } from './model-id-utils';
 import { createProvider } from './client/utils';
-import { formatModelDetail } from './ui/form-utils';
+import { formatModelTooltip, formatProviderDetail } from './ui/form-utils';
 import {
   calculateBackoffDelay,
   delay,
@@ -87,6 +87,11 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     model: ModelConfig,
   ): vscode.LanguageModelChatInformation {
     const modelId = this.createModelId(provider.name, model.id);
+    const balanceSnapshot = this.balanceManager?.getProviderState(
+      provider.name,
+    )?.snapshot;
+    const detail = formatProviderDetail(provider.name, balanceSnapshot);
+    const tooltip = formatModelTooltip(provider, model, balanceSnapshot);
 
     return {
       id: modelId,
@@ -103,8 +108,8 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
         label: provider.name,
         order: 2,
       },
-      detail: provider.name,
-      tooltip: formatModelDetail(model),
+      detail,
+      tooltip,
       isUserSelectable: true,
     };
   }

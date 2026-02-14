@@ -9,6 +9,7 @@ import { createBalanceProvider } from './create-balance-provider';
 import type { BalanceProviderContext } from './balance-provider';
 import type {
   BalanceConfig,
+  BalanceModelDisplayData,
   BalanceSnapshot,
   BalanceProviderState,
   BalanceStatusViewItem,
@@ -51,7 +52,10 @@ export class BalanceManager implements vscode.Disposable {
   private readonly states = new Map<string, BalanceProviderState>();
   private readonly configSignatures = new Map<string, string>();
   private readonly refreshInFlight = new Map<string, Promise<void>>();
-  private readonly trailingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly trailingTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
   private periodicTimer?: ReturnType<typeof setInterval>;
   private persistChain: Promise<void> = Promise.resolve();
 
@@ -430,15 +434,21 @@ export class BalanceManager implements vscode.Disposable {
   }
 
   private getPeriodicRefreshMs(): number {
-    return this.configStore?.balanceRefreshIntervalMs ?? DEFAULT_PERIODIC_REFRESH_MS;
+    return (
+      this.configStore?.balanceRefreshIntervalMs ?? DEFAULT_PERIODIC_REFRESH_MS
+    );
   }
 
   private getThrottleWindowMs(): number {
-    return this.configStore?.balanceThrottleWindowMs ?? DEFAULT_THROTTLE_WINDOW_MS;
+    return (
+      this.configStore?.balanceThrottleWindowMs ?? DEFAULT_THROTTLE_WINDOW_MS
+    );
   }
 
   private hasConfiguredBalanceProvider(provider: ProviderConfig): boolean {
-    return !!provider.balanceProvider && provider.balanceProvider.method !== 'none';
+    return (
+      !!provider.balanceProvider && provider.balanceProvider.method !== 'none'
+    );
   }
 
   private getProviderConfigSignature(provider: ProviderConfig): string {
@@ -475,7 +485,9 @@ export class BalanceManager implements vscode.Disposable {
     const activeProviders = providers.filter((provider) =>
       this.hasConfiguredBalanceProvider(provider),
     );
-    const activeNames = new Set(activeProviders.map((provider) => provider.name));
+    const activeNames = new Set(
+      activeProviders.map((provider) => provider.name),
+    );
     const nextSignatures = new Map(
       activeProviders.map((provider) => [
         provider.name,
@@ -551,11 +563,17 @@ export class BalanceManager implements vscode.Disposable {
     const persisted =
       this.extensionContext.globalState.get<PersistedState>(STATE_KEY);
 
-    if (!persisted || persisted.version !== STATE_VERSION || !isRecord(persisted.providers)) {
+    if (
+      !persisted ||
+      persisted.version !== STATE_VERSION ||
+      !isRecord(persisted.providers)
+    ) {
       return;
     }
 
-    for (const [providerName, rawState] of Object.entries(persisted.providers)) {
+    for (const [providerName, rawState] of Object.entries(
+      persisted.providers,
+    )) {
       const state = this.toRuntimeState(rawState);
       if (state) {
         this.states.set(providerName, state);
@@ -608,10 +626,44 @@ export class BalanceManager implements vscode.Disposable {
       ? detailsValue.filter((item): item is string => typeof item === 'string')
       : [];
 
+    const modelDisplay = this.toModelDisplay(rawSnapshot.modelDisplay);
+
     return {
       summary,
       details,
       updatedAt,
+      modelDisplay,
+    };
+  }
+
+  private toModelDisplay(
+    rawModelDisplay: unknown,
+  ): BalanceModelDisplayData | undefined {
+    if (!isRecord(rawModelDisplay)) {
+      return undefined;
+    }
+
+    const badge = this.toString(rawModelDisplay.badge);
+    const remainingPercent = this.toFiniteNumber(
+      rawModelDisplay.remainingPercent,
+    );
+    const expiration = this.toString(rawModelDisplay.expiration);
+    const amount = this.toString(rawModelDisplay.amount);
+
+    if (
+      badge === undefined &&
+      remainingPercent === undefined &&
+      expiration === undefined &&
+      amount === undefined
+    ) {
+      return undefined;
+    }
+
+    return {
+      badge,
+      remainingPercent,
+      expiration,
+      amount,
     };
   }
 
@@ -625,6 +677,12 @@ export class BalanceManager implements vscode.Disposable {
       : undefined;
   }
 
+  private toFiniteNumber(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value)
+      ? value
+      : undefined;
+  }
+
   private queuePersistState(): void {
     if (!this.extensionContext) {
       return;
@@ -634,7 +692,10 @@ export class BalanceManager implements vscode.Disposable {
       .catch(() => undefined)
       .then(() => this.saveState())
       .catch((error) => {
-        console.error('[unify-chat-provider] Failed to persist balance state.', error);
+        console.error(
+          '[unify-chat-provider] Failed to persist balance state.',
+          error,
+        );
       });
   }
 
