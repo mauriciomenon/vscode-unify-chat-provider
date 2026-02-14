@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { ProviderConfig } from '../../types';
 import type { BalanceProviderState } from '../../balance/types';
 import { balanceManager } from '../../balance';
+import { evaluateBalanceWarning } from '../../balance/warning-utils';
 import { stableStringify } from '../../config-ops';
 import { t } from '../../i18n';
 import { pickQuickItem } from '../component';
@@ -197,14 +198,26 @@ export async function runBalanceProviderListScreen(
         alwaysShow: true,
       });
     } else {
+      const warningThresholds = {
+        ...ctx.store.balanceWarning,
+        enabled: true,
+      };
+
       for (const provider of providers) {
         const state = balanceManager.getProviderState(provider.name);
         const percent = resolveRemainingPercent(state);
         const description = formatProgressBar(percent);
         const detail = formatBalanceDetail(state);
+        const warning = evaluateBalanceWarning(
+          state?.snapshot?.modelDisplay,
+          warningThresholds,
+        );
+        const label = warning.isNearThreshold
+          ? `$(warning) ${provider.name}`
+          : provider.name;
 
         items.push({
-          label: provider.name,
+          label,
           description,
           detail,
           action: 'provider',
