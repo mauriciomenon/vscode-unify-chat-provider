@@ -233,11 +233,10 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     authTypes: ['api-key'],
     models: [
-      'doubao-seed-1-8-251228',
-      'doubao-seed-code-preview-251028',
-      'doubao-seed-1-6-lite-251015',
-      'doubao-seed-1-6-flash-250828',
-      'doubao-seed-1-6-vision-250815',
+      'doubao-seed-2-0-pro-260215',
+      'doubao-seed-2-0-lite-260215',
+      'doubao-seed-2-0-mini-260215',
+      'doubao-seed-2-0-code-preview-260215',
     ],
   },
   {
@@ -248,6 +247,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     authTypes: ['api-key'],
     models: [
       'ark-code-latest',
+      'doubao-seed-2.0-code',
       'doubao-seed-code',
       'glm-4.7',
       'deepseek-v3.2',
@@ -262,11 +262,10 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     baseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
     authTypes: ['api-key'],
     models: [
-      'doubao-seed-1-8-251228',
-      'doubao-seed-code-preview-251028',
-      'doubao-seed-1-6-lite-251015',
-      'doubao-seed-1-6-flash-250828',
-      'doubao-seed-1-6-vision-250815',
+      'doubao-seed-2-0-pro-260215',
+      'doubao-seed-2-0-lite-260215',
+      'doubao-seed-2-0-mini-260215',
+      'doubao-seed-2-0-code-preview-260215',
     ],
   },
   {

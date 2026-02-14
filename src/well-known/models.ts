@@ -7,6 +7,70 @@ import { matchProvider } from '../client/utils';
  */
 const _WELL_KNOWN_MODELS = [
   {
+    id: 'doubao-seed-2-0-pro-260215',
+    overrides: ['doubao-seed-2-0-pro', 'doubao-seed-2.0-pro'],
+    name: 'Doubao Seed 2.0 Pro',
+    maxInputTokens: 256000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-2-0-lite-260215',
+    overrides: ['doubao-seed-2-0-lite', 'doubao-seed-2.0-lite'],
+    name: 'Doubao Seed 2.0 Lite',
+    maxInputTokens: 256000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-2-0-mini-260215',
+    overrides: ['doubao-seed-2-0-mini', 'doubao-seed-2.0-mini'],
+    name: 'Doubao Seed 2.0 Mini',
+    maxInputTokens: 256000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'doubao-seed-2-0-code-preview-260215',
+    overrides: ['doubao-seed-2-0-code', 'doubao-seed-2.0-code'],
+    name: 'Doubao Seed 2.0 Code Preview',
+    maxInputTokens: 256000,
+    maxOutputTokens: 128000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
     id: 'doubao-seed-1-8-251228',
     overrides: ['doubao-seed-1.8'],
     name: 'Doubao Seed 1.8',
