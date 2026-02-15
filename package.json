@@ -420,6 +420,18 @@
                     "properties": {
                       "method": {
                         "type": "string",
+                        "const": "claude-relay-service",
+                        "description": "%configuration.endpoints.balanceProvider.method.claudeRelayService.description%"
+                      }
+                    },
+                    "required": [
+                      "method"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "method": {
+                        "type": "string",
                         "const": "kimi-code",
                         "description": "%configuration.endpoints.balanceProvider.method.kimiCode.description%"
                       }

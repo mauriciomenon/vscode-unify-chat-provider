@@ -3,6 +3,7 @@ import { createSimpleHttpLogger } from '../../logger';
 import { getToken } from '../../client/utils';
 import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import type { SecretStore } from '../../secret';
+import { formatTokenCountCompact } from '../token-display';
 import type {
   BalanceConfig,
   BalanceModelDisplayData,
@@ -192,16 +193,18 @@ function remainingRatio(row: UsageRow): number | undefined {
 
 function formatRow(row: UsageRow): string {
   const hint = row.resetHint ? ` (${row.resetHint})` : '';
+  const usedText = formatTokenCountCompact(row.used);
 
   if (row.limit <= 0) {
-    return `${row.label}: ${row.used} used${hint}`;
+    return `${row.label}: ${usedText} used${hint}`;
   }
 
   const ratio = remainingRatio(row);
   const percent = ratio !== undefined ? Math.round(ratio * 100) : undefined;
   const percentPart = percent !== undefined ? ` (${percent}%)` : '';
+  const limitText = formatTokenCountCompact(row.limit);
 
-  return `${row.label}: ${row.used}/${row.limit}${percentPart}${hint}`;
+  return `${row.label}: ${usedText}/${limitText}${percentPart}${hint}`;
 }
 
 function limitLabel(options: {

@@ -55,6 +55,7 @@
   "configuration.endpoints.balanceProvider.method.openrouter.description": "Use OpenRouter balance monitor.",
   "configuration.endpoints.balanceProvider.method.siliconflow.description": "Use SiliconFlow balance monitor.",
   "configuration.endpoints.balanceProvider.method.aihubmix.description": "Use AIHubMix balance monitor.",
+  "configuration.endpoints.balanceProvider.method.claudeRelayService.description": "Use Claude Relay Service balance monitor.",
   "configuration.endpoints.balanceProvider.method.kimiCode.description": "Use Kimi Code usage monitor.",
   "configuration.endpoints.balanceProvider.method.newapi.description": "Use New API balance monitor.",
   "configuration.endpoints.balanceProvider.newapi.userId.description": "New API user ID.",

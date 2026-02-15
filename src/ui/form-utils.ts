@@ -14,6 +14,7 @@ import {
 import { normalizeBaseUrlInput } from '../utils';
 import { showValidationErrors } from './component';
 import type { BalanceSnapshot } from '../balance/types';
+import { formatTokenTextCompact } from '../balance/token-display';
 import {
   ProviderConfig,
   ModelConfig,
@@ -320,11 +321,11 @@ function formatBalanceDetails(
     return undefined;
   }
 
-  const summary = snapshot.summary.trim();
+  const summary = formatTokenTextCompact(snapshot.summary.trim());
   const details: string[] = [];
 
   for (const detail of snapshot.details) {
-    const normalized = detail.trim();
+    const normalized = formatTokenTextCompact(detail.trim());
     if (!normalized || normalized === summary || details.includes(normalized)) {
       continue;
     }
@@ -332,7 +333,7 @@ function formatBalanceDetails(
   }
 
   if (details.length > 0) {
-    return details.join(' ｜ ');
+    return details.join(' | ');
   }
 
   const display = snapshot.modelDisplay;

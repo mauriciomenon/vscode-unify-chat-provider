@@ -10,7 +10,8 @@ export type BalanceMethod =
   | 'deepseek'
   | 'openrouter'
   | 'siliconflow'
-  | 'aihubmix';
+  | 'aihubmix'
+  | 'claude-relay-service';
 
 export interface NoBalanceConfig {
   method: 'none';
@@ -48,6 +49,10 @@ export interface AiHubMixBalanceConfig {
   method: 'aihubmix';
 }
 
+export interface ClaudeRelayServiceBalanceConfig {
+  method: 'claude-relay-service';
+}
+
 export type BalanceConfig =
   | NoBalanceConfig
   | MoonshotAIBalanceConfig
@@ -56,7 +61,8 @@ export type BalanceConfig =
   | DeepSeekBalanceConfig
   | OpenRouterBalanceConfig
   | SiliconFlowBalanceConfig
-  | AiHubMixBalanceConfig;
+  | AiHubMixBalanceConfig
+  | ClaudeRelayServiceBalanceConfig;
 
 /**
  * Structured balance display data for model list rendering.
@@ -198,4 +204,10 @@ export function isAiHubMixBalanceConfig(
   config: BalanceConfig | undefined,
 ): config is AiHubMixBalanceConfig {
   return config?.method === 'aihubmix';
+}
+
+export function isClaudeRelayServiceBalanceConfig(
+  config: BalanceConfig | undefined,
+): config is ClaudeRelayServiceBalanceConfig {
+  return config?.method === 'claude-relay-service';
 }

@@ -4,6 +4,7 @@ import { balanceManager } from '../balance';
 import type { ConfigStore } from '../config-store';
 import type { ProviderConfig } from '../types';
 import { t } from '../i18n';
+import { formatTokenTextCompact } from '../balance/token-display';
 
 function hasConfiguredBalanceProvider(provider: ProviderConfig): boolean {
   return !!provider.balanceProvider && provider.balanceProvider.method !== 'none';
@@ -75,7 +76,7 @@ function formatBalanceDetail(state: BalanceProviderState | undefined): string[] 
   const lines: string[] = [];
 
   if (state?.lastError) {
-    lines.push(t('Error: {0}', state.lastError));
+    lines.push(formatTokenTextCompact(t('Error: {0}', state.lastError)));
   }
 
   const snapshot = state?.snapshot;
@@ -85,11 +86,11 @@ function formatBalanceDetail(state: BalanceProviderState | undefined): string[] 
       .filter((line) => !!line);
 
     if (snapshotLines.length > 0) {
-      lines.push(...snapshotLines);
+      lines.push(...snapshotLines.map((line) => formatTokenTextCompact(line)));
     } else {
       const summary = snapshot.summary.trim();
       if (summary) {
-        lines.push(summary);
+        lines.push(formatTokenTextCompact(summary));
       } else if (lines.length === 0) {
         lines.push(t('No data'));
       }
@@ -103,7 +104,14 @@ function formatBalanceDetail(state: BalanceProviderState | undefined): string[] 
   return lines;
 }
 
-function buildTooltip(providers: ProviderConfig[]): string {
+function escapeMarkdownInline(value: string): string {
+  const normalized = value.replace(/[\r\n]+/g, ' ').trim();
+  return normalized
+    .replace(/\\/g, '\\\\')
+    .replace(/([`*_{}[\]()#+\-.!|>])/g, '\\$1');
+}
+
+function buildTooltip(providers: ProviderConfig[]): vscode.MarkdownString {
   const sorted = [...providers].sort((a, b) => {
     const at = balanceManager.getProviderLastUsedAt(a.name) ?? 0;
     const bt = balanceManager.getProviderLastUsedAt(b.name) ?? 0;
@@ -113,27 +121,40 @@ function buildTooltip(providers: ProviderConfig[]): string {
     return a.name.localeCompare(b.name);
   });
 
-  const lines: string[] = [];
+  const markdown = new vscode.MarkdownString();
+  markdown.supportHtml = false;
+  markdown.isTrusted = false;
+  markdown.appendMarkdown(`**${escapeMarkdownInline(t('Provider Balances'))}**\n\n`);
 
-  for (const provider of sorted) {
+  sorted.forEach((provider, index) => {
     const state = balanceManager.getProviderState(provider.name);
     const percent = resolveRemainingPercent(state);
     const progress = formatProgressBar(percent);
-    lines.push(progress ? `${provider.name}  ${progress}` : provider.name);
+    markdown.appendMarkdown(`### ${escapeMarkdownInline(provider.name)}\n\n`);
+    if (progress) {
+      markdown.appendMarkdown(`${escapeMarkdownInline(progress)}\n\n`);
+    }
 
     const detailLines = formatBalanceDetail(state);
     for (const line of detailLines) {
-      lines.push(`  ${line}`);
+      markdown.appendMarkdown(`- ${escapeMarkdownInline(line)}\n`);
     }
 
-    lines.push('');
-  }
+    const updatedAt = state?.snapshot?.updatedAt;
+    if (typeof updatedAt === 'number' && Number.isFinite(updatedAt)) {
+      const updatedText = t(
+        'Last updated: {0}',
+        new Date(updatedAt).toLocaleTimeString(),
+      );
+      markdown.appendMarkdown(`- ${escapeMarkdownInline(updatedText)}\n`);
+    }
 
-  while (lines.length > 0 && !lines[lines.length - 1]?.trim()) {
-    lines.pop();
-  }
+    if (index !== sorted.length - 1) {
+      markdown.appendMarkdown('\n---\n\n');
+    }
+  });
 
-  return lines.join('\n');
+  return markdown;
 }
 
 export function registerBalanceStatusBar(options: {

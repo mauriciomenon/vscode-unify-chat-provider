@@ -3,6 +3,7 @@ import type { ProviderConfig } from '../../types';
 import type { BalanceProviderState } from '../../balance/types';
 import { balanceManager } from '../../balance';
 import { evaluateBalanceWarning } from '../../balance/warning-utils';
+import { formatTokenTextCompact } from '../../balance/token-display';
 import { stableStringify } from '../../config-ops';
 import { t } from '../../i18n';
 import { pickQuickItem } from '../component';
@@ -89,10 +90,10 @@ function formatProgressBar(percent: number | undefined): string | undefined {
 }
 
 function formatBalanceDetail(state: BalanceProviderState | undefined): string {
-  const lines: string[] = [];
+  const parts: string[] = [];
 
   if (state?.lastError) {
-    lines.push(t('Error: {0}', state.lastError));
+    parts.push(formatTokenTextCompact(t('Error: {0}', state.lastError)));
   }
 
   const snapshot = state?.snapshot;
@@ -102,28 +103,22 @@ function formatBalanceDetail(state: BalanceProviderState | undefined): string {
       .filter((line) => !!line);
 
     if (snapshotLines.length > 0) {
-      if (lines.length > 0) {
-        lines.push('');
-      }
-      lines.push(...snapshotLines);
+      parts.push(...snapshotLines.map((line) => formatTokenTextCompact(line)));
     } else {
       const summary = snapshot.summary.trim();
       if (summary) {
-        if (lines.length > 0) {
-          lines.push('');
-        }
-        lines.push(summary);
-      } else if (lines.length === 0) {
-        lines.push(t('No data'));
+        parts.push(formatTokenTextCompact(summary));
+      } else if (parts.length === 0) {
+        parts.push(t('No data'));
       }
     }
   }
 
-  if (lines.length === 0) {
+  if (parts.length === 0) {
     return t('Not refreshed yet');
   }
 
-  return lines.join('\n');
+  return parts.join(' | ');
 }
 
 async function configureBalanceMonitor(options: {

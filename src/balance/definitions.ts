@@ -9,6 +9,7 @@ import { DeepSeekBalanceProvider } from './providers/deepseek';
 import { OpenRouterBalanceProvider } from './providers/openrouter';
 import { SiliconFlowBalanceProvider } from './providers/siliconflow';
 import { AiHubMixBalanceProvider } from './providers/aihubmix';
+import { ClaudeRelayServiceBalanceProvider } from './providers/claude-relay-service';
 
 export interface BalanceMethodDefinition {
   id: Exclude<BalanceMethod, 'none'>;
@@ -138,6 +139,19 @@ export const BALANCE_METHODS = {
     resolveForExport: AiHubMixBalanceProvider.resolveForExport,
     normalizeOnImport: AiHubMixBalanceProvider.normalizeOnImport,
     prepareForDuplicate: AiHubMixBalanceProvider.prepareForDuplicate,
+  },
+  'claude-relay-service': {
+    id: 'claude-relay-service',
+    label: t('Claude Relay Service Balance'),
+    description: t('Monitor balance via Claude Relay Service apiStats APIs'),
+    category: 'General',
+    ctor: ClaudeRelayServiceBalanceProvider,
+    supportsSensitiveDataInSettings:
+      ClaudeRelayServiceBalanceProvider.supportsSensitiveDataInSettings,
+    redactForExport: ClaudeRelayServiceBalanceProvider.redactForExport,
+    resolveForExport: ClaudeRelayServiceBalanceProvider.resolveForExport,
+    normalizeOnImport: ClaudeRelayServiceBalanceProvider.normalizeOnImport,
+    prepareForDuplicate: ClaudeRelayServiceBalanceProvider.prepareForDuplicate,
   },
 } as const satisfies Record<
   Exclude<BalanceMethod, 'none'>,

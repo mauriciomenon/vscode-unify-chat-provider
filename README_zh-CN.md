@@ -403,6 +403,7 @@ VS Code 的 Copilot Chat 本身就支持登录 GitHub Copilot 账号，所以一
   - `OpenRouter 余额`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
   - `SiliconFlow 余额`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
   - `AIHubMix 余额`：余额监控无需额外配置，使用供应商 `baseUrl`、API Key，以及供应商 `extraHeaders` 中可选的 `APP-Code`。
+  - `Claude Relay Service 余额`：无需额外配置，使用供应商 `baseUrl` 和 API Key。
   - `Kimi Code 用量`：无需额外配置，直接使用供应商 `baseUrl` 和 API Key。
   - `New API 余额`：默认显示 API Key 余额；用户余额为可选，需配置 `userId` + `systemToken`（敏感数据）。
 - 可通过 VS Code 命令 `Unify Chat Provider: 刷新所有供应商余额` 强制刷新所有已配置余额监控的供应商。
