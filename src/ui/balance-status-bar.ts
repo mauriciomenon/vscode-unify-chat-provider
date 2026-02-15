@@ -65,7 +65,7 @@ function resolveRemainingPercent(
 }
 
 function formatProgressBar(percent: number | undefined): string | undefined {
-  const width = 20;
+  const width = 22;
 
   if (percent === undefined) {
     return undefined;
