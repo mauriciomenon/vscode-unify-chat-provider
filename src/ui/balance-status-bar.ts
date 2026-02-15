@@ -7,7 +7,9 @@ import { t } from '../i18n';
 import { formatTokenTextCompact } from '../balance/token-display';
 
 function hasConfiguredBalanceProvider(provider: ProviderConfig): boolean {
-  return !!provider.balanceProvider && provider.balanceProvider.method !== 'none';
+  return (
+    !!provider.balanceProvider && provider.balanceProvider.method !== 'none'
+  );
 }
 
 function clampPercent(value: number): number {
@@ -35,7 +37,10 @@ function resolveRemainingPercent(
   state: BalanceProviderState | undefined,
 ): number | undefined {
   const fromModelDisplay = state?.snapshot?.modelDisplay?.remainingPercent;
-  if (typeof fromModelDisplay === 'number' && Number.isFinite(fromModelDisplay)) {
+  if (
+    typeof fromModelDisplay === 'number' &&
+    Number.isFinite(fromModelDisplay)
+  ) {
     return clampPercent(fromModelDisplay);
   }
 
@@ -60,7 +65,7 @@ function resolveRemainingPercent(
 }
 
 function formatProgressBar(percent: number | undefined): string | undefined {
-  const width = 10;
+  const width = 20;
 
   if (percent === undefined) {
     return undefined;
@@ -72,7 +77,9 @@ function formatProgressBar(percent: number | undefined): string | undefined {
   return `${'█'.repeat(filled)}${'░'.repeat(empty)} ${Math.round(clamped)}%`;
 }
 
-function formatBalanceDetail(state: BalanceProviderState | undefined): string[] {
+function formatBalanceDetail(
+  state: BalanceProviderState | undefined,
+): string[] {
   const lines: string[] = [];
 
   if (state?.lastError) {
@@ -124,7 +131,9 @@ function buildTooltip(providers: ProviderConfig[]): vscode.MarkdownString {
   const markdown = new vscode.MarkdownString();
   markdown.supportHtml = false;
   markdown.isTrusted = false;
-  markdown.appendMarkdown(`**${escapeMarkdownInline(t('Provider Balances'))}**\n\n`);
+  markdown.appendMarkdown(
+    `**${escapeMarkdownInline(t('Provider Balances'))}**\n\n`,
+  );
 
   sorted.forEach((provider, index) => {
     const state = balanceManager.getProviderState(provider.name);
