@@ -44,6 +44,7 @@ export class GoogleAntigravityProvider extends GoogleCodeAssistProvider {
   ): Promise<ModelConfig[]> {
     this.validateAuth();
     return [
+      { id: 'gemini-3.1-pro' },
       { id: 'gemini-3-pro' },
       { id: 'gemini-3-flash' },
       { id: 'claude-sonnet-4-5' },

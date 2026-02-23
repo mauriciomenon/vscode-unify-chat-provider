@@ -724,7 +724,11 @@ export class AnthropicProvider implements ApiProvider {
       system,
       messages: anthropicMessages,
       historyUserId,
-    } = this.convertMessages(encodedModelId, sanitizedMessages, expectedIdentity);
+    } = this.convertMessages(
+      encodedModelId,
+      sanitizedMessages,
+      expectedIdentity,
+    );
 
     // Convert tools with model config for web search and memory tool support
     // Also add tools if web search is enabled even without explicit tools
@@ -761,6 +765,14 @@ export class AnthropicProvider implements ApiProvider {
     // Fine-grained tool streaming for Claude models when using tools with streaming.
     if (fineGrainedToolStreamingEnabled) {
       betaFeatures.add('fine-grained-tool-streaming-2025-05-14');
+    }
+
+    // Enable 1M context beta for supported Claude models when maxOutputTokens > 1,000,000
+    if (
+      (model.maxOutputTokens ?? 0) > 1_000_000 &&
+      isFeatureSupported(FeatureId.AnthropicContext1M, this.config, model)
+    ) {
+      betaFeatures.add('context-1m-2025-08-07');
     }
 
     this.addAdditionalBetaFeatures({
@@ -884,7 +896,8 @@ export class AnthropicProvider implements ApiProvider {
         );
 
         // Wrap stream with idle timeout
-        const responseTimeoutMs = resolveChatNetwork(this.config).timeout.response;
+        const responseTimeoutMs = resolveChatNetwork(this.config).timeout
+          .response;
         const timedStream = withIdleTimeout(
           sdkStream,
           responseTimeoutMs,

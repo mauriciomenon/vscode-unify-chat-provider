@@ -49,6 +49,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     baseUrl: 'https://generativelanguage.googleapis.com',
     authTypes: ['api-key'],
     models: [
+      'gemini-3.1-pro-preview',
       'gemini-3-pro-preview',
       'gemini-3-flash-preview',
       'gemini-2.5-pro',
@@ -65,6 +66,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     baseUrl: 'https://aiplatform.googleapis.com',
     authTypes: ['google-vertex-ai-auth'],
     models: [
+      'gemini-3.1-pro-preview',
       'gemini-3-pro-preview',
       'gemini-3-flash-preview',
       'gemini-2.5-pro',
@@ -192,7 +194,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     authTypes: ['api-key'],
     models: [
       'qwen3-max-2026-01-23',
-      'qwen-plus',
+      'qwen3.5-plus',
       'qwen3-coder-plus',
       'qwen3-coder-flash',
     ],
@@ -203,7 +205,14 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     type: 'anthropic',
     baseUrl: 'https://coding.dashscope.aliyuncs.com/apps/anthropic',
     authTypes: ['api-key'],
-    models: ['qwen3-coder-plus'],
+    models: [
+      'qwen3.5-plus',
+      'qwen3-max-2026-01-23',
+      'qwen3-coder-next',
+      'qwen3-coder-plus',
+      'glm-4.7',
+      'kimi-k2.5',
+    ],
   },
   {
     name: 'Alibaba Cloud Model Studio (International)',
@@ -213,7 +222,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     authTypes: ['api-key'],
     models: [
       'qwen3-max-2026-01-23',
-      'qwen-plus',
+      'qwen3.5-plus',
       'qwen3-coder-plus',
       'qwen3-coder-flash',
     ],
@@ -390,7 +399,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     type: 'anthropic',
     baseUrl: 'https://api.minimaxi.com/anthropic',
     authTypes: ['api-key'],
-    models: ['MiniMax-M2.5', 'MiniMax-M2.5-lightning'],
+    models: ['MiniMax-M2.5', 'MiniMax-M2.5-highspeed'],
   },
   {
     name: 'MiniMax (International)',
@@ -398,7 +407,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     type: 'anthropic',
     baseUrl: 'https://api.minimax.io/anthropic',
     authTypes: ['api-key'],
-    models: ['MiniMax-M2.5', 'MiniMax-M2.5-lightning'],
+    models: ['MiniMax-M2.5', 'MiniMax-M2.5-highspeed'],
   },
   {
     name: 'LongCat',

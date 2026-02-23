@@ -15,7 +15,8 @@ export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
   protected readonly codeAssistName = 'Gemini CLI';
   protected readonly codeAssistHeaders = GEMINI_CLI_API_HEADERS;
   protected readonly codeAssistHeaderStyle = 'gemini-cli';
-  protected readonly codeAssistEndpointFallbacks = GEMINI_CLI_ENDPOINT_FALLBACKS;
+  protected readonly codeAssistEndpointFallbacks =
+    GEMINI_CLI_ENDPOINT_FALLBACKS;
 
   /**
    * Override to support google-gemini-oauth authentication method.
@@ -90,7 +91,10 @@ export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
     const effectiveLevel: Gemini3ThinkingLevel =
       preferredGemini3ThinkingLevel ?? tier ?? 'low';
 
-    return { requestModelId: withPreview, gemini3ThinkingLevel: effectiveLevel };
+    return {
+      requestModelId: withPreview,
+      gemini3ThinkingLevel: effectiveLevel,
+    };
   }
 
   override async getAvailableModels(
@@ -98,6 +102,7 @@ export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
   ): Promise<ModelConfig[]> {
     this.validateAuth();
     return [
+      { id: 'gemini-3.1-pro-preview' },
       { id: 'gemini-3-pro-preview' },
       { id: 'gemini-3-flash-preview' },
       { id: 'gemini-2.5-pro' },

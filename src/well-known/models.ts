@@ -272,6 +272,22 @@ const _WELL_KNOWN_MODELS = [
     },
   },
   {
+    id: 'claude-sonnet-4-6',
+    overrides: ['claude-sonnet-4.6', 'claude-sonnet-4-6-thinking'],
+    name: 'Claude Sonnet 4.6',
+    maxInputTokens: 200000,
+    maxOutputTokens: 64000,
+    stream: true,
+    thinking: {
+      type: 'auto',
+      effort: 'high',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
     id: 'claude-opus-4-5',
     overrides: ['claude-opus-4.5', 'claude-opus-4-5-thinking'],
     name: 'Claude Opus 4.5',
@@ -1095,8 +1111,8 @@ const _WELL_KNOWN_MODELS = [
     temperature: 1.0,
   },
   {
-    id: 'MiniMax-M2.5-lightning',
-    name: 'MiniMax-M2.5-Lightning',
+    id: 'MiniMax-M2.5-highspeed',
+    name: 'MiniMax-M2.5-Highspeed',
     maxInputTokens: 204800,
     maxOutputTokens: 102400,
     stream: true,
@@ -1139,8 +1155,8 @@ const _WELL_KNOWN_MODELS = [
     temperature: 1.0,
   },
   {
-    id: 'MiniMax-M2.1-lightning',
-    name: 'MiniMax-M2.1-Lightning',
+    id: 'MiniMax-M2.1-highspeed',
+    name: 'MiniMax-M2.1-Highspeed',
     maxInputTokens: 204800,
     maxOutputTokens: 102400,
     stream: true,
@@ -1580,6 +1596,34 @@ const _WELL_KNOWN_MODELS = [
       imageInput: false,
     },
     temperature: 0.6,
+  },
+  {
+    id: 'qwen3.5-plus',
+    name: 'Qwen3.5-Plus',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 64000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3.5-397b-a17b',
+    name: 'Qwen3.5-397B-A17B',
+    maxInputTokens: 262144,
+    maxOutputTokens: 64000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
   },
   {
     id: 'qwen3-max-2026-01-23',
@@ -2968,6 +3012,21 @@ const _WELL_KNOWN_MODELS = [
     maxInputTokens: 32768,
     maxOutputTokens: 16384,
     stream: true,
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    overrides: ['gemini-3.1-pro'],
+    name: 'Gemini 3.1 Pro Preview',
+    maxInputTokens: 1048576,
+    maxOutputTokens: 65536,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
     capabilities: {
       toolCalling: true,
       imageInput: true,
