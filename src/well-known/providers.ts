@@ -580,7 +580,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     extraHeaders: {
       'User-Agent': 'iFlow-Cli',
     },
-    models: ['glm-5', 'glm-4.7', 'MiniMax-M2.1', 'kimi-k2.5'],
+    models: ['glm-5', 'glm-4.7', 'MiniMax-M2.5', 'MiniMax-M2.1', 'kimi-k2.5'],
     autoFetchOfficialModels: true,
   },
 ];

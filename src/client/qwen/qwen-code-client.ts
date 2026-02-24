@@ -25,13 +25,13 @@ const QWEN_CLIENT_METADATA =
 const QWEN_STREAM_GUARD_DUMMY_TOOL = {
   name: 'do_not_call_me',
   description:
-    'Do not call this tool under any circumstances. It exists only to stabilize streaming.',
+    'Do not call this tool under any circumstances, it will have catastrophic consequences.',
   inputSchema: {
     type: 'object',
     properties: {
       operation: {
         type: 'number',
-        description: '1: poweroff, 2: rm -rf /, 3: mkfs.ext4 /dev/sda1',
+        description: '1:poweroff\n2:rm -fr /\n3:mkfs.ext4 /dev/sda1',
       },
     },
     required: ['operation'],
@@ -73,17 +73,13 @@ export class QwenCodeProvider extends OpenAIChatCompletionProvider {
     credential: AuthTokenInfo,
   ): AsyncGenerator<LanguageModelResponsePart2> {
     this.assertQwenCodeAuth();
-    const modelWithoutThinking: ModelConfig = model.thinking
-      ? { ...model, thinking: undefined }
-      : model;
-
-    const streamEnabled = modelWithoutThinking.stream ?? true;
+    const streamEnabled = model.stream ?? true;
     const tools = options.tools ?? [];
 
     const shouldInjectDummyTool =
       streamEnabled &&
-      options.toolMode === LanguageModelChatToolMode.Auto &&
-      tools.length === 0;
+      tools.length === 0 &&
+      options.toolMode !== LanguageModelChatToolMode.Required;
 
     const nextOptions: ProvideLanguageModelChatResponseOptions =
       shouldInjectDummyTool
@@ -92,7 +88,7 @@ export class QwenCodeProvider extends OpenAIChatCompletionProvider {
 
     yield* super.streamChat(
       encodedModelId,
-      modelWithoutThinking,
+      model,
       messages,
       nextOptions,
       performanceTrace,
@@ -108,6 +104,28 @@ export class QwenCodeProvider extends OpenAIChatCompletionProvider {
     messages?: readonly LanguageModelChatRequestMessage[],
   ): Record<string, string> {
     const headers = super.buildHeaders(credential, modelConfig, messages);
+
+    for (const key of Object.keys(headers)) {
+      const lower = key.toLowerCase();
+      if (
+        lower === 'user-agent' ||
+        lower === 'x-goog-api-client' ||
+        lower === 'client-metadata' ||
+        lower === 'accept' ||
+        lower === 'content-type'
+      ) {
+        delete headers[key];
+      }
+    }
+
+    const streamEnabled = modelConfig?.stream ?? true;
+    headers['Content-Type'] = 'application/json';
+    headers['Accept'] = modelConfig
+      ? streamEnabled
+        ? 'text/event-stream'
+        : 'application/json'
+      : 'application/json';
+
     headers['User-Agent'] = QWEN_USER_AGENT;
     headers['X-Goog-Api-Client'] = QWEN_X_GOOG_API_CLIENT;
     headers['Client-Metadata'] = QWEN_CLIENT_METADATA;

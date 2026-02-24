@@ -15,17 +15,26 @@ export class IFlowCLIProvider extends OpenAIChatCompletionProvider {
   ): Record<string, string> {
     const headers = super.buildHeaders(credential, modelConfig, messages);
 
+    for (const key of Object.keys(headers)) {
+      const lower = key.toLowerCase();
+      if (lower === 'user-agent' || lower === 'accept' || lower === 'content-type') {
+        delete headers[key];
+      }
+    }
+
+    const streamEnabled = modelConfig?.stream ?? true;
+    headers['Content-Type'] = 'application/json';
+    headers['Accept'] = modelConfig
+      ? streamEnabled
+        ? 'text/event-stream'
+        : 'application/json'
+      : 'application/json';
+    headers['User-Agent'] = IFLOW_USER_AGENT;
+
     const token = getToken(credential)?.trim();
     if (!token) {
       return headers;
     }
-
-    for (const key of Object.keys(headers)) {
-      if (key.toLowerCase() === 'user-agent') {
-        delete headers[key];
-      }
-    }
-    headers['User-Agent'] = IFLOW_USER_AGENT;
 
     const sessionId = `session-${randomUUID()}`;
     const timestamp = Date.now();
