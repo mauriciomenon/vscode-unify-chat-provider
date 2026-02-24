@@ -3078,7 +3078,7 @@ const _WELL_KNOWN_MODELS = [
     overrides: ['gemini-3.1-pro', 'gemini-3.1-pro-preview-customtools'],
     name: 'Gemini 3.1 Pro Preview',
     maxInputTokens: 1048576,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 65535,
     stream: true,
     thinking: {
       type: 'enabled',
@@ -3093,7 +3093,7 @@ const _WELL_KNOWN_MODELS = [
     overrides: ['gemini-3-pro'],
     name: 'Gemini 3 Pro Preview',
     maxInputTokens: 1048576,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 65535,
     stream: true,
     thinking: {
       type: 'enabled',
