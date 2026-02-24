@@ -1,4 +1,4 @@
-import { t } from '../i18n';
+import { isEnglish, t } from '../i18n';
 import { formatTokenCountCompact } from './token-display';
 import type {
   BalanceAmountMetric,
@@ -616,12 +616,72 @@ function resolveGroupLabel(group: MetricLineGroup): string | undefined {
   return periodText ? `${base} (${periodText})` : base;
 }
 
+function resolvePeriodTextForGroup(group: MetricLineGroup): string | undefined {
+  if (group.periodLabel?.trim()) {
+    return group.periodLabel.trim();
+  }
+  if (group.period === 'current') {
+    return undefined;
+  }
+  if (group.period === 'day') {
+    return t('Today');
+  }
+  if (group.period === 'week') {
+    return t('This week');
+  }
+  if (group.period === 'month') {
+    return t('This month');
+  }
+  if (group.period === 'total') {
+    return t('Total');
+  }
+  return t('Custom');
+}
+
+function resolveGroupTypeName(group: MetricLineGroup): string {
+  if (group.family === 'token') {
+    return t('Token');
+  }
+  if (group.family === 'amount') {
+    return t('Amount');
+  }
+  if (group.family === 'status') {
+    return t('Status');
+  }
+  if (group.family === 'percent') {
+    return t('Percent');
+  }
+  if (group.family === 'time') {
+    return t('Time');
+  }
+  return t('Metric');
+}
+
+function resolveQuotaStyleTitle(group: MetricLineGroup): string | undefined {
+  const typeName = resolveGroupTypeName(group);
+  const periodText = resolvePeriodTextForGroup(group) ?? '';
+  const scopeText = group.scope?.trim() ?? '';
+
+  if (group.family === 'status') {
+    return resolveGroupLabel(group);
+  }
+
+  if (isEnglish()) {
+    const parts = [scopeText, periodText, typeName, t('Quota')].filter(
+      (part) => !!part,
+    );
+    return parts.join(' ');
+  }
+
+  return `${scopeText}${periodText}${typeName}限额`;
+}
+
 function formatGroupLine(group: MetricLineGroup): string | undefined {
   if (group.metrics.length === 0) {
     return undefined;
   }
 
-  const label = resolveGroupLabel(group);
+  const label = resolveQuotaStyleTitle(group) ?? resolveGroupLabel(group);
   if (!label) {
     return undefined;
   }
@@ -670,6 +730,88 @@ function formatGroupLine(group: MetricLineGroup): string | undefined {
   const renderedValue = timeText ? `${value} (${timeText})` : value;
 
   return `${title}: ${renderedValue}`;
+}
+
+function getAmountMetrics(group: MetricLineGroup): BalanceAmountMetric[] {
+  return group.metrics.filter(
+    (metric): metric is BalanceAmountMetric => metric.type === 'amount',
+  );
+}
+
+function hasAmountDirection(
+  group: MetricLineGroup,
+  direction: BalanceAmountMetric['direction'],
+): boolean {
+  return getAmountMetrics(group).some((metric) => metric.direction === direction);
+}
+
+function pickAmountLimitValue(group: MetricLineGroup): number | undefined {
+  const limitMetric = getAmountMetrics(group).find(
+    (metric) =>
+      metric.direction === 'limit' &&
+      Number.isFinite(metric.value) &&
+      metric.value > 0,
+  );
+  return limitMetric?.value;
+}
+
+function isSameAmountContext(
+  left: MetricLineGroup,
+  right: MetricLineGroup,
+): boolean {
+  return (
+    left.period === right.period &&
+    (left.periodLabel ?? '') === (right.periodLabel ?? '') &&
+    (left.scope ?? '') === (right.scope ?? '')
+  );
+}
+
+function hasCompatibleLimit(
+  left: MetricLineGroup,
+  right: MetricLineGroup,
+): boolean {
+  const leftLimit = pickAmountLimitValue(left);
+  const rightLimit = pickAmountLimitValue(right);
+  if (leftLimit === undefined || rightLimit === undefined) {
+    return true;
+  }
+  return Math.abs(leftLimit - rightLimit) < 1e-9;
+}
+
+function shouldHideUsedOnlyAmountGroup(
+  group: MetricLineGroup,
+  allGroups: readonly MetricLineGroup[],
+): boolean {
+  if (group.family !== 'amount') {
+    return false;
+  }
+
+  const hasRemaining = hasAmountDirection(group, 'remaining');
+  const hasUsed = hasAmountDirection(group, 'used');
+  if (!hasUsed || hasRemaining) {
+    return false;
+  }
+
+  return allGroups.some((candidate) => {
+    if (candidate === group || candidate.family !== 'amount') {
+      return false;
+    }
+    if (!hasAmountDirection(candidate, 'remaining')) {
+      return false;
+    }
+    if (!isSameAmountContext(candidate, group)) {
+      return false;
+    }
+    return hasCompatibleLimit(candidate, group);
+  });
+}
+
+function filterMetricGroupsForDisplay(
+  groups: readonly MetricLineGroup[],
+): MetricLineGroup[] {
+  return groups.filter(
+    (group) => !shouldHideUsedOnlyAmountGroup(group, groups),
+  );
 }
 
 export function getPrimaryMetric(
@@ -774,7 +916,7 @@ export function formatSnapshotLines(
     return [];
   }
 
-  return buildMetricGroups(snapshot)
+  return filterMetricGroupsForDisplay(buildMetricGroups(snapshot))
     .map((group) => formatGroupLine(group))
     .filter((line): line is string => !!line);
 }
