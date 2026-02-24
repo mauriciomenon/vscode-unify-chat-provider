@@ -94,6 +94,159 @@ function isStringKey(node: ts.Expression): node is ts.StringLiteral | ts.NoSubst
   return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
 }
 
+function unwrapExpression(node: ts.Expression): ts.Expression {
+  let current = node;
+  while (
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isParenthesizedExpression(current) ||
+    ts.isTypeAssertionExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function propertyNameText(name: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(name)) {
+    return name.text;
+  }
+  if (ts.isStringLiteral(name)) {
+    return name.text;
+  }
+  return undefined;
+}
+
+function stringLiteralText(node: ts.Expression): string | undefined {
+  const normalized = unwrapExpression(node);
+  if (ts.isStringLiteral(normalized) || ts.isNoSubstitutionTemplateLiteral(normalized)) {
+    return normalized.text;
+  }
+  return undefined;
+}
+
+function getObjectStringProperty(
+  objectLiteral: ts.ObjectLiteralExpression,
+  propertyName: string,
+): string | undefined {
+  for (const prop of objectLiteral.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const name = propertyNameText(prop.name);
+    if (name !== propertyName) continue;
+    return stringLiteralText(prop.initializer);
+  }
+  return undefined;
+}
+
+function findVariableInitializer(
+  sourceFile: ts.SourceFile,
+  variableName: string,
+): ts.Expression | undefined {
+  let initializer: ts.Expression | undefined;
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === variableName &&
+      node.initializer
+    ) {
+      initializer = unwrapExpression(node.initializer);
+      return;
+    }
+    if (!initializer) {
+      ts.forEachChild(node, visit);
+    }
+  }
+
+  visit(sourceFile);
+  return initializer;
+}
+
+function collectKnownDynamicLocalizationKeys(
+  repoRoot: string,
+  program: ts.Program,
+): Set<string> {
+  const keys = new Set<string>();
+
+  const tokenizersSource = program.getSourceFile(
+    join(repoRoot, 'src', 'tokenizer', 'tokenizers.ts'),
+  );
+  if (tokenizersSource) {
+    const tokenizersInit = findVariableInitializer(tokenizersSource, 'TOKENIZERS');
+    if (tokenizersInit && ts.isObjectLiteralExpression(tokenizersInit)) {
+      for (const prop of tokenizersInit.properties) {
+        if (!ts.isPropertyAssignment(prop)) continue;
+        const entry = unwrapExpression(prop.initializer);
+        if (!ts.isObjectLiteralExpression(entry)) continue;
+
+        const label = getObjectStringProperty(entry, 'label');
+        const description = getObjectStringProperty(entry, 'description');
+        if (label) keys.add(label);
+        if (description) keys.add(description);
+      }
+    }
+  }
+
+  const providerDefinitionsSource = program.getSourceFile(
+    join(repoRoot, 'src', 'client', 'definitions.ts'),
+  );
+  if (providerDefinitionsSource) {
+    const providerTypesInit = findVariableInitializer(
+      providerDefinitionsSource,
+      'PROVIDER_TYPES',
+    );
+    if (providerTypesInit && ts.isObjectLiteralExpression(providerTypesInit)) {
+      for (const prop of providerTypesInit.properties) {
+        if (!ts.isPropertyAssignment(prop)) continue;
+        const entry = unwrapExpression(prop.initializer);
+        if (!ts.isObjectLiteralExpression(entry)) continue;
+        const category = getObjectStringProperty(entry, 'category');
+        if (category) keys.add(category);
+      }
+    }
+  }
+
+  const authDefinitionsSource = program.getSourceFile(
+    join(repoRoot, 'src', 'auth', 'definitions.ts'),
+  );
+  if (authDefinitionsSource) {
+    const authMethodsInit = findVariableInitializer(authDefinitionsSource, 'AUTH_METHODS');
+    if (authMethodsInit && ts.isObjectLiteralExpression(authMethodsInit)) {
+      for (const prop of authMethodsInit.properties) {
+        if (!ts.isPropertyAssignment(prop)) continue;
+        const entry = unwrapExpression(prop.initializer);
+        if (!ts.isObjectLiteralExpression(entry)) continue;
+        const category = getObjectStringProperty(entry, 'category');
+        if (category) keys.add(category);
+      }
+    }
+  }
+
+  const wellKnownProvidersSource = program.getSourceFile(
+    join(repoRoot, 'src', 'well-known', 'providers.ts'),
+  );
+  if (wellKnownProvidersSource) {
+    const providersInit = findVariableInitializer(
+      wellKnownProvidersSource,
+      'WELL_KNOWN_PROVIDERS',
+    );
+    if (providersInit && ts.isArrayLiteralExpression(providersInit)) {
+      for (const element of providersInit.elements) {
+        const entry = unwrapExpression(element);
+        if (!ts.isObjectLiteralExpression(entry)) continue;
+
+        const category = getObjectStringProperty(entry, 'category');
+        const name = getObjectStringProperty(entry, 'name');
+        if (category) keys.add(category);
+        if (name) keys.add(name);
+      }
+    }
+  }
+
+  return keys;
+}
+
 async function readJson<T>(filePath: string): Promise<T> {
   const raw = await readFile(filePath, 'utf-8');
   return JSON.parse(raw) as T;
@@ -253,10 +406,12 @@ async function discoverLocaleBundles(repoRoot: string, baseName: string): Promis
 async function auditBundles(repoRoot: string): Promise<number> {
   const program = createProgramFromTsconfig(repoRoot);
 
-  const { keys: codeKeys, nonLiteralTCalls } = collectLocalizationKeys(
+  const { keys: literalCodeKeys, nonLiteralTCalls } = collectLocalizationKeys(
     repoRoot,
     program,
   );
+  const dynamicCodeKeys = collectKnownDynamicLocalizationKeys(repoRoot, program);
+  const codeKeys = new Set<string>([...literalCodeKeys, ...dynamicCodeKeys]);
 
   const nonLocalizedMessages = findNonLocalizedShowMessageCalls(repoRoot, program);
 
@@ -282,7 +437,9 @@ async function auditBundles(repoRoot: string): Promise<number> {
 
   const baseDiff = diffKeys(codeKeys, baseKeysAfter);
 
-  console.log('[l10n] t() keys in code:', codeKeys.size);
+  console.log('[l10n] literal t() keys in code:', literalCodeKeys.size);
+  console.log('[l10n] dynamic keys in code:', dynamicCodeKeys.size);
+  console.log('[l10n] total keys in code:', codeKeys.size);
   console.log('[l10n] keys in base bundle:', baseKeysAfter.size);
   console.log('[l10n] missing in base bundle:', baseDiff.missing.length);
   if (baseDiff.missing.length) {

@@ -118,11 +118,31 @@ function normalizeForCompare(value: string): string {
     .replace(/[\s()\[\]{}\-_:|,./\\]+/g, '');
 }
 
+function resolveScopeText(scope: string | undefined): string | undefined {
+  const trimmed = scope?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const normalized = normalizeForCompare(trimmed);
+  if (normalized === 'group') {
+    return t('Group');
+  }
+  if (normalized === 'user') {
+    return t('User');
+  }
+  if (normalized === 'apikey') {
+    return t('API Key');
+  }
+
+  return trimmed;
+}
+
 function resolveMetricBaseLabel(metric: BalanceMetric): string {
   const explicitLabel = metric.label?.trim();
   const baseLabel = explicitLabel || resolveTypeLabel(metric);
 
-  const scope = metric.scope?.trim();
+  const scope = resolveScopeText(metric.scope);
   if (!scope) {
     return baseLabel;
   }
@@ -714,23 +734,13 @@ function resolveGroupDisplaySemantic(input: {
 function resolveDisplaySemanticText(
   semantic: GroupDisplaySemantic,
 ): string {
-  if (isEnglish()) {
-    if (semantic === 'quota') {
-      return t('Quota');
-    }
-    if (semantic === 'usage') {
-      return t('Usage');
-    }
-    return t('Balance');
-  }
-
   if (semantic === 'quota') {
-    return '限额';
+    return t('Quota');
   }
   if (semantic === 'usage') {
-    return '用量';
+    return t('Usage');
   }
-  return '余额';
+  return t('Balance');
 }
 
 function resolveLocalizedGroupTypeName(group: MetricLineGroup): string {
@@ -738,21 +748,21 @@ function resolveLocalizedGroupTypeName(group: MetricLineGroup): string {
     return resolveGroupTypeName(group);
   }
   if (group.family === 'token') {
-    return '令牌';
+    return t('Token');
   }
   if (group.family === 'amount') {
-    return '金额';
+    return t('Amount');
   }
   if (group.family === 'status') {
-    return '状态';
+    return t('Status');
   }
   if (group.family === 'percent') {
-    return '百分比';
+    return t('Percent');
   }
   if (group.family === 'time') {
-    return '时间';
+    return t('Time');
   }
-  return '指标';
+  return t('Metric');
 }
 
 function resolveQuotaStyleTitle(input: {
@@ -768,7 +778,7 @@ function resolveQuotaStyleTitle(input: {
 
   const typeName = resolveLocalizedGroupTypeName(group);
   const periodText = resolvePeriodTextForGroup(group) ?? '';
-  const scopeText = group.scope?.trim() ?? '';
+  const scopeText = resolveScopeText(group.scope) ?? '';
   const semanticText = resolveDisplaySemanticText(semantic);
 
   if (isEnglish()) {
