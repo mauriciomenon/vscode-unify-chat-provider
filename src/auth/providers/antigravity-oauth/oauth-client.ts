@@ -288,7 +288,7 @@ export async function fetchAccountInfo(
   projectId?: string,
 ): Promise<AntigravityAccountInfo> {
   authLog.verbose('antigravity-client', 'Fetching account info');
-  const randomized = getRandomizedHeaders('gemini-cli');
+  const randomized = await getRandomizedHeaders('gemini-cli');
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
@@ -367,17 +367,17 @@ export async function fetchAccountInfo(
           'antigravity-client',
           `Polling onboardUser (${attempt}/${ONBOARD_MAX_ATTEMPTS}) via ${baseEndpoint}`,
         );
-        const onboardResp = await fetchWithTimeout(
-          `${baseEndpoint}/v1internal:onboardUser`,
-          {
-            method: 'POST',
-            headers: {
-              ...headers,
-              ...getRandomizedHeaders('antigravity'),
+          const onboardResp = await fetchWithTimeout(
+            `${baseEndpoint}/v1internal:onboardUser`,
+            {
+              method: 'POST',
+              headers: {
+                ...headers,
+                ...(await getRandomizedHeaders('antigravity')),
+              },
+              body: requestBody,
             },
-            body: requestBody,
-          },
-          ONBOARD_TIMEOUT_MS,
+            ONBOARD_TIMEOUT_MS,
         );
 
         if (!onboardResp.ok) {
@@ -556,7 +556,7 @@ export async function refreshAccessToken(options: {
       return null;
     }
 
-    const randomized = getRandomizedHeaders('gemini-cli');
+    const randomized = await getRandomizedHeaders('gemini-cli');
     const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
       method: 'POST',
       headers: {

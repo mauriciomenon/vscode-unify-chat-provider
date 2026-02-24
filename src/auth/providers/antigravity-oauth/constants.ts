@@ -1,3 +1,8 @@
+import {
+  ANTIGRAVITY_VERSION_FALLBACK,
+  getAntigravityVersion,
+} from './version';
+
 export const ANTIGRAVITY_CLIENT_ID =
   '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
 
@@ -8,8 +13,8 @@ export const ANTIGRAVITY_REDIRECT_PATH = '/oauth-callback';
 export const ANTIGRAVITY_DEFAULT_PROJECT_ID = 'rising-fact-p41fc';
 
 export const CODE_ASSIST_METADATA = {
-  ideType: 'IDE_UNSPECIFIED',
-  platform: 'PLATFORM_UNSPECIFIED',
+  ideType: 'ANTIGRAVITY',
+  platform: process.platform === 'win32' ? 'WINDOWS' : 'MACOS',
   pluginType: 'GEMINI',
 } as const;
 
@@ -38,9 +43,9 @@ export const ANTIGRAVITY_SCOPES = [
 
 export const CODE_ASSIST_ENDPOINT_FALLBACKS = [
   'https://daily-cloudcode-pa.sandbox.googleapis.com',
-  'https://daily-cloudcode-pa.googleapis.com',
-  // 'https://autopush-cloudcode-pa.sandbox.googleapis.com',
+  'https://autopush-cloudcode-pa.sandbox.googleapis.com',
   'https://cloudcode-pa.googleapis.com',
+  'https://daily-cloudcode-pa.googleapis.com',
 ] as const;
 
 /**
@@ -50,8 +55,8 @@ export const CODE_ASSIST_ENDPOINT_FALLBACKS = [
 export const CODE_ASSIST_LOAD_ENDPOINTS = [
   'https://cloudcode-pa.googleapis.com',
   'https://daily-cloudcode-pa.sandbox.googleapis.com',
+  'https://autopush-cloudcode-pa.sandbox.googleapis.com',
   'https://daily-cloudcode-pa.googleapis.com',
-  // 'https://autopush-cloudcode-pa.sandbox.googleapis.com',
 ] as const;
 
 export type AntigravityHeaderStyle = 'antigravity' | 'gemini-cli';
@@ -63,20 +68,35 @@ export type AntigravityHeaderSet = {
 };
 
 export const ANTIGRAVITY_CLIENT_METADATA_JSON =
-  '{"ideType":"IDE_UNSPECIFIED","platform":"PLATFORM_UNSPECIFIED","pluginType":"GEMINI"}';
+  JSON.stringify(CODE_ASSIST_METADATA);
+
+const ANTIGRAVITY_PLATFORMS = [
+  'windows/amd64',
+  'darwin/arm64',
+  'linux/amd64',
+  'darwin/amd64',
+  'linux/arm64',
+] as const;
+
+function buildAntigravityBrowserUserAgent(version: string): string {
+  return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${version} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`;
+}
+
+function buildAntigravityContentUserAgent(
+  version: string,
+  platform: (typeof ANTIGRAVITY_PLATFORMS)[number],
+): string {
+  return `antigravity/${version} ${platform}`;
+}
 
 export const CODE_ASSIST_HEADERS = {
   'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/1.104.0 Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36',
+    buildAntigravityBrowserUserAgent(ANTIGRAVITY_VERSION_FALLBACK),
   'X-Goog-Api-Client': 'google-cloud-sdk vscode_cloudshelleditor/0.1',
   'Client-Metadata': ANTIGRAVITY_CLIENT_METADATA_JSON,
 } as const;
 
 export const CODE_ASSIST_HEADERS_POOL = {
-  'User-Agent': [
-    CODE_ASSIST_HEADERS['User-Agent'],
-    'antigravity/1.15.8',
-  ],
   'X-Goog-Api-Client': [
     'google-cloud-sdk vscode_cloudshelleditor/0.1',
     'google-cloud-sdk vscode/1.96.0',
@@ -118,7 +138,9 @@ function randomFrom<const T>(values: readonly T[]): T {
   return selected === undefined ? first : selected;
 }
 
-export function getRandomizedHeaders(style: AntigravityHeaderStyle): AntigravityHeaderSet {
+export async function getRandomizedHeaders(
+  style: AntigravityHeaderStyle,
+): Promise<AntigravityHeaderSet> {
   if (style === 'gemini-cli') {
     return {
       'User-Agent': randomFrom(GEMINI_CLI_HEADERS_POOL['User-Agent']),
@@ -127,8 +149,12 @@ export function getRandomizedHeaders(style: AntigravityHeaderStyle): Antigravity
     };
   }
 
+  const version = await getAntigravityVersion();
   return {
-    'User-Agent': randomFrom(CODE_ASSIST_HEADERS_POOL['User-Agent']),
+    'User-Agent': buildAntigravityContentUserAgent(
+      version,
+      randomFrom(ANTIGRAVITY_PLATFORMS),
+    ),
     'X-Goog-Api-Client': randomFrom(CODE_ASSIST_HEADERS_POOL['X-Goog-Api-Client']),
     'Client-Metadata': CODE_ASSIST_HEADERS['Client-Metadata'],
   };

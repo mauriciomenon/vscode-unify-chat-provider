@@ -1,16 +1,12 @@
 import * as crypto from 'node:crypto';
+import { getAntigravityVersion } from '../../auth/providers/antigravity-oauth/version';
 
-const ARCHITECTURES = ['x64', 'arm64'] as const;
-
-const ANTIGRAVITY_VERSIONS = ['1.15.8'] as const;
-
-const IDE_TYPES = ['ANTIGRAVITY', 'IDE_UNSPECIFIED'] as const;
-
-const PLATFORMS = [
-  'PLATFORM_UNSPECIFIED',
-  'WINDOWS',
-  'MACOS',
-  'LINUX',
+const ANTIGRAVITY_PLATFORMS = [
+  'windows/amd64',
+  'darwin/arm64',
+  'linux/amd64',
+  'darwin/amd64',
+  'linux/arm64',
 ] as const;
 
 const SDK_CLIENTS = [
@@ -51,27 +47,40 @@ export type FingerprintHeaders = {
   'User-Agent': string;
 };
 
-function generateFingerprint(): Fingerprint {
-  const platform = randomFrom(['darwin', 'win32', 'linux'] as const);
-  const arch = randomFrom(ARCHITECTURES);
-  const antigravityVersion = randomFrom(ANTIGRAVITY_VERSIONS);
+export async function updateFingerprintVersion(
+  fingerprint: Fingerprint,
+): Promise<void> {
+  const currentVersion = await getAntigravityVersion();
+  const versionPattern = /^(antigravity\/)([\d.]+)/;
+  const match = fingerprint.userAgent.match(versionPattern);
 
-  const matchingPlatform =
-    platform === 'darwin'
-      ? 'MACOS'
-      : platform === 'win32'
-        ? 'WINDOWS'
-        : platform === 'linux'
-          ? 'LINUX'
-          : randomFrom(PLATFORMS);
+  if (!match) {
+    return;
+  }
+
+  const existingVersion = match[2];
+  if (existingVersion === currentVersion) {
+    return;
+  }
+
+  fingerprint.userAgent = fingerprint.userAgent.replace(
+    versionPattern,
+    `$1${currentVersion}`,
+  );
+}
+
+async function generateFingerprint(): Promise<Fingerprint> {
+  const version = await getAntigravityVersion();
+  const platform = randomFrom(ANTIGRAVITY_PLATFORMS);
+  const matchingPlatform = platform.startsWith('windows') ? 'WINDOWS' : 'MACOS';
 
   return {
     deviceId: crypto.randomUUID(),
     sessionToken: crypto.randomBytes(16).toString('hex'),
-    userAgent: `antigravity/${antigravityVersion} ${platform}/${arch}`,
+    userAgent: `antigravity/${version} ${platform}`,
     apiClient: randomFrom(SDK_CLIENTS),
     clientMetadata: {
-      ideType: randomFrom(IDE_TYPES),
+      ideType: 'ANTIGRAVITY',
       platform: matchingPlatform,
       pluginType: 'GEMINI',
     },
@@ -80,16 +89,32 @@ function generateFingerprint(): Fingerprint {
 }
 
 let sessionFingerprint: Fingerprint | null = null;
+let sessionFingerprintPromise: Promise<Fingerprint> | null = null;
 
-export function getSessionFingerprint(): Fingerprint {
-  if (!sessionFingerprint) {
-    sessionFingerprint = generateFingerprint();
+export async function getSessionFingerprint(): Promise<Fingerprint> {
+  if (sessionFingerprint) {
+    await updateFingerprintVersion(sessionFingerprint);
+    return sessionFingerprint;
   }
-  return sessionFingerprint;
+
+  if (!sessionFingerprintPromise) {
+    sessionFingerprintPromise = generateFingerprint()
+      .then(async (fingerprint) => {
+        sessionFingerprint = fingerprint;
+        await updateFingerprintVersion(fingerprint);
+        return fingerprint;
+      })
+      .finally(() => {
+        sessionFingerprintPromise = null;
+      });
+  }
+
+  return sessionFingerprintPromise;
 }
 
-export function regenerateSessionFingerprint(): Fingerprint {
-  sessionFingerprint = generateFingerprint();
+export async function regenerateSessionFingerprint(): Promise<Fingerprint> {
+  sessionFingerprint = await generateFingerprint();
+  sessionFingerprintPromise = null;
   return sessionFingerprint;
 }
 

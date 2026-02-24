@@ -1218,11 +1218,11 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
     // return this.fallbackProjectId;
   }
 
-  private buildAntigravityHeaders(
+  private async buildAntigravityHeaders(
     credential: AuthTokenInfo,
     modelConfig?: ModelConfig,
     options?: { streaming?: boolean; thinkingEnabled?: boolean },
-  ): Record<string, string> {
+  ): Promise<Record<string, string>> {
     const token = getToken(credential);
     if (!token) {
       throw new Error(`Missing OAuth access token for ${this.codeAssistName}`);
@@ -1251,7 +1251,7 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
       headers['Content-Type'] = 'application/json';
     }
 
-    const randomized = getRandomizedHeaders(this.codeAssistHeaderStyle);
+    const randomized = await getRandomizedHeaders(this.codeAssistHeaderStyle);
     if (!Object.keys(headers).some((k) => k.toLowerCase() === 'user-agent')) {
       headers['User-Agent'] =
         randomized['User-Agent'] ?? this.codeAssistHeaders['User-Agent'];
@@ -1289,23 +1289,15 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
       }
     }
 
-    // Fingerprint headers override runtime headers where applicable.
-    const fingerprintHeaders = buildFingerprintHeaders(getSessionFingerprint());
-    for (const [key, value] of Object.entries(fingerprintHeaders)) {
-      // For gemini-cli style, do not overwrite critical headers with Antigravity-specific values.
-      if (this.codeAssistHeaderStyle === 'gemini-cli') {
-        const lowerKey = key.toLowerCase();
-        if (
-          lowerKey === 'user-agent' ||
-          lowerKey === 'x-goog-api-client' ||
-          lowerKey === 'client-metadata'
-        ) {
-          continue;
+    if (this.codeAssistHeaderStyle === 'antigravity') {
+      // Fingerprint headers override runtime headers where applicable.
+      const fingerprintHeaders = buildFingerprintHeaders(
+        await getSessionFingerprint(),
+      );
+      for (const [key, value] of Object.entries(fingerprintHeaders)) {
+        if (typeof value === 'string' && value.trim()) {
+          headers[key] = value;
         }
-      }
-
-      if (typeof value === 'string' && value.trim()) {
-        headers[key] = value;
       }
     }
 
@@ -1681,6 +1673,37 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
       this.sanitizeClaudeContents(contents);
     }
 
+    for (const content of contents) {
+      const parts = content.parts;
+      if (!parts || parts.length === 0) {
+        continue;
+      }
+
+      const signature = parts.find((part) => {
+        return (
+          typeof part.thoughtSignature === 'string' &&
+          part.thoughtSignature.trim().length > 0
+        );
+      })?.thoughtSignature;
+
+      if (!signature) {
+        continue;
+      }
+
+      let changed = false;
+      const nextParts = parts.map((part) => {
+        if (part.functionCall && !part.thoughtSignature) {
+          changed = true;
+          return { ...part, thoughtSignature: signature };
+        }
+        return part;
+      });
+
+      if (changed) {
+        content.parts = nextParts;
+      }
+    }
+
     // const hasFinalPositionThinking =
     //   contents
     //     .filter((v) => v.role === 'model')
@@ -1819,38 +1842,29 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
 
     let body: Record<string, unknown>;
 
-    if (this.codeAssistHeaderStyle === 'gemini-cli') {
-      if (!projectId) {
-        throw new Error(
-          'No project ID found for Gemini CLI. Please try signing out and signing in again to provision a project.',
-        );
-      }
-
-      const cliPayload = { ...requestPayload };
-      delete cliPayload['sessionId'];
-      cliPayload['session_id'] = sessionId;
-
-      body = {
-        project: projectId,
-        model: resolvedModel.requestModelId,
-        user_prompt_id: `${randomUUID()}########0`,
-        request: cliPayload,
-      };
-    } else {
-      body = {
-        project: projectId,
-        model: resolvedModel.requestModelId,
-        request: requestPayload,
-        requestType: 'agent',
-        userAgent: 'antigravity',
-        requestId: `agent-${randomUUID()}`,
-      };
+    if (this.codeAssistHeaderStyle === 'gemini-cli' && !projectId) {
+      throw new Error(
+        'No project ID found for Gemini CLI. Please try signing out and signing in again to provision a project.',
+      );
     }
+
+    body = {
+      project: projectId,
+      model: resolvedModel.requestModelId,
+      request: requestPayload,
+      ...(this.codeAssistHeaderStyle === 'antigravity'
+        ? {
+            requestType: 'agent',
+            userAgent: 'antigravity',
+            requestId: `agent-${randomUUID()}`,
+          }
+        : {}),
+    };
 
     Object.assign(body, this.config.extraBody, model.extraBody);
     deleteSafetySettings(body);
 
-    const headers = this.buildAntigravityHeaders(credential, model, {
+    const headers = await this.buildAntigravityHeaders(credential, model, {
       streaming: streamEnabled,
       thinkingEnabled: isClaudeThinking,
     });

@@ -17,6 +17,149 @@ function parseDurationSecondsToMs(value: string): number | null {
   return Math.ceil(seconds * 1000);
 }
 
+function convertDurationToMs(value: number, unit: string): number | null {
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  const normalizedUnit = unit.trim().toLowerCase();
+  if (!normalizedUnit) {
+    return null;
+  }
+
+  if (
+    normalizedUnit === 'ms' ||
+    normalizedUnit === 'msec' ||
+    normalizedUnit === 'msecs' ||
+    normalizedUnit === 'millisecond' ||
+    normalizedUnit === 'milliseconds'
+  ) {
+    return Math.ceil(value);
+  }
+
+  if (
+    normalizedUnit === 's' ||
+    normalizedUnit === 'sec' ||
+    normalizedUnit === 'secs' ||
+    normalizedUnit === 'second' ||
+    normalizedUnit === 'seconds'
+  ) {
+    return Math.ceil(value * 1000);
+  }
+
+  if (
+    normalizedUnit === 'm' ||
+    normalizedUnit === 'min' ||
+    normalizedUnit === 'mins' ||
+    normalizedUnit === 'minute' ||
+    normalizedUnit === 'minutes'
+  ) {
+    return Math.ceil(value * 60_000);
+  }
+
+  return null;
+}
+
+function parseRetryDelayMsFromText(text: string): number | null {
+  const raw = text.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const explicitPattern =
+    /\b(?:quota\s+will\s+)?(?:reset|retry(?:ing)?)\s+(?:after|in)\s+(\d+(?:\.\d+)?)\s*(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m)\b/i;
+
+  const explicitMatch = raw.match(explicitPattern);
+  if (explicitMatch && explicitMatch[1] && explicitMatch[2]) {
+    const value = Number.parseFloat(explicitMatch[1]);
+    const delayMs = convertDurationToMs(value, explicitMatch[2]);
+    if (delayMs != null) {
+      return delayMs;
+    }
+  }
+
+  const hasRateLimitContext =
+    /\b(quota|rate(?:\s|-)?limit|resource[_\s-]?exhausted|too\s+many\s+requests|capacity)\b/i.test(
+      raw,
+    );
+  if (!hasRateLimitContext) {
+    return null;
+  }
+
+  const fallbackPattern =
+    /\bafter\s+(\d+(?:\.\d+)?)\s*(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m)\b/i;
+  const fallbackMatch = raw.match(fallbackPattern);
+  if (!fallbackMatch || !fallbackMatch[1] || !fallbackMatch[2]) {
+    return null;
+  }
+
+  const value = Number.parseFloat(fallbackMatch[1]);
+  return convertDurationToMs(value, fallbackMatch[2]);
+}
+
+function collectStringValues(
+  value: unknown,
+  output: string[],
+  depth = 0,
+): void {
+  if (depth > 8 || output.length >= 200) {
+    return;
+  }
+
+  if (typeof value === 'string') {
+    output.push(value);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectStringValues(item, output, depth + 1);
+      if (output.length >= 200) {
+        break;
+      }
+    }
+    return;
+  }
+
+  if (!isRecord(value)) {
+    return;
+  }
+
+  for (const nested of Object.values(value)) {
+    collectStringValues(nested, output, depth + 1);
+    if (output.length >= 200) {
+      break;
+    }
+  }
+}
+
+function parseRetryDelayMsFromPayload(body: unknown): number | null {
+  const strings: string[] = [];
+  collectStringValues(body, strings);
+
+  let best: number | null = null;
+  for (const value of strings) {
+    const parsed = parseRetryDelayMsFromText(value);
+    if (parsed == null) {
+      continue;
+    }
+    best = best == null ? parsed : Math.max(best, parsed);
+  }
+
+  return best;
+}
+
+function maxNullable(values: Array<number | null>): number | null {
+  let best: number | null = null;
+  for (const value of values) {
+    if (value == null) {
+      continue;
+    }
+    best = best == null ? value : Math.max(best, value);
+  }
+  return best;
+}
+
 function parseGoogleRpcRetryDelayMs(body: unknown): number | null {
   if (!isRecord(body)) {
     return null;
@@ -135,17 +278,25 @@ export async function extractServerSuggestedRetryDelayMs(
       return fromHeader;
     }
 
+    const fromRawText = parseRetryDelayMsFromText(text);
+
     const parsed: unknown = JSON.parse(text);
-    const fromBody = parseGoogleRpcRetryDelayMs(parsed);
-    if (fromHeader == null) {
-      return fromBody;
-    }
-    if (fromBody == null) {
+    const fromBodyRetryInfo = parseGoogleRpcRetryDelayMs(parsed);
+    const fromBodyText = parseRetryDelayMsFromPayload(parsed);
+
+    return maxNullable([
+      fromHeader,
+      fromRawText,
+      fromBodyRetryInfo,
+      fromBodyText,
+    ]);
+  } catch {
+    try {
+      const text = await response.clone().text();
+      const fromRawText = parseRetryDelayMsFromText(text);
+      return maxNullable([fromHeader, fromRawText]);
+    } catch {
       return fromHeader;
     }
-    return Math.max(fromHeader, fromBody);
-  } catch {
-    return fromHeader;
   }
 }
-
