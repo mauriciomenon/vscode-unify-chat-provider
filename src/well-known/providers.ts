@@ -195,6 +195,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     models: [
       'qwen3-max-2026-01-23',
       'qwen3.5-plus',
+      'qwen3.5-flash',
       'qwen3-coder-plus',
       'qwen3-coder-flash',
     ],
@@ -223,6 +224,7 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProviderConfig[] = [
     models: [
       'qwen3-max-2026-01-23',
       'qwen3.5-plus',
+      'qwen3.5-flash',
       'qwen3-coder-plus',
       'qwen3-coder-flash',
     ],

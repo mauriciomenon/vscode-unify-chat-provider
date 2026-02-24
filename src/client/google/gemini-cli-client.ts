@@ -10,6 +10,7 @@ import {
 } from './code-assist-client';
 
 const GEMINI_3_TIER_SUFFIX = /-(minimal|low|medium|high)$/i;
+const GEMINI_3_PREVIEW_SUFFIX = /-preview(?:-customtools)?$/i;
 
 export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
   protected readonly codeAssistName = 'Gemini CLI';
@@ -84,9 +85,11 @@ export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
       }
     }
 
-    const withPreview = withoutTier.toLowerCase().endsWith('-preview')
+    const withPreview = GEMINI_3_PREVIEW_SUFFIX.test(withoutTier)
       ? withoutTier
       : `${withoutTier}-preview`;
+    // Sync rule: preserve customtools IDs like "*-preview-customtools";
+    // never append an extra "-preview" for them.
 
     const effectiveLevel: Gemini3ThinkingLevel =
       preferredGemini3ThinkingLevel ?? tier ?? 'low';
@@ -101,8 +104,11 @@ export class GoogleGeminiCLIProvider extends GoogleCodeAssistProvider {
     _credential: AuthTokenInfo,
   ): Promise<ModelConfig[]> {
     this.validateAuth();
+    // Sync rule: this list should match local canonical model IDs for Gemini CLI.
+    // Do NOT import Antigravity-prefixed or proxy-specific resolver aliases.
     return [
       { id: 'gemini-3.1-pro-preview' },
+      { id: 'gemini-3.1-pro-preview-customtools' },
       { id: 'gemini-3-pro-preview' },
       { id: 'gemini-3-flash-preview' },
       { id: 'gemini-2.5-pro' },

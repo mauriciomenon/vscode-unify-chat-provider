@@ -1601,7 +1601,21 @@ const _WELL_KNOWN_MODELS = [
     id: 'qwen3.5-plus',
     name: 'Qwen3.5-Plus',
     maxInputTokens: 1000000,
-    maxOutputTokens: 64000,
+    maxOutputTokens: 65536,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3.5-flash',
+    name: 'Qwen3.5-Flash',
+    maxInputTokens: 1000000,
+    maxOutputTokens: 65536,
     stream: true,
     thinking: {
       type: 'enabled',
@@ -1614,6 +1628,48 @@ const _WELL_KNOWN_MODELS = [
   {
     id: 'qwen3.5-397b-a17b',
     name: 'Qwen3.5-397B-A17B',
+    maxInputTokens: 262144,
+    maxOutputTokens: 64000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3.5-122b-a10b',
+    name: 'Qwen3.5-122B-A10B',
+    maxInputTokens: 262144,
+    maxOutputTokens: 64000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3.5-27b',
+    name: 'Qwen3.5-27B',
+    maxInputTokens: 262144,
+    maxOutputTokens: 64000,
+    stream: true,
+    thinking: {
+      type: 'enabled',
+    },
+    capabilities: {
+      toolCalling: true,
+      imageInput: true,
+    },
+  },
+  {
+    id: 'qwen3.5-35b-a3b',
+    name: 'Qwen3.5-35B-A3B',
     maxInputTokens: 262144,
     maxOutputTokens: 64000,
     stream: true,
@@ -3019,7 +3075,7 @@ const _WELL_KNOWN_MODELS = [
   },
   {
     id: 'gemini-3.1-pro-preview',
-    overrides: ['gemini-3.1-pro'],
+    overrides: ['gemini-3.1-pro', 'gemini-3.1-pro-preview-customtools'],
     name: 'Gemini 3.1 Pro Preview',
     maxInputTokens: 1048576,
     maxOutputTokens: 65536,

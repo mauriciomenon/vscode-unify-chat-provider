@@ -4,9 +4,7 @@ import { getAntigravityVersion } from '../../auth/providers/antigravity-oauth/ve
 const ANTIGRAVITY_PLATFORMS = [
   'windows/amd64',
   'darwin/arm64',
-  'linux/amd64',
   'darwin/amd64',
-  'linux/arm64',
 ] as const;
 
 const SDK_CLIENTS = [

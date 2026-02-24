@@ -904,6 +904,8 @@ function normalizeToolParametersSchema(
 export type Gemini3ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
 
 const IMAGE_MODEL_PATTERN = /image|imagen/i;
+const GEMINI_3_TIER_SUFFIX = /-(minimal|low|medium|high)$/i;
+const GEMINI_3_PRO_PATTERN = /^gemini-3(?:\.\d+)?-pro/i;
 const CLAUDE_OPUS_HIGH_THINKING_BUDGET_ANTIGRAVITY = 32768;
 const CLAUDE_OPUS_LOW_THINKING_BUDGET_ANTIGRAVITY = 8192;
 const CLAUDE_OPUS_MAX_OUTPUT_TOKENS_ANTIGRAVITY = 64000;
@@ -947,6 +949,124 @@ function resolveClaudeOpusThinkingBudgetForAntigravity(
   }
 }
 
+function parseGemini3TierSuffix(modelId: string): {
+  baseModelId: string;
+  tier?: Gemini3ThinkingLevel;
+} {
+  const tierMatch = modelId.match(GEMINI_3_TIER_SUFFIX);
+  if (!tierMatch || typeof tierMatch[1] !== 'string') {
+    return { baseModelId: modelId };
+  }
+
+  const candidate = tierMatch[1].toLowerCase();
+  if (
+    candidate !== 'minimal' &&
+    candidate !== 'low' &&
+    candidate !== 'medium' &&
+    candidate !== 'high'
+  ) {
+    return { baseModelId: modelId };
+  }
+
+  return {
+    baseModelId: modelId.slice(0, modelId.length - tierMatch[0].length),
+    tier: candidate,
+  };
+}
+
+function hasMeaningfulPartValue(value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (isRecord(value)) {
+    return Object.keys(value).length > 0;
+  }
+
+  return true;
+}
+
+function normalizePartForRequest(part: Part): Part | null {
+  let normalizedPart: Part = part;
+  const functionCall = normalizedPart.functionCall;
+  if (isRecord(functionCall) && functionCall['args'] === undefined) {
+    normalizedPart = {
+      ...normalizedPart,
+      functionCall: {
+        ...functionCall,
+        args: {},
+      },
+    };
+  }
+
+  if (
+    typeof normalizedPart.text === 'string' &&
+    normalizedPart.text.trim().length > 0
+  ) {
+    return normalizedPart;
+  }
+
+  for (const key of Object.keys(normalizedPart) as Array<keyof Part>) {
+    if (key === 'text') {
+      continue;
+    }
+    if (hasMeaningfulPartValue(normalizedPart[key])) {
+      return normalizedPart;
+    }
+  }
+
+  return null;
+}
+
+function sanitizePartsForRequest(parts: Part[]): Part[] {
+  const sanitized: Part[] = [];
+
+  for (const part of parts) {
+    const normalized = normalizePartForRequest(part);
+    if (normalized) {
+      sanitized.push(normalized);
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeContentsForRequest(contents: Content[]): void {
+  let i = contents.length;
+  while (i--) {
+    const content = contents[i];
+    const parts = content.parts;
+    if (!parts || parts.length === 0) {
+      contents.splice(i, 1);
+      continue;
+    }
+
+    const sanitizedParts = sanitizePartsForRequest(parts);
+    if (sanitizedParts.length === 0) {
+      contents.splice(i, 1);
+      continue;
+    }
+
+    content.parts = sanitizedParts;
+  }
+}
+
 export function resolveAntigravityModelForRequest(
   modelId: string,
   preferredGemini3ThinkingLevel?: Gemini3ThinkingLevel,
@@ -955,6 +1075,9 @@ export function resolveAntigravityModelForRequest(
   requestModelId: string;
   gemini3ThinkingLevel?: Gemini3ThinkingLevel;
 } {
+  // Sync rule: `modelId` here is the model ID from this project's config.
+  // Keep conversion minimal for request protocol needs (tier/thinking),
+  // and do NOT port reference project's full alias/prefix resolver.
   const trimmed = modelId.trim();
   const modelLower = trimmed.toLowerCase();
 
@@ -972,20 +1095,23 @@ export function resolveAntigravityModelForRequest(
     return { requestModelId: trimmed };
   }
 
-  // Default thinking level for Gemini 3 models is high.
-  const effectiveLevel: Gemini3ThinkingLevel =
-    preferredGemini3ThinkingLevel ?? 'high';
-
-  const isGemini3Pro = modelLower.startsWith('gemini-3-pro');
+  const isGemini3Pro = GEMINI_3_PRO_PATTERN.test(modelLower);
 
   if (isGemini3Pro) {
+    const { baseModelId, tier } = parseGemini3TierSuffix(trimmed);
+    const effectiveLevel: Gemini3ThinkingLevel =
+      preferredGemini3ThinkingLevel ?? tier ?? 'high';
     // Antigravity requires tier suffix for Gemini 3 Pro. Default to -high.
-    const isImageModel = IMAGE_MODEL_PATTERN.test(trimmed);
+    const isImageModel = IMAGE_MODEL_PATTERN.test(baseModelId);
     const requestModelId = isImageModel
-      ? trimmed
-      : `${trimmed}-${effectiveLevel}`;
+      ? baseModelId
+      : `${baseModelId}-${effectiveLevel}`;
     return { requestModelId, gemini3ThinkingLevel: effectiveLevel };
   }
+
+  // Default thinking level for non-Pro Gemini 3 models is high.
+  const effectiveLevel: Gemini3ThinkingLevel =
+    preferredGemini3ThinkingLevel ?? 'high';
 
   // Other Gemini 3 models: keep as-is, but still expose default thinkingLevel.
   return {
@@ -1124,6 +1250,8 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
         }
       }
     }
+
+    sanitizeContentsForRequest(contents);
   }
 
   protected validateAuth(): void {
@@ -1241,7 +1369,11 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
     // Remove API key headers if present.
     for (const key of Object.keys(headers)) {
       const lower = key.toLowerCase();
-      if (lower === 'x-api-key' || lower === 'x-goog-api-key') {
+      if (
+        lower === 'x-api-key' ||
+        lower === 'x-goog-api-key' ||
+        lower === 'x-goog-user-project'
+      ) {
         delete headers[key];
       }
     }
@@ -1427,7 +1559,7 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
       parts.push({ text: toolText });
     }
 
-    return { role: 'user', parts };
+    return { role: 'user', parts: sanitizePartsForRequest(parts) };
   }
 
   private normalizeTools(
@@ -1671,6 +1803,8 @@ export abstract class GoogleCodeAssistProvider extends GoogleAIStudioProvider {
 
     if (isClaudeModel) {
       this.sanitizeClaudeContents(contents);
+    } else {
+      sanitizeContentsForRequest(contents);
     }
 
     for (const content of contents) {
