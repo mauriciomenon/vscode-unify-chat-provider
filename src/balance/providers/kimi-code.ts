@@ -187,7 +187,7 @@ function remainingRatio(row: UsageRow): number | undefined {
   return (row.limit - row.used) / row.limit;
 }
 
-function limitLabel(options: {
+function windowLabel(options: {
   item: Record<string, unknown>;
   detail: Record<string, unknown>;
   window: Record<string, unknown>;
@@ -215,23 +215,23 @@ function limitLabel(options: {
   if (duration !== undefined) {
     if (timeUnit.includes('MINUTE')) {
       if (duration >= 60 && duration % 60 === 0) {
-        return `${duration / 60}h limit`;
+        return `${duration / 60}h`;
       }
-      return `${duration}m limit`;
+      return `${duration}m`;
     }
     if (timeUnit.includes('HOUR')) {
-      return `${duration}h limit`;
+      return `${duration}h`;
     }
     if (timeUnit.includes('DAY')) {
-      return `${duration}d limit`;
+      return `${duration}d`;
     }
     if (timeUnit) {
-      return `${duration} ${timeUnit.toLowerCase()} limit`;
+      return `${duration} ${timeUnit.toLowerCase()}`;
     }
-    return `${duration}s limit`;
+    return `${duration}s`;
   }
 
-  return t('Limit #{0}', `${index + 1}`);
+  return t('Window #{0}', `${index + 1}`);
 }
 
 function resolvePayload(
@@ -249,7 +249,7 @@ function parseUsagePayload(payload: Record<string, unknown>): {
 
   const rawUsage = payload['usage'];
   const usage = isRecord(rawUsage)
-    ? toUsageRow(rawUsage, { defaultLabel: t('Weekly limit') })
+    ? toUsageRow(rawUsage, { defaultLabel: t('Weekly usage') })
     : undefined;
 
   const rawLimits = payload['limits'];
@@ -266,7 +266,7 @@ function parseUsagePayload(payload: Record<string, unknown>): {
       const windowRaw = item['window'];
       const window = isRecord(windowRaw) ? windowRaw : {};
 
-      const label = limitLabel({ item, detail, window, index });
+      const label = windowLabel({ item, detail, window, index });
       const row = toUsageRow(detail, { defaultLabel: label });
       if (row) {
         limits.push(row);

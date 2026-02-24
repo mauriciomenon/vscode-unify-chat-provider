@@ -823,5 +823,7 @@
   "View all providers...": "查看全部供应商...",
   "View balance monitoring status": "查看余额监控状态",
   "Weekly limit": "每周限额",
+  "Weekly usage": "每周用量",
+  "Window #{0}": "窗口 #{0}",
   "e.g., 5848": "例如：5848"
 }

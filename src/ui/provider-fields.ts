@@ -36,9 +36,6 @@ import {
   createBalanceProvider,
   createBalanceProviderForMethod,
   formatDetailLines,
-  formatSummaryLine,
-  isUnlimited,
-  resolveProgressPercent,
   getBalanceMethodDefinition,
   type BalanceConfig,
   type BalanceMethod,
@@ -1215,7 +1212,6 @@ async function showBalanceStatusView(options: {
   const buildItems = async (): Promise<BalanceStatusPickItem[]> => {
     const snapshot = localState?.snapshot;
     const details = formatDetailLines(localState);
-    const summary = formatSummaryLine(snapshot);
     const updatedAt = snapshot?.updatedAt;
     const description = localState?.isRefreshing
       ? t('Refreshing...')
@@ -1224,37 +1220,15 @@ async function showBalanceStatusView(options: {
         : localState?.lastError
           ? t('Error')
           : t('No data');
-    const progressPercent = resolveProgressPercent(snapshot);
-    const progressText = isUnlimited(snapshot)
-      ? t('Unlimited')
-      : typeof progressPercent === 'number' && Number.isFinite(progressPercent)
-        ? `${Math.round(progressPercent)}%`
-        : t('N/A');
 
     const items: BalanceStatusPickItem[] = [
       {
         label: `$(pulse) ${balanceProvider.definition.label}`,
         description,
       },
-      {
-        label: `$(graph) ${t('Progress')}`,
-        description: progressText,
-      },
     ];
 
-    if (summary) {
-      items.push({
-        label: `$(info) ${summary}`,
-      });
-    }
-
     if (details.length > 0) {
-      items.push({
-        label: '',
-        kind: vscode.QuickPickItemKind.Separator,
-        description: t('Details'),
-      });
-
       for (const line of details) {
         items.push({
           label: `  ${line}`,

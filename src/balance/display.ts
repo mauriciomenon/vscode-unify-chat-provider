@@ -166,12 +166,15 @@ function resolveTokenText(metric: BalanceTokenMetric): string | undefined {
   const hasRemaining =
     remaining !== undefined && remaining >= 0;
   const hasUsed = used !== undefined && used >= 0;
+  const usedForQuota =
+    hasUsed
+      ? used
+      : hasRemaining && hasLimit
+        ? Math.max(0, limit - remaining)
+        : undefined;
 
-  if (hasRemaining && hasLimit) {
-    return `${formatTokenCountCompact(remaining)} / ${formatTokenCountCompact(limit)} ${t('remaining')}`;
-  }
-  if (hasUsed && hasLimit) {
-    return `${formatTokenCountCompact(used)} / ${formatTokenCountCompact(limit)} ${t('used')}`;
+  if (usedForQuota !== undefined && hasLimit) {
+    return `${formatTokenCountCompact(usedForQuota)} / ${formatTokenCountCompact(limit)} ${t('used')}`;
   }
   if (hasRemaining) {
     return `${formatTokenCountCompact(remaining)} ${t('remaining')}`;
@@ -379,6 +382,26 @@ function finiteMetricNumber(value: number | undefined): number | undefined {
     : undefined;
 }
 
+function resolveUsedForQuota(input: {
+  remaining?: number;
+  used?: number;
+  limit?: number;
+}): number | undefined {
+  if (input.used !== undefined) {
+    return input.used;
+  }
+
+  if (
+    input.remaining === undefined ||
+    input.limit === undefined ||
+    input.limit <= 0
+  ) {
+    return undefined;
+  }
+
+  return Math.max(0, input.limit - input.remaining);
+}
+
 function pickAmountMetric(
   metrics: readonly BalanceMetric[],
   direction: BalanceAmountMetric['direction'],
@@ -443,26 +466,18 @@ function resolveAmountValue(metrics: readonly BalanceMetric[]): {
   const remaining = finiteMetricNumber(remainingMetric?.value);
   const used = finiteMetricNumber(usedMetric?.value);
   const limit = finiteMetricNumber(limitMetric?.value);
+  const usedForQuota = resolveUsedForQuota({ remaining, used, limit });
 
   const currencySymbol =
     remainingMetric?.currencySymbol ??
     usedMetric?.currencySymbol ??
     limitMetric?.currencySymbol;
 
-  if (remaining !== undefined && limit !== undefined && limit > 0) {
+  if (usedForQuota !== undefined && limit !== undefined && limit > 0) {
     return {
-      text: `${formatAmount(remaining, currencySymbol)} / ${formatAmount(limit, currencySymbol)}`,
+      text: `${formatAmount(usedForQuota, currencySymbol)} / ${formatAmount(limit, currencySymbol)}`,
       remaining,
-      used,
-      limit,
-    };
-  }
-
-  if (used !== undefined && limit !== undefined && limit > 0) {
-    return {
-      text: `${formatAmount(used, currencySymbol)} / ${formatAmount(limit, currencySymbol)}`,
-      remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
@@ -471,7 +486,7 @@ function resolveAmountValue(metrics: readonly BalanceMetric[]): {
     return {
       text: formatAmount(remaining, currencySymbol),
       remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
@@ -480,7 +495,7 @@ function resolveAmountValue(metrics: readonly BalanceMetric[]): {
     return {
       text: formatAmount(used, currencySymbol),
       remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
@@ -489,12 +504,12 @@ function resolveAmountValue(metrics: readonly BalanceMetric[]): {
     return {
       text: formatAmount(limit, currencySymbol),
       remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
 
-  return { remaining, used, limit };
+  return { remaining, used: usedForQuota, limit };
 }
 
 function resolveTokenValue(metric: BalanceTokenMetric): {
@@ -506,21 +521,13 @@ function resolveTokenValue(metric: BalanceTokenMetric): {
   const remaining = finiteMetricNumber(metric.remaining);
   const used = finiteMetricNumber(metric.used);
   const limit = finiteMetricNumber(metric.limit);
+  const usedForQuota = resolveUsedForQuota({ remaining, used, limit });
 
-  if (remaining !== undefined && limit !== undefined && limit > 0) {
+  if (usedForQuota !== undefined && limit !== undefined && limit > 0) {
     return {
-      text: `${formatTokenCountCompact(remaining)} / ${formatTokenCountCompact(limit)}`,
+      text: `${formatTokenCountCompact(usedForQuota)} / ${formatTokenCountCompact(limit)}`,
       remaining,
-      used,
-      limit,
-    };
-  }
-
-  if (used !== undefined && limit !== undefined && limit > 0) {
-    return {
-      text: `${formatTokenCountCompact(used)} / ${formatTokenCountCompact(limit)}`,
-      remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
@@ -529,7 +536,7 @@ function resolveTokenValue(metric: BalanceTokenMetric): {
     return {
       text: formatTokenCountCompact(remaining),
       remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
@@ -538,7 +545,7 @@ function resolveTokenValue(metric: BalanceTokenMetric): {
     return {
       text: formatTokenCountCompact(used),
       remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
@@ -547,15 +554,15 @@ function resolveTokenValue(metric: BalanceTokenMetric): {
     return {
       text: formatTokenCountCompact(limit),
       remaining,
-      used,
+      used: usedForQuota,
       limit,
     };
   }
 
-  return { remaining, used, limit };
+  return { remaining, used: usedForQuota, limit };
 }
 
-function derivePercentFromUsage(input: {
+function deriveUsedPercentFromUsage(input: {
   remaining?: number;
   used?: number;
   limit?: number;
@@ -566,10 +573,10 @@ function derivePercentFromUsage(input: {
   }
 
   if (input.remaining !== undefined) {
-    return clampPercent((input.remaining / limit) * 100);
+    return clampPercent(((limit - input.remaining) / limit) * 100);
   }
   if (input.used !== undefined) {
-    return clampPercent(((limit - input.used) / limit) * 100);
+    return clampPercent((input.used / limit) * 100);
   }
   return undefined;
 }
@@ -581,12 +588,15 @@ function resolveGroupPercent(
 ): number | undefined {
   const percentMetric = pickPercentMetric(metrics);
   if (percentMetric) {
-    return clampPercent(percentMetric.value);
+    const normalized = clampPercent(percentMetric.value);
+    return percentMetric.basis === 'used'
+      ? normalized
+      : clampPercent(100 - normalized);
   }
 
   return (
-    derivePercentFromUsage(amount) ??
-    derivePercentFromUsage(token)
+    deriveUsedPercentFromUsage(amount) ??
+    deriveUsedPercentFromUsage(token)
   );
 }
 
@@ -657,23 +667,118 @@ function resolveGroupTypeName(group: MetricLineGroup): string {
   return t('Metric');
 }
 
-function resolveQuotaStyleTitle(group: MetricLineGroup): string | undefined {
-  const typeName = resolveGroupTypeName(group);
-  const periodText = resolvePeriodTextForGroup(group) ?? '';
-  const scopeText = group.scope?.trim() ?? '';
+type GroupDisplaySemantic = 'quota' | 'usage' | 'balance';
 
+function isFiniteNonNegative(value: number | undefined): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isFinitePositive(value: number | undefined): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function resolveGroupDisplaySemantic(input: {
+  group: MetricLineGroup;
+  amount: { remaining?: number; used?: number; limit?: number };
+  token: { remaining?: number; used?: number; limit?: number };
+}): GroupDisplaySemantic | undefined {
+  const { group, amount, token } = input;
   if (group.family === 'status') {
+    return undefined;
+  }
+
+  const hasLimit =
+    isFinitePositive(amount.limit) || isFinitePositive(token.limit);
+  if (hasLimit) {
+    return 'quota';
+  }
+
+  const hasRemaining =
+    isFiniteNonNegative(amount.remaining) || isFiniteNonNegative(token.remaining);
+  const hasUsed =
+    isFiniteNonNegative(amount.used) || isFiniteNonNegative(token.used);
+
+  if (hasUsed && !hasRemaining) {
+    return 'usage';
+  }
+  if (hasRemaining) {
+    return 'balance';
+  }
+  if (hasUsed) {
+    return 'usage';
+  }
+
+  return undefined;
+}
+
+function resolveDisplaySemanticText(
+  semantic: GroupDisplaySemantic,
+): string {
+  if (isEnglish()) {
+    if (semantic === 'quota') {
+      return t('Quota');
+    }
+    if (semantic === 'usage') {
+      return t('Usage');
+    }
+    return t('Balance');
+  }
+
+  if (semantic === 'quota') {
+    return '限额';
+  }
+  if (semantic === 'usage') {
+    return '用量';
+  }
+  return '余额';
+}
+
+function resolveLocalizedGroupTypeName(group: MetricLineGroup): string {
+  if (isEnglish()) {
+    return resolveGroupTypeName(group);
+  }
+  if (group.family === 'token') {
+    return '令牌';
+  }
+  if (group.family === 'amount') {
+    return '金额';
+  }
+  if (group.family === 'status') {
+    return '状态';
+  }
+  if (group.family === 'percent') {
+    return '百分比';
+  }
+  if (group.family === 'time') {
+    return '时间';
+  }
+  return '指标';
+}
+
+function resolveQuotaStyleTitle(input: {
+  group: MetricLineGroup;
+  amount: { remaining?: number; used?: number; limit?: number };
+  token: { remaining?: number; used?: number; limit?: number };
+}): string | undefined {
+  const { group, amount, token } = input;
+  const semantic = resolveGroupDisplaySemantic({ group, amount, token });
+  if (!semantic) {
     return resolveGroupLabel(group);
   }
 
+  const typeName = resolveLocalizedGroupTypeName(group);
+  const periodText = resolvePeriodTextForGroup(group) ?? '';
+  const scopeText = group.scope?.trim() ?? '';
+  const semanticText = resolveDisplaySemanticText(semantic);
+
   if (isEnglish()) {
-    const parts = [scopeText, periodText, typeName, t('Quota')].filter(
+    const parts = [scopeText, periodText, typeName, semanticText].filter(
       (part) => !!part,
     );
     return parts.join(' ');
   }
 
-  return `${scopeText}${periodText}${typeName}限额`;
+  return `${scopeText}${periodText}${typeName}${semanticText}`;
 }
 
 function formatGroupLine(group: MetricLineGroup): string | undefined {
@@ -681,14 +786,14 @@ function formatGroupLine(group: MetricLineGroup): string | undefined {
     return undefined;
   }
 
-  const label = resolveQuotaStyleTitle(group) ?? resolveGroupLabel(group);
-  if (!label) {
-    return undefined;
-  }
-
   const amount = resolveAmountValue(group.metrics);
   const tokenMetric = pickTokenMetric(group.metrics);
   const token = tokenMetric ? resolveTokenValue(tokenMetric) : {};
+  const label =
+    resolveQuotaStyleTitle({ group, amount, token }) ?? resolveGroupLabel(group);
+  if (!label) {
+    return undefined;
+  }
   const statusMetric = pickStatusMetric(group.metrics);
   const timeMetric = pickTimeMetric(group.metrics);
   const percent = resolveGroupPercent(group.metrics, amount, token);
@@ -960,7 +1065,11 @@ export function resolveProgressPercent(
 ): number | undefined {
   const percent = findPercentMetric(snapshot);
   if (percent) {
-    return clampPercent(percent.value);
+    const normalized = clampPercent(percent.value);
+    if (percent.basis === 'used') {
+      return normalized;
+    }
+    return clampPercent(100 - normalized);
   }
 
   const token = findTokenMetric(snapshot);
@@ -978,7 +1087,7 @@ export function resolveProgressPercent(
       : undefined;
 
   if (remaining !== undefined && limit !== undefined && limit > 0) {
-    return clampPercent((remaining / limit) * 100);
+    return clampPercent(((limit - remaining) / limit) * 100);
   }
 
   const used =
@@ -986,7 +1095,7 @@ export function resolveProgressPercent(
       ? token.used
       : undefined;
   if (used !== undefined && limit !== undefined && limit > 0) {
-    return clampPercent(((limit - used) / limit) * 100);
+    return clampPercent((used / limit) * 100);
   }
 
   return undefined;
