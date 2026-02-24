@@ -29,15 +29,19 @@ function resolveCopilotApiBaseUrl(config: ProviderConfig): string {
   const enterpriseDomain =
     auth?.method === 'github-copilot' ? auth.enterpriseUrl?.trim() : undefined;
 
+  const baseUrl =
+    enterpriseDomain && normalized === 'https://api.githubcopilot.com'
+      ? buildBaseUrl(`https://copilot-api.${enterpriseDomain}`, {
+          stripPattern: /\/v1$/,
+        })
+      : normalized;
+
   // Auto-switch to the enterprise Copilot base URL when user has configured
   // enterprise auth but still uses the default github.com base URL.
-  if (enterpriseDomain && normalized === 'https://api.githubcopilot.com') {
-    return buildBaseUrl(`https://copilot-api.${enterpriseDomain}`, {
-      stripPattern: /\/v1$/,
-    });
-  }
-
-  return normalized;
+  return buildBaseUrl(baseUrl, {
+    ensureSuffix: '/v1',
+    skipSuffixIfMatch: /\/v\d+$/,
+  });
 }
 
 function shouldUseResponsesApi(modelId: string): boolean {

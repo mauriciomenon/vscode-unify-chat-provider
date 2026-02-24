@@ -608,8 +608,11 @@ export class GitHubCopilotAuthProvider implements AuthProvider {
             }
 
             if (result.kind === 'slow_down') {
-              const base = result.intervalSeconds ?? intervalSeconds;
-              intervalSeconds = base + 5;
+              if (result.intervalSeconds !== undefined) {
+                intervalSeconds = result.intervalSeconds;
+              } else {
+                intervalSeconds = intervalSeconds + 5;
+              }
               continue;
             }
 
