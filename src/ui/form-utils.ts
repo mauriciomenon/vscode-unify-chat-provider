@@ -14,7 +14,11 @@ import {
 import { normalizeBaseUrlInput } from '../utils';
 import { showValidationErrors } from './component';
 import type { BalanceSnapshot } from '../balance/types';
-import { formatTokenTextCompact } from '../balance/token-display';
+import {
+  formatProviderDetail as formatStructuredProviderDetail,
+  formatSnapshotLines,
+  formatSummaryLine,
+} from '../balance/display';
 import {
   ProviderConfig,
   ModelConfig,
@@ -258,12 +262,7 @@ export function formatProviderDetail(
   providerName: string,
   snapshot: BalanceSnapshot | undefined,
 ): string {
-  const badge = snapshot?.modelDisplay?.badge?.text?.trim();
-  if (!badge) {
-    return providerName;
-  }
-
-  return `${providerName} (${badge})`;
+  return formatStructuredProviderDetail(providerName, snapshot);
 }
 
 export function formatModelTooltip(
@@ -321,40 +320,12 @@ function formatBalanceDetails(
     return undefined;
   }
 
-  const summary = formatTokenTextCompact(snapshot.summary.trim());
-  const details: string[] = [];
-
-  for (const detail of snapshot.details) {
-    const normalized = formatTokenTextCompact(detail.trim());
-    if (!normalized || normalized === summary || details.includes(normalized)) {
-      continue;
-    }
-    details.push(normalized);
-  }
-
+  const details = formatSnapshotLines(snapshot);
   if (details.length > 0) {
     return details.join(' | ');
   }
 
-  const display = snapshot.modelDisplay;
-  if (display) {
-    if (typeof display.remainingPercent === 'number') {
-      return `${Math.round(display.remainingPercent)}%`;
-    }
-
-    const time = display.time;
-    const timeValue = normalizeTooltipValue(time?.display ?? time?.value);
-    if (timeValue) {
-      return timeValue;
-    }
-
-    const amount = normalizeTooltipValue(display.amount?.text);
-    if (amount) {
-      return amount;
-    }
-  }
-
-  return summary || undefined;
+  return normalizeTooltipValue(formatSummaryLine(snapshot));
 }
 
 function normalizeTooltipValue(value: string | undefined): string | undefined {

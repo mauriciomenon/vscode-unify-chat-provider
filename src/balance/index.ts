@@ -8,3 +8,4 @@ export type {
 } from './balance-provider';
 export { createBalanceProvider, createBalanceProviderForMethod } from './create-balance-provider';
 export { BalanceManager, balanceManager } from './balance-manager';
+export * from './display';

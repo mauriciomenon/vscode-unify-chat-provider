@@ -3,6 +3,7 @@ import type { AuthTokenInfo } from '../auth/types';
 import {
   balanceManager,
   createBalanceProvider,
+  formatDetailLines,
   type BalanceProviderState,
 } from '../balance';
 import { ConfigStore } from '../config-store';
@@ -110,6 +111,10 @@ function shouldAutoRefreshDraftState(state: BalanceProviderState): boolean {
   }
 
   return Date.now() - state.lastAttemptAt >= DRAFT_AUTO_REFRESH_INTERVAL_MS;
+}
+
+function formatStateDetail(state: BalanceProviderState | undefined): string {
+  return formatDetailLines(state).join(' | ');
 }
 
 function toAuthTokenInfo(
@@ -233,7 +238,7 @@ export async function resolveBalanceFieldDetail(options: {
     if (!state?.snapshot && !state?.lastError && !state?.isRefreshing) {
       await balanceManager.forceRefresh(savedProvider.name);
     }
-    return balanceManager.getProviderFieldDetail(savedProvider);
+    return formatStateDetail(balanceManager.getProviderState(savedProvider.name));
   }
 
   const draftSessionId = ensureDraftSessionId(options.draft);
@@ -253,8 +258,7 @@ export async function resolveBalanceFieldDetail(options: {
     deepClone(balanceProviderConfig),
   );
 
-  if (!balanceProvider?.getFieldDetail) {
-    balanceProvider?.dispose?.();
+  if (!balanceProvider) {
     return t('Not refreshed yet');
   }
 
@@ -273,7 +277,7 @@ export async function resolveBalanceFieldDetail(options: {
       });
     }
 
-    return await balanceProvider.getFieldDetail(session.state);
+    return formatStateDetail(session.state);
   } finally {
     balanceProvider.dispose?.();
   }

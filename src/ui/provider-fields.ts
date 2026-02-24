@@ -35,11 +35,14 @@ import {
   balanceManager,
   createBalanceProvider,
   createBalanceProviderForMethod,
+  formatDetailLines,
+  formatSummaryLine,
+  isUnlimited,
+  resolveProgressPercent,
   getBalanceMethodDefinition,
   type BalanceConfig,
   type BalanceMethod,
   type BalanceProviderState,
-  type BalanceStatusViewItem,
 } from '../balance';
 import {
   WELL_KNOWN_AUTH_PRESETS,
@@ -515,7 +518,13 @@ type BalancePickItem = vscode.QuickPickItem & {
   balanceAction?: BalanceAction;
 };
 
-type BalanceStatusPickItem = BalanceStatusViewItem & {
+type BalanceStatusActionKind = 'inline' | 'close';
+
+type BalanceStatusPickItem = vscode.QuickPickItem & {
+  action?: {
+    kind: BalanceStatusActionKind;
+    run: () => Promise<void>;
+  };
   viewAction?: 'reconfigure';
 };
 
@@ -1204,11 +1213,68 @@ async function showBalanceStatusView(options: {
   };
 
   const buildItems = async (): Promise<BalanceStatusPickItem[]> => {
-    const provided = await balanceProvider.getStatusViewItems?.({
-      state: localState,
-      refresh,
+    const snapshot = localState?.snapshot;
+    const details = formatDetailLines(localState);
+    const summary = formatSummaryLine(snapshot);
+    const updatedAt = snapshot?.updatedAt;
+    const description = localState?.isRefreshing
+      ? t('Refreshing...')
+      : typeof updatedAt === 'number' && Number.isFinite(updatedAt)
+        ? t('Last updated: {0}', new Date(updatedAt).toLocaleTimeString())
+        : localState?.lastError
+          ? t('Error')
+          : t('No data');
+    const progressPercent = resolveProgressPercent(snapshot);
+    const progressText = isUnlimited(snapshot)
+      ? t('Unlimited')
+      : typeof progressPercent === 'number' && Number.isFinite(progressPercent)
+        ? `${Math.round(progressPercent)}%`
+        : t('N/A');
+
+    const items: BalanceStatusPickItem[] = [
+      {
+        label: `$(pulse) ${balanceProvider.definition.label}`,
+        description,
+      },
+      {
+        label: `$(graph) ${t('Progress')}`,
+        description: progressText,
+      },
+    ];
+
+    if (summary) {
+      items.push({
+        label: `$(info) ${summary}`,
+      });
+    }
+
+    if (details.length > 0) {
+      items.push({
+        label: '',
+        kind: vscode.QuickPickItemKind.Separator,
+        description: t('Details'),
+      });
+
+      for (const line of details) {
+        items.push({
+          label: `  ${line}`,
+          action: {
+            kind: 'inline',
+            run: async () => {},
+          },
+        });
+      }
+    }
+
+    items.push({
+      label: `$(refresh) ${t('Refresh now')}`,
+      description: t('Fetch latest balance info'),
+      action: {
+        kind: 'inline',
+        run: refresh,
+      },
     });
-    const items = provided && provided.length > 0 ? [...provided] : [];
+
     items.push(reconfigureItem);
     return items;
   };

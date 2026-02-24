@@ -3,15 +3,11 @@ import { createSimpleHttpLogger } from '../../logger';
 import { getToken } from '../../client/utils';
 import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import type { SecretStore } from '../../secret';
-import { formatTokenCountCompact } from '../token-display';
 import type {
+  BalanceMetric,
   BalanceConfig,
-  BalanceModelDisplayData,
-  BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
-  BalanceStatusViewItem,
-  BalanceUiStatusSnapshot,
 } from '../types';
 import { isKimiCodeBalanceConfig } from '../types';
 import type {
@@ -191,22 +187,6 @@ function remainingRatio(row: UsageRow): number | undefined {
   return (row.limit - row.used) / row.limit;
 }
 
-function formatRow(row: UsageRow): string {
-  const hint = row.resetHint ? ` (${row.resetHint})` : '';
-  const usedText = formatTokenCountCompact(row.used);
-
-  if (row.limit <= 0) {
-    return `${row.label}: ${usedText} used${hint}`;
-  }
-
-  const ratio = remainingRatio(row);
-  const percent = ratio !== undefined ? Math.round(ratio * 100) : undefined;
-  const percentPart = percent !== undefined ? ` (${percent}%)` : '';
-  const limitText = formatTokenCountCompact(row.limit);
-
-  return `${row.label}: ${usedText}/${limitText}${percentPart}${hint}`;
-}
-
 function limitLabel(options: {
   item: Record<string, unknown>;
   detail: Record<string, unknown>;
@@ -327,6 +307,23 @@ function pickSummaryRow(parsed: {
   return best ?? parsed.limits[0];
 }
 
+function inferPeriodFromLabel(label: string): BalanceMetric['period'] {
+  const lower = label.toLowerCase();
+  if (lower.includes('day') || lower.includes('today')) {
+    return 'day';
+  }
+  if (lower.includes('week')) {
+    return 'week';
+  }
+  if (lower.includes('month')) {
+    return 'month';
+  }
+  if (lower.includes('total')) {
+    return 'total';
+  }
+  return 'custom';
+}
+
 export class KimiCodeBalanceProvider implements BalanceProvider {
   static supportsSensitiveDataInSettings(_config: BalanceConfig): boolean {
     return false;
@@ -382,79 +379,6 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
 
   getConfig(): BalanceConfig | undefined {
     return this.config;
-  }
-
-  async getFieldDetail(
-    state: BalanceProviderState | undefined,
-  ): Promise<string | undefined> {
-    if (state?.snapshot?.summary) {
-      return state.snapshot.summary;
-    }
-    if (state?.lastError) {
-      return t('Error: {0}', state.lastError);
-    }
-    return t('Not refreshed yet');
-  }
-
-  async getStatusSnapshot(
-    state: BalanceProviderState | undefined,
-  ): Promise<BalanceUiStatusSnapshot> {
-    if (state?.isRefreshing) {
-      return { kind: 'loading' };
-    }
-    if (state?.lastError) {
-      return { kind: 'error', message: state.lastError };
-    }
-    if (state?.snapshot) {
-      return {
-        kind: 'valid',
-        updatedAt: state.snapshot.updatedAt,
-        summary: state.snapshot.summary,
-      };
-    }
-    return { kind: 'not-configured' };
-  }
-
-  async getStatusViewItems(options: {
-    state: BalanceProviderState | undefined;
-    refresh: () => Promise<void>;
-  }): Promise<BalanceStatusViewItem[]> {
-    const state = options.state;
-    const snapshot = state?.snapshot;
-
-    const description = state?.isRefreshing
-      ? t('Refreshing...')
-      : snapshot
-        ? t(
-            'Last updated: {0}',
-            new Date(snapshot.updatedAt).toLocaleTimeString(),
-          )
-        : state?.lastError
-          ? t('Error')
-          : t('No data');
-
-    const details =
-      snapshot?.details?.join(' | ') ||
-      state?.lastError ||
-      t('Not refreshed yet');
-
-    return [
-      {
-        label: `$(pulse) ${this.definition.label}`,
-        description,
-        detail: details,
-      },
-      {
-        label: `$(refresh) ${t('Refresh now')}`,
-        description: t('Fetch latest balance info'),
-        action: {
-          kind: 'inline',
-          run: async () => {
-            await options.refresh();
-          },
-        },
-      },
-    ];
   }
 
   async configure(): Promise<BalanceConfigureResult> {
@@ -531,79 +455,98 @@ export class KimiCodeBalanceProvider implements BalanceProvider {
       const parsed = parseUsagePayload(resolvePayload(json));
       const summaryRow = pickSummaryRow(parsed);
 
-      const details: string[] = [];
+      const rows: UsageRow[] = [];
       if (parsed.usage) {
-        details.push(formatRow(parsed.usage));
-        details.push(...parsed.limits.map((row) => formatRow(row)));
+        rows.push(parsed.usage);
+        rows.push(...parsed.limits);
       } else if (summaryRow) {
-        details.push(formatRow(summaryRow));
+        rows.push(summaryRow);
         for (const row of parsed.limits) {
           if (row === summaryRow) {
             continue;
           }
-          details.push(formatRow(row));
+          rows.push(row);
         }
       }
 
-      const summary = summaryRow ? formatRow(summaryRow) : t('No data');
-      if (details.length === 0) {
-        details.push(t('No data'));
+      const items: BalanceMetric[] = [];
+      for (let index = 0; index < rows.length; index++) {
+        const row = rows[index];
+        const period = inferPeriodFromLabel(row.label);
+        const remaining =
+          row.limit > 0 ? Math.max(0, row.limit - row.used) : undefined;
+
+        items.push({
+          id: `tokens-${index + 1}`,
+          type: 'token',
+          period,
+          ...(period === 'custom' ? { periodLabel: row.label } : {}),
+          label: row.label,
+          used: row.used,
+          ...(row.limit > 0 ? { limit: row.limit } : {}),
+          ...(remaining !== undefined ? { remaining } : {}),
+        });
       }
 
-      const modelDisplay: BalanceModelDisplayData = {};
+      let primaryId: string | undefined;
       const ratio = summaryRow ? remainingRatio(summaryRow) : undefined;
-      if (ratio !== undefined) {
-        const percent = Math.round(ratio * 100);
-        modelDisplay.remainingPercent = percent;
-        modelDisplay.badge = { text: `${percent}%`, kind: 'percent' };
-      }
-
-      if (summaryRow) {
-        const used = summaryRow.used;
-        const limit = summaryRow.limit;
-        const hasLimit = Number.isFinite(limit) && limit > 0;
-        const hasUsed = Number.isFinite(used) && used >= 0;
-        if (hasLimit || hasUsed) {
-          modelDisplay.tokens = {
-            ...(hasUsed ? { used } : {}),
-            ...(hasLimit
-              ? { limit, remaining: Math.max(0, limit - used) }
-              : {}),
-          };
-        }
+      if (summaryRow && ratio !== undefined) {
+        const primaryRow = summaryRow;
+        const percentValue = Math.round(ratio * 100);
+        const period = inferPeriodFromLabel(primaryRow.label);
+        const percentId = 'remaining-percent';
+        items.push({
+          id: percentId,
+          type: 'percent',
+          period,
+          ...(period === 'custom' ? { periodLabel: primaryRow.label } : {}),
+          label: t('Remaining'),
+          value: percentValue,
+          basis: 'remaining',
+        });
+        primaryId = percentId;
       }
 
       if (summaryRow?.resetAt) {
         const value = summaryRow.resetAt;
         const timestampMs = new Date(value).getTime();
-        modelDisplay.time = {
+        const period = inferPeriodFromLabel(summaryRow.label);
+        const timeId = 'reset-time';
+        items.push({
+          id: timeId,
+          type: 'time',
+          period,
+          ...(period === 'custom' ? { periodLabel: summaryRow.label } : {}),
+          label: t('Resets'),
           kind: 'resetAt',
-          value,
-          timestampMs: Number.isFinite(timestampMs) ? timestampMs : undefined,
-          display: formatExpiration(value),
-        };
-        if (!modelDisplay.badge) {
-          modelDisplay.badge = {
-            text: `expiration：${formatExpiration(value)}`,
-            kind: 'time',
-          };
+          value: formatExpiration(value),
+          ...(Number.isFinite(timestampMs) ? { timestampMs } : {}),
+        });
+        if (!primaryId) {
+          primaryId = timeId;
         }
       }
 
-      const hasModelDisplay =
-        modelDisplay.badge !== undefined ||
-        modelDisplay.remainingPercent !== undefined ||
-        modelDisplay.time !== undefined ||
-        modelDisplay.amount !== undefined ||
-        modelDisplay.tokens !== undefined;
+      if (!primaryId && summaryRow) {
+        const summaryToken = items.find(
+          (item) => item.type === 'token' && item.label === summaryRow.label,
+        );
+        primaryId = summaryToken?.id;
+      }
+      if (!primaryId) {
+        primaryId = items[0]?.id;
+      }
+
+      const normalizedItems = items.map((item) => ({
+        ...item,
+        primary: item.id === primaryId,
+      }));
 
       return {
         success: true,
         snapshot: {
-          summary,
-          details,
           updatedAt: Date.now(),
-          ...(hasModelDisplay ? { modelDisplay } : {}),
+          items: normalizedItems,
         },
       };
     } catch (error) {

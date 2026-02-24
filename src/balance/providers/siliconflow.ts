@@ -5,12 +5,8 @@ import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import type { SecretStore } from '../../secret';
 import type {
   BalanceConfig,
-  BalanceModelDisplayData,
-  BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
-  BalanceStatusViewItem,
-  BalanceUiStatusSnapshot,
 } from '../types';
 import { isSiliconFlowBalanceConfig } from '../types';
 import type {
@@ -53,17 +49,6 @@ function pickNumberLike(
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatSignedNumber(value: number): string {
-  return value < 0 ? `-${formatNumber(Math.abs(value))}` : formatNumber(value);
 }
 
 function parseErrorMessage(text: string): string | undefined {
@@ -162,79 +147,6 @@ export class SiliconFlowBalanceProvider implements BalanceProvider {
     return this.config;
   }
 
-  async getFieldDetail(
-    state: BalanceProviderState | undefined,
-  ): Promise<string | undefined> {
-    if (state?.snapshot?.summary) {
-      return state.snapshot.summary;
-    }
-    if (state?.lastError) {
-      return t('Error: {0}', state.lastError);
-    }
-    return t('Not refreshed yet');
-  }
-
-  async getStatusSnapshot(
-    state: BalanceProviderState | undefined,
-  ): Promise<BalanceUiStatusSnapshot> {
-    if (state?.isRefreshing) {
-      return { kind: 'loading' };
-    }
-    if (state?.lastError) {
-      return { kind: 'error', message: state.lastError };
-    }
-    if (state?.snapshot) {
-      return {
-        kind: 'valid',
-        updatedAt: state.snapshot.updatedAt,
-        summary: state.snapshot.summary,
-      };
-    }
-    return { kind: 'not-configured' };
-  }
-
-  async getStatusViewItems(options: {
-    state: BalanceProviderState | undefined;
-    refresh: () => Promise<void>;
-  }): Promise<BalanceStatusViewItem[]> {
-    const state = options.state;
-    const snapshot = state?.snapshot;
-
-    const description = state?.isRefreshing
-      ? t('Refreshing...')
-      : snapshot
-        ? t(
-            'Last updated: {0}',
-            new Date(snapshot.updatedAt).toLocaleTimeString(),
-          )
-        : state?.lastError
-          ? t('Error')
-          : t('No data');
-
-    const details =
-      snapshot?.details?.join(' | ') ||
-      state?.lastError ||
-      t('Not refreshed yet');
-
-    return [
-      {
-        label: `$(pulse) ${this.definition.label}`,
-        description,
-        detail: details,
-      },
-      {
-        label: `$(refresh) ${t('Refresh now')}`,
-        description: t('Fetch latest balance info'),
-        action: {
-          kind: 'inline',
-          run: async () => {
-            await options.refresh();
-          },
-        },
-      },
-    ];
-  }
-
   async configure(): Promise<BalanceConfigureResult> {
     const next: BalanceConfig = { method: 'siliconflow' };
     this.config = next;
@@ -317,26 +229,40 @@ export class SiliconFlowBalanceProvider implements BalanceProvider {
       const paid = pickNumberLike(payload, 'chargeBalance') ?? 0;
       const total = pickNumberLike(payload, 'totalBalance') ?? paid + granted;
 
-      const amount = `¥${formatSignedNumber(total)}`;
-      const summary = t('Balance: {0}', amount);
-      const details = [summary];
-
-      const modelDisplay: BalanceModelDisplayData = {
-        badge: { text: amount, kind: 'amount' },
-        amount: {
-          text: amount,
-          value: Number.isFinite(total) ? total : undefined,
-          currencySymbol: '¥',
-        },
-      };
-
       return {
         success: true,
         snapshot: {
-          summary,
-          details,
           updatedAt: Date.now(),
-          modelDisplay,
+          items: [
+            {
+              id: 'balance-current',
+              type: 'amount',
+              period: 'current',
+              direction: 'remaining',
+              value: total,
+              currencySymbol: '¥',
+              primary: true,
+              label: t('Balance'),
+            },
+            {
+              id: 'charge-current',
+              type: 'amount',
+              period: 'current',
+              direction: 'remaining',
+              value: paid,
+              currencySymbol: '¥',
+              label: t('Charge balance'),
+            },
+            {
+              id: 'granted-current',
+              type: 'amount',
+              period: 'current',
+              direction: 'remaining',
+              value: granted,
+              currencySymbol: '¥',
+              label: t('Granted balance'),
+            },
+          ],
         },
       };
     } catch (error) {

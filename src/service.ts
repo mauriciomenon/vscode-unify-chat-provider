@@ -95,7 +95,7 @@ export class UnifyChatService implements vscode.LanguageModelChatProvider {
     const tooltip = formatModelTooltip(provider, model, balanceSnapshot);
 
     const warning = evaluateBalanceWarning(
-      balanceSnapshot?.modelDisplay,
+      balanceSnapshot?.items,
       this.configStore.balanceWarning,
     );
     const statusIcon = warning.isNearThreshold

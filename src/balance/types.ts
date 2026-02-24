@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import type { AuthTokenInfo } from '../auth/types';
 import type { ProviderConfig } from '../types';
 
@@ -64,68 +63,74 @@ export type BalanceConfig =
   | AiHubMixBalanceConfig
   | ClaudeRelayServiceBalanceConfig;
 
-/**
- * Structured balance display data for model list rendering.
- *
- * Priority for short badge rendering (if provider chooses to auto-generate):
- * 1) remainingPercent
- * 2) time
- * 3) amount
- */
-export type BalanceModelDisplayBadgeKind =
+export type BalanceMetricType =
+  | 'amount'
+  | 'token'
   | 'percent'
   | 'time'
-  | 'amount'
+  | 'status';
+
+export type BalanceMetricPeriod =
+  | 'current'
+  | 'day'
+  | 'week'
+  | 'month'
+  | 'total'
   | 'custom';
 
-export interface BalanceModelDisplayBadge {
-  /** Preformatted short badge text without wrapper punctuation (e.g. "50%", "expiration：2013.2.3 10:11:00", "¥10.00"). */
-  text: string;
-  kind?: BalanceModelDisplayBadgeKind;
+export interface BalanceMetricBase {
+  id: string;
+  type: BalanceMetricType;
+  period: BalanceMetricPeriod;
+  periodLabel?: string;
+  scope?: string;
+  primary?: boolean;
+  label?: string;
 }
 
-export interface BalanceModelDisplayAmount {
-  /** Formatted amount with currency symbol (e.g. "¥10.00"). */
-  text: string;
-  /** Optional numeric value for threshold evaluation (currency ignored). */
-  value?: number;
-  /** Optional symbol (e.g. "$", "¥"). */
+export interface BalanceAmountMetric extends BalanceMetricBase {
+  type: 'amount';
+  direction: 'remaining' | 'used' | 'limit';
+  value: number;
   currencySymbol?: string;
 }
 
-export type BalanceModelDisplayTimeKind = 'expiresAt' | 'resetAt';
-
-export interface BalanceModelDisplayTime {
-  /** Semantic meaning of the time value. */
-  kind: BalanceModelDisplayTimeKind;
-  /** Raw time value from provider (prefer parseable datetime / ISO string). */
-  value: string;
-  /** Optional parsed timestamp for threshold evaluation. */
-  timestampMs?: number;
-  /** Optional preformatted display text. */
-  display?: string;
-}
-
-export interface BalanceModelDisplayTokens {
+export interface BalanceTokenMetric extends BalanceMetricBase {
+  type: 'token';
   used?: number;
   limit?: number;
   remaining?: number;
 }
 
-export interface BalanceModelDisplayData {
-  /** Remaining percentage in range 0-100 (e.g. 50 => "50%"). */
-  remainingPercent?: number;
-  badge?: BalanceModelDisplayBadge;
-  time?: BalanceModelDisplayTime;
-  amount?: BalanceModelDisplayAmount;
-  tokens?: BalanceModelDisplayTokens;
+export interface BalancePercentMetric extends BalanceMetricBase {
+  type: 'percent';
+  value: number;
+  basis?: 'remaining' | 'used';
 }
 
+export interface BalanceTimeMetric extends BalanceMetricBase {
+  type: 'time';
+  kind: 'expiresAt' | 'resetAt';
+  value: string;
+  timestampMs?: number;
+}
+
+export interface BalanceStatusMetric extends BalanceMetricBase {
+  type: 'status';
+  value: 'ok' | 'unlimited' | 'exhausted' | 'error' | 'unavailable';
+  message?: string;
+}
+
+export type BalanceMetric =
+  | BalanceAmountMetric
+  | BalanceTokenMetric
+  | BalancePercentMetric
+  | BalanceTimeMetric
+  | BalanceStatusMetric;
+
 export interface BalanceSnapshot {
-  summary: string;
-  details: string[];
   updatedAt: number;
-  modelDisplay?: BalanceModelDisplayData;
+  items: BalanceMetric[];
 }
 
 export interface BalanceProviderState {
@@ -148,21 +153,6 @@ export interface BalanceRefreshResult {
   snapshot?: BalanceSnapshot;
   error?: string;
 }
-
-export type BalanceUiStatusSnapshot =
-  | { kind: 'not-configured' }
-  | { kind: 'loading' }
-  | { kind: 'error'; message?: string }
-  | { kind: 'valid'; updatedAt?: number; summary?: string };
-
-export type BalanceStatusViewActionKind = 'inline' | 'close';
-
-export type BalanceStatusViewItem = vscode.QuickPickItem & {
-  action?: {
-    kind: BalanceStatusViewActionKind;
-    run: () => Promise<void>;
-  };
-};
 
 export function isMoonshotAIBalanceConfig(
   config: BalanceConfig | undefined,

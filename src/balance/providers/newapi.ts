@@ -6,13 +6,10 @@ import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import { createSecretRef, isSecretRef, type SecretStore } from '../../secret';
 import { pickQuickItem, showInput } from '../../ui/component';
 import type {
+  BalanceMetric,
   BalanceConfig,
-  BalanceModelDisplayData,
-  BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
-  BalanceStatusViewItem,
-  BalanceUiStatusSnapshot,
 } from '../types';
 import { isNewAPIBalanceConfig } from '../types';
 import type {
@@ -29,9 +26,7 @@ type NewApiModePickItem = vscode.QuickPickItem & {
 };
 
 type ParsedBalance = {
-  summary: string;
-  details: string[];
-  modelDisplay?: BalanceModelDisplayData;
+  items: BalanceMetric[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -59,17 +54,6 @@ function pickNumberLike(
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatSigned(value: number): string {
-  return value < 0 ? `-${formatNumber(Math.abs(value))}` : formatNumber(value);
 }
 
 function extractPayload(value: unknown): Record<string, unknown> | undefined {
@@ -284,92 +268,6 @@ export class NewAPIBalanceProvider implements BalanceProvider {
     return this.config;
   }
 
-  async getFieldDetail(
-    state: BalanceProviderState | undefined,
-  ): Promise<string | undefined> {
-    if (state?.snapshot?.summary) {
-      return state.snapshot.summary;
-    }
-    if (state?.lastError) {
-      return t('Error: {0}', state.lastError);
-    }
-
-    if (isNewAPIBalanceConfig(this.config) && this.config.userId?.trim()) {
-      return t('Configured (API key + user balance)');
-    }
-
-    return t('Configured (API key balance only)');
-  }
-
-  async getStatusSnapshot(
-    state: BalanceProviderState | undefined,
-  ): Promise<BalanceUiStatusSnapshot> {
-    if (state?.isRefreshing) {
-      return { kind: 'loading' };
-    }
-    if (state?.lastError) {
-      return { kind: 'error', message: state.lastError };
-    }
-    if (state?.snapshot) {
-      return {
-        kind: 'valid',
-        updatedAt: state.snapshot.updatedAt,
-        summary: state.snapshot.summary,
-      };
-    }
-    return { kind: 'not-configured' };
-  }
-
-  async getStatusViewItems(options: {
-    state: BalanceProviderState | undefined;
-    refresh: () => Promise<void>;
-  }): Promise<BalanceStatusViewItem[]> {
-    const state = options.state;
-    const snapshot = state?.snapshot;
-    const hasUserConfig =
-      isNewAPIBalanceConfig(this.config) &&
-      !!this.config.userId?.trim() &&
-      !!this.config.systemToken?.trim();
-
-    const items: BalanceStatusViewItem[] = [
-      {
-        label: `$(pulse) ${this.definition.label}`,
-        description: state?.isRefreshing
-          ? t('Refreshing...')
-          : snapshot
-            ? t(
-                'Last updated: {0}',
-                new Date(snapshot.updatedAt).toLocaleTimeString(),
-              )
-            : state?.lastError
-              ? t('Error')
-              : t('No data'),
-        detail:
-          snapshot?.details.join(' | ') ||
-          state?.lastError ||
-          t('Not refreshed yet'),
-      },
-      {
-        label: `$(account) ${t('User balance')}`,
-        description: hasUserConfig
-          ? t('Enabled')
-          : t('Disabled (API key balance only)'),
-      },
-      {
-        label: `$(refresh) ${t('Refresh now')}`,
-        description: t('Fetch latest balance info'),
-        action: {
-          kind: 'inline',
-          run: async () => {
-            await options.refresh();
-          },
-        },
-      },
-    ];
-
-    return items;
-  }
-
   async configure(): Promise<BalanceConfigureResult> {
     const selected = await pickQuickItem<NewApiModePickItem>({
       title: t('New API Balance Configuration'),
@@ -491,9 +389,7 @@ export class NewAPIBalanceProvider implements BalanceProvider {
         logger,
       );
 
-      let userSummary: string | undefined;
-      const userDetails: string[] = [];
-      let userBalance: ParsedBalance | undefined;
+      const items: BalanceMetric[] = [];
 
       const config = isNewAPIBalanceConfig(this.config)
         ? this.config
@@ -502,56 +398,48 @@ export class NewAPIBalanceProvider implements BalanceProvider {
         const systemToken = await this.resolveSystemTokenValue();
 
         if (!systemToken) {
-          userDetails.push(t('Balance: missing system token secret.'));
+          items.push({
+            id: 'user-error',
+            type: 'status',
+            period: 'current',
+            scope: 'user',
+            label: t('User balance'),
+            value: 'error',
+            message: t('Missing system token secret'),
+          });
         } else {
           try {
-            userBalance = await this.fetchUserBalance(
+            const userBalance = await this.fetchUserBalance(
               normalizedBaseUrl,
               config.userId.trim(),
               systemToken,
               logger,
             );
-
-            if (userBalance.summary) {
-              userSummary = userBalance.summary;
-            }
-            userDetails.push(...userBalance.details);
+            items.push(...userBalance.items);
           } catch (error) {
             const message =
               error instanceof Error ? error.message : String(error);
-            userSummary = t('Balance: error');
-            userDetails.push(t('Balance error: {0}', message));
+            items.push({
+              id: 'user-error',
+              type: 'status',
+              period: 'current',
+              scope: 'user',
+              label: t('User balance'),
+              value: 'error',
+              message,
+            });
           }
         }
       }
 
-      const summaryParts: string[] = [];
-      if (userSummary) {
-        summaryParts.push(userSummary);
-      }
-      if (keyBalance.summary) {
-        summaryParts.push(keyBalance.summary);
-      }
-
-      const details: string[] = [...userDetails, ...keyBalance.details];
-
-      if (summaryParts.length === 0) {
-        summaryParts.push(t('No data'));
-      }
-
-      if (details.length === 0) {
-        details.push(t('No data'));
-      }
-
-      const modelDisplay = userBalance?.modelDisplay ?? keyBalance.modelDisplay;
+      items.push(...keyBalance.items);
+      const normalizedItems = this.assignPrimaryMetric(items);
 
       return {
         success: true,
         snapshot: {
-          summary: summaryParts.join(' | '),
-          details,
           updatedAt: Date.now(),
-          modelDisplay,
+          items: normalizedItems,
         },
       };
     } catch (error) {
@@ -615,28 +503,47 @@ export class NewAPIBalanceProvider implements BalanceProvider {
 
     if (unlimited) {
       return {
-        summary: '',
-        details: [],
+        items: [
+          {
+            id: 'api-key-unlimited',
+            type: 'status',
+            period: 'current',
+            scope: 'api-key',
+            label: t('API Key balance'),
+            value: 'unlimited',
+          },
+        ],
       };
     }
-
-    let summary = t('API Key balance: unavailable');
-    let modelDisplay: BalanceModelDisplayData | undefined;
     if (totalAvailable !== undefined) {
-      const amount = '$' + formatSigned(totalAvailable);
-      summary = t('API Key balance: {0}', amount);
-      modelDisplay = {
-        badge: { text: amount, kind: 'amount' },
-        amount: {
-          text: amount,
-          value: Number.isFinite(totalAvailable) ? totalAvailable : undefined,
-          currencySymbol: '$',
-        },
+      return {
+        items: [
+          {
+            id: 'api-key-balance',
+            type: 'amount',
+            period: 'current',
+            scope: 'api-key',
+            label: t('API Key balance'),
+            direction: 'remaining',
+            value: totalAvailable,
+            currencySymbol: '$',
+          },
+        ],
       };
     }
 
-    const details = [summary];
-    return { summary, details, modelDisplay };
+    return {
+      items: [
+        {
+          id: 'api-key-unavailable',
+          type: 'status',
+          period: 'current',
+          scope: 'api-key',
+          label: t('API Key balance'),
+          value: 'unavailable',
+        },
+      ],
+    };
   }
 
   private async fetchUserBalance(
@@ -680,25 +587,62 @@ export class NewAPIBalanceProvider implements BalanceProvider {
 
     // New API docs note: actual balance = quota / 500000
     const quota = pickNumberLike(payload, 'quota');
-    let summary = t('Balance: unavailable');
-    let modelDisplay: BalanceModelDisplayData | undefined;
-
     if (quota !== undefined) {
       const actualQuota = quota / 500000;
-      const amount = '$' + formatSigned(actualQuota);
-      summary = t('Balance: {0}', amount);
-      modelDisplay = {
-        badge: { text: amount, kind: 'amount' },
-        amount: {
-          text: amount,
-          value: Number.isFinite(actualQuota) ? actualQuota : undefined,
-          currencySymbol: '$',
-        },
+      return {
+        items: [
+          {
+            id: 'user-balance',
+            type: 'amount',
+            period: 'current',
+            scope: 'user',
+            label: t('User balance'),
+            direction: 'remaining',
+            value: actualQuota,
+            currencySymbol: '$',
+          },
+        ],
       };
     }
 
-    const details = [summary];
-    return { summary, details, modelDisplay };
+    return {
+      items: [
+        {
+          id: 'user-unavailable',
+          type: 'status',
+          period: 'current',
+          scope: 'user',
+          label: t('User balance'),
+          value: 'unavailable',
+        },
+      ],
+    };
+  }
+
+  private assignPrimaryMetric(items: readonly BalanceMetric[]): BalanceMetric[] {
+    const userAmount = items.find(
+      (item) =>
+        item.type === 'amount' &&
+        item.scope === 'user' &&
+        item.direction === 'remaining',
+    );
+    const keyAmount = items.find(
+      (item) =>
+        item.type === 'amount' &&
+        item.scope === 'api-key' &&
+        item.direction === 'remaining',
+    );
+    const fallback = items[0];
+    const targetId = userAmount?.id ?? keyAmount?.id ?? fallback?.id;
+
+    if (!targetId) {
+      return [];
+    }
+
+    return items.map((item) => ({
+      ...item,
+      primary: item.id === targetId,
+    }));
   }
 
   private async resolveSystemTokenValue(): Promise<string | undefined> {

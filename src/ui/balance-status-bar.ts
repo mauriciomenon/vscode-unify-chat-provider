@@ -1,10 +1,14 @@
 import * as vscode from 'vscode';
 import type { BalanceProviderState } from '../balance/types';
-import { balanceManager } from '../balance';
+import {
+  balanceManager,
+  formatDetailLines,
+  isUnlimited,
+  resolveProgressPercent,
+} from '../balance';
 import type { ConfigStore } from '../config-store';
 import type { ProviderConfig } from '../types';
 import { t } from '../i18n';
-import { formatTokenTextCompact } from '../balance/token-display';
 
 function hasConfiguredBalanceProvider(provider: ProviderConfig): boolean {
   return (
@@ -19,49 +23,10 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-function parseRemainingPercentFromText(value: string): number | undefined {
-  const match = value.match(/\((\d{1,3})%\)/);
-  if (!match) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(match[1] ?? '', 10);
-  if (!Number.isFinite(parsed)) {
-    return undefined;
-  }
-
-  return clampPercent(parsed);
-}
-
 function resolveRemainingPercent(
   state: BalanceProviderState | undefined,
 ): number | undefined {
-  const fromModelDisplay = state?.snapshot?.modelDisplay?.remainingPercent;
-  if (
-    typeof fromModelDisplay === 'number' &&
-    Number.isFinite(fromModelDisplay)
-  ) {
-    return clampPercent(fromModelDisplay);
-  }
-
-  const snapshot = state?.snapshot;
-  if (!snapshot) {
-    return undefined;
-  }
-
-  const fromSummary = parseRemainingPercentFromText(snapshot.summary);
-  if (fromSummary !== undefined) {
-    return fromSummary;
-  }
-
-  for (const detail of snapshot.details) {
-    const fromDetail = parseRemainingPercentFromText(detail);
-    if (fromDetail !== undefined) {
-      return fromDetail;
-    }
-  }
-
-  return undefined;
+  return resolveProgressPercent(state?.snapshot);
 }
 
 function formatProgressBar(percent: number | undefined): string | undefined {
@@ -80,35 +45,7 @@ function formatProgressBar(percent: number | undefined): string | undefined {
 function formatBalanceDetail(
   state: BalanceProviderState | undefined,
 ): string[] {
-  const lines: string[] = [];
-
-  if (state?.lastError) {
-    lines.push(formatTokenTextCompact(t('Error: {0}', state.lastError)));
-  }
-
-  const snapshot = state?.snapshot;
-  if (snapshot) {
-    const snapshotLines = snapshot.details
-      .map((line) => line.trim())
-      .filter((line) => !!line);
-
-    if (snapshotLines.length > 0) {
-      lines.push(...snapshotLines.map((line) => formatTokenTextCompact(line)));
-    } else {
-      const summary = snapshot.summary.trim();
-      if (summary) {
-        lines.push(formatTokenTextCompact(summary));
-      } else if (lines.length === 0) {
-        lines.push(t('No data'));
-      }
-    }
-  }
-
-  if (lines.length === 0) {
-    lines.push(t('Not refreshed yet'));
-  }
-
-  return lines;
+  return formatDetailLines(state);
 }
 
 function formatProgressText(percent: number | undefined): string {
@@ -119,40 +56,10 @@ function formatProgressText(percent: number | undefined): string {
   return `${Math.round(clampPercent(percent))}%`;
 }
 
-function isUnlimitedText(value: string): boolean {
-  const normalized = value.trim();
-  if (!normalized) {
-    return false;
-  }
-
-  const lower = normalized.toLowerCase();
-  return (
-    normalized.includes('∞') ||
-    normalized.includes('无限') ||
-    normalized.includes('不限') ||
-    lower.includes('unlimited') ||
-    lower.includes('no limit')
-  );
-}
-
 function isUnlimitedBalanceState(
   state: BalanceProviderState | undefined,
 ): boolean {
-  const snapshot = state?.snapshot;
-  if (!snapshot) {
-    return false;
-  }
-
-  const badgeText = snapshot.modelDisplay?.badge?.text;
-  if (typeof badgeText === 'string' && isUnlimitedText(badgeText)) {
-    return true;
-  }
-
-  if (isUnlimitedText(snapshot.summary)) {
-    return true;
-  }
-
-  return snapshot.details.some((line) => isUnlimitedText(line));
+  return isUnlimited(state?.snapshot);
 }
 
 function escapeHtml(value: string): string {

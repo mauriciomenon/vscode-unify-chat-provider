@@ -9,22 +9,15 @@ import { createBalanceProvider } from './create-balance-provider';
 import type { BalanceProviderContext } from './balance-provider';
 import type {
   BalanceConfig,
-  BalanceModelDisplayData,
-  BalanceModelDisplayAmount,
-  BalanceModelDisplayBadge,
-  BalanceModelDisplayBadgeKind,
-  BalanceModelDisplayTime,
-  BalanceModelDisplayTimeKind,
-  BalanceModelDisplayTokens,
+  BalanceMetric,
   BalanceSnapshot,
   BalanceProviderState,
-  BalanceStatusViewItem,
 } from './types';
 
 const DEFAULT_PERIODIC_REFRESH_MS = 60_000;
 const DEFAULT_THROTTLE_WINDOW_MS = 10_000;
 const STATE_KEY = 'balanceState';
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 
 type PersistedProviderState = {
   snapshot?: BalanceSnapshot;
@@ -158,48 +151,6 @@ export class BalanceManager implements vscode.Disposable {
     );
 
     return targets.length;
-  }
-
-  async getProviderFieldDetail(
-    provider: ProviderConfig,
-  ): Promise<string | undefined> {
-    if (!this.hasConfiguredBalanceProvider(provider)) {
-      return undefined;
-    }
-
-    const balanceProvider = this.createProvider(provider);
-    if (!balanceProvider?.getFieldDetail) {
-      return undefined;
-    }
-
-    try {
-      return balanceProvider.getFieldDetail(this.states.get(provider.name));
-    } finally {
-      balanceProvider.dispose?.();
-    }
-  }
-
-  async getProviderStatusViewItems(options: {
-    provider: ProviderConfig;
-    refresh: () => Promise<void>;
-  }): Promise<BalanceStatusViewItem[]> {
-    if (!this.hasConfiguredBalanceProvider(options.provider)) {
-      return [];
-    }
-
-    const balanceProvider = this.createProvider(options.provider);
-    if (!balanceProvider?.getStatusViewItems) {
-      return [];
-    }
-
-    try {
-      return balanceProvider.getStatusViewItems({
-        state: this.states.get(options.provider.name),
-        refresh: options.refresh,
-      });
-    } finally {
-      balanceProvider.dispose?.();
-    }
   }
 
   private scheduleRefresh(
@@ -662,165 +613,195 @@ export class BalanceManager implements vscode.Disposable {
       return undefined;
     }
 
-    const summary = this.toString(rawSnapshot.summary);
     const updatedAt = this.toTimestamp(rawSnapshot.updatedAt);
-    if (summary === undefined || updatedAt === undefined) {
+    const items = this.toMetrics(rawSnapshot.items);
+    if (updatedAt === undefined || items === undefined) {
       return undefined;
     }
 
-    const detailsValue = rawSnapshot.details;
-    const details = Array.isArray(detailsValue)
-      ? detailsValue.filter((item): item is string => typeof item === 'string')
-      : [];
-
-    const modelDisplay = this.toModelDisplay(rawSnapshot.modelDisplay);
-
     return {
-      summary,
-      details,
       updatedAt,
-      modelDisplay,
+      items,
     };
   }
 
-  private toModelDisplay(
-    rawModelDisplay: unknown,
-  ): BalanceModelDisplayData | undefined {
-    if (!isRecord(rawModelDisplay)) {
+  private toMetrics(rawItems: unknown): BalanceMetric[] | undefined {
+    if (!Array.isArray(rawItems)) {
       return undefined;
     }
 
-    const remainingPercent = this.toFiniteNumber(
-      rawModelDisplay.remainingPercent,
-    );
+    const items: BalanceMetric[] = [];
+    for (const raw of rawItems) {
+      const item = this.toMetric(raw);
+      if (item) {
+        items.push(item);
+      }
+    }
+    return items;
+  }
 
-    const badge = this.toBadge(rawModelDisplay.badge);
-    const amount = this.toAmount(rawModelDisplay.amount);
-    const tokens = this.toTokens(rawModelDisplay.tokens);
+  private toMetric(raw: unknown): BalanceMetric | undefined {
+    if (!isRecord(raw)) {
+      return undefined;
+    }
 
-    const time = this.toTime(rawModelDisplay.time);
+    const id = this.toString(raw.id)?.trim();
+    const period = this.toPeriod(raw.period);
+    const type = this.toMetricType(raw.type);
+    if (!id || !period || !type) {
+      return undefined;
+    }
 
-    if (
-      badge === undefined &&
-      remainingPercent === undefined &&
-      time === undefined &&
-      amount === undefined &&
-      tokens === undefined
-    ) {
+    const primary = this.toBoolean(raw.primary);
+    const scope = this.toString(raw.scope)?.trim();
+    const label = this.toString(raw.label)?.trim();
+    const periodLabel = this.toString(raw.periodLabel)?.trim();
+
+    const base = {
+      id,
+      type,
+      period,
+      ...(scope ? { scope } : {}),
+      ...(label ? { label } : {}),
+      ...(periodLabel ? { periodLabel } : {}),
+      ...(primary !== undefined ? { primary } : {}),
+    };
+
+    if (type === 'amount') {
+      const direction = this.toAmountDirection(raw.direction);
+      const value = this.toFiniteNumber(raw.value);
+      const currencySymbol = this.toString(raw.currencySymbol)?.trim();
+      if (!direction || value === undefined) {
+        return undefined;
+      }
+
+      return {
+        ...base,
+        type,
+        direction,
+        value,
+        ...(currencySymbol ? { currencySymbol } : {}),
+      };
+    }
+
+    if (type === 'token') {
+      const used = this.toFiniteNumber(raw.used);
+      const limit = this.toFiniteNumber(raw.limit);
+      const remaining = this.toFiniteNumber(raw.remaining);
+      if (used === undefined && limit === undefined && remaining === undefined) {
+        return undefined;
+      }
+
+      return {
+        ...base,
+        type,
+        ...(used !== undefined ? { used } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+        ...(remaining !== undefined ? { remaining } : {}),
+      };
+    }
+
+    if (type === 'percent') {
+      const value = this.toFiniteNumber(raw.value);
+      const basis = this.toPercentBasis(raw.basis);
+      if (value === undefined) {
+        return undefined;
+      }
+
+      return {
+        ...base,
+        type,
+        value,
+        ...(basis ? { basis } : {}),
+      };
+    }
+
+    if (type === 'time') {
+      const kind = this.toTimeKind(raw.kind);
+      const value = this.toString(raw.value)?.trim();
+      const timestampMs = this.toTimestamp(raw.timestampMs);
+      if (!kind || !value) {
+        return undefined;
+      }
+
+      return {
+        ...base,
+        type,
+        kind,
+        value,
+        ...(timestampMs !== undefined ? { timestampMs } : {}),
+      };
+    }
+
+    const value = this.toStatusValue(raw.value);
+    const message = this.toString(raw.message)?.trim();
+    if (!value) {
       return undefined;
     }
 
     return {
-      ...(remainingPercent !== undefined ? { remainingPercent } : {}),
-      ...(badge !== undefined ? { badge } : {}),
-      ...(time !== undefined ? { time } : {}),
-      ...(amount !== undefined ? { amount } : {}),
-      ...(tokens !== undefined ? { tokens } : {}),
+      ...base,
+      type,
+      value,
+      ...(message ? { message } : {}),
     };
   }
 
-  private toBadgeKind(
-    value: unknown,
-  ): BalanceModelDisplayBadgeKind | undefined {
-    if (
+  private toMetricType(value: unknown): BalanceMetric['type'] | undefined {
+    return value === 'amount' ||
+      value === 'token' ||
       value === 'percent' ||
       value === 'time' ||
-      value === 'amount' ||
+      value === 'status'
+      ? value
+      : undefined;
+  }
+
+  private toPeriod(value: unknown): BalanceMetric['period'] | undefined {
+    return value === 'current' ||
+      value === 'day' ||
+      value === 'week' ||
+      value === 'month' ||
+      value === 'total' ||
       value === 'custom'
-    ) {
-      return value;
-    }
-    return undefined;
+      ? value
+      : undefined;
   }
 
-  private toBadge(raw: unknown): BalanceModelDisplayBadge | undefined {
-    if (!isRecord(raw)) {
-      return undefined;
-    }
-
-    const text = this.toString(raw.text)?.trim();
-    if (!text) {
-      return undefined;
-    }
-
-    const kind = this.toBadgeKind(raw.kind);
-    return {
-      text,
-      ...(kind !== undefined ? { kind } : {}),
-    };
+  private toTimeKind(value: unknown): 'expiresAt' | 'resetAt' | undefined {
+    return value === 'expiresAt' || value === 'resetAt' ? value : undefined;
   }
 
-  private toTimeKind(value: unknown): BalanceModelDisplayTimeKind | undefined {
-    if (value === 'expiresAt' || value === 'resetAt') {
-      return value;
-    }
-    return undefined;
+  private toAmountDirection(
+    value: unknown,
+  ): 'remaining' | 'used' | 'limit' | undefined {
+    return value === 'remaining' || value === 'used' || value === 'limit'
+      ? value
+      : undefined;
   }
 
-  private toTime(raw: unknown): BalanceModelDisplayTime | undefined {
-    if (!isRecord(raw)) {
-      return undefined;
-    }
-
-    const kind = this.toTimeKind(raw.kind);
-    const value = this.toString(raw.value)?.trim();
-    if (!kind || !value) {
-      return undefined;
-    }
-
-    const timestampMs = this.toTimestamp(raw.timestampMs);
-    const display = this.toString(raw.display)?.trim();
-
-    return {
-      kind,
-      value,
-      ...(timestampMs !== undefined ? { timestampMs } : {}),
-      ...(display ? { display } : {}),
-    };
+  private toPercentBasis(value: unknown): 'remaining' | 'used' | undefined {
+    return value === 'remaining' || value === 'used' ? value : undefined;
   }
 
-  private toTokens(raw: unknown): BalanceModelDisplayTokens | undefined {
-    if (!isRecord(raw)) {
-      return undefined;
-    }
-
-    const used = this.toFiniteNumber(raw.used);
-    const limit = this.toFiniteNumber(raw.limit);
-    const remaining = this.toFiniteNumber(raw.remaining);
-
-    if (used === undefined && limit === undefined && remaining === undefined) {
-      return undefined;
-    }
-
-    return {
-      ...(used !== undefined ? { used } : {}),
-      ...(limit !== undefined ? { limit } : {}),
-      ...(remaining !== undefined ? { remaining } : {}),
-    };
-  }
-
-  private toAmount(raw: unknown): BalanceModelDisplayAmount | undefined {
-    if (!isRecord(raw)) {
-      return undefined;
-    }
-
-    const text = this.toString(raw.text)?.trim();
-    if (!text) {
-      return undefined;
-    }
-
-    const value = this.toFiniteNumber(raw.value);
-    const currencySymbol = this.toString(raw.currencySymbol)?.trim();
-
-    return {
-      text,
-      ...(value !== undefined ? { value } : {}),
-      ...(currencySymbol ? { currencySymbol } : {}),
-    };
+  private toStatusValue(
+    value: unknown,
+  ): 'ok' | 'unlimited' | 'exhausted' | 'error' | 'unavailable' | undefined {
+    return value === 'ok' ||
+      value === 'unlimited' ||
+      value === 'exhausted' ||
+      value === 'error' ||
+      value === 'unavailable'
+      ? value
+      : undefined;
   }
 
   private toString(value: unknown): string | undefined {
     return typeof value === 'string' ? value : undefined;
+  }
+
+  private toBoolean(value: unknown): boolean | undefined {
+    return typeof value === 'boolean' ? value : undefined;
   }
 
   private toTimestamp(value: unknown): number | undefined {

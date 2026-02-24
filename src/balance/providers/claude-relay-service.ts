@@ -3,15 +3,11 @@ import { createSimpleHttpLogger } from '../../logger';
 import { getToken } from '../../client/utils';
 import { fetchWithRetry, normalizeBaseUrlInput } from '../../utils';
 import type { SecretStore } from '../../secret';
-import { formatTokenCountCompact } from '../token-display';
 import type {
+  BalanceMetric,
   BalanceConfig,
-  BalanceModelDisplayData,
-  BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
-  BalanceStatusViewItem,
-  BalanceUiStatusSnapshot,
 } from '../types';
 import { isClaudeRelayServiceBalanceConfig } from '../types';
 import type {
@@ -60,6 +56,7 @@ interface CrsUsageSnapshot {
 
 interface CrsWindowSnapshot {
   summaryPrefix: string;
+  period: 'day' | 'week' | 'month' | 'total';
   used: number;
   total: number;
 }
@@ -97,26 +94,6 @@ function pickNumberLike(
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
-}
-
-function formatCurrency(value: number): string {
-  return `$${value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatSignedCurrency(value: number): string {
-  return value < 0
-    ? `-${formatCurrency(Math.abs(value))}`
-    : formatCurrency(value);
-}
-
-function formatPercent(value: number): string {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
 }
 
 function clampPercent(value: number): number {
@@ -186,21 +163,25 @@ function resolveMostConstrainedWindow(
   const windows: CrsWindowSnapshot[] = [
     {
       summaryPrefix: t('Today quota'),
+      period: 'day',
       used: usage.daily.cost.used,
       total: usage.daily.cost.total,
     },
     {
       summaryPrefix: t('This week quota'),
+      period: 'week',
       used: usage.weekly.cost.used,
       total: usage.weekly.cost.total,
     },
     {
       summaryPrefix: t('This month quota'),
+      period: 'month',
       used: usage.monthly.cost.used,
       total: usage.monthly.cost.total,
     },
     {
       summaryPrefix: t('Total quota'),
+      period: 'total',
       used: usage.total.cost.used,
       total: usage.total.cost.total,
     },
@@ -219,6 +200,7 @@ function resolveMostConstrainedWindow(
   if (groupOverLimit) {
     windows.push({
       summaryPrefix: t('Group weekly quota'),
+      period: 'week',
       used: groupUsed,
       total: groupTotal,
     });
@@ -245,76 +227,118 @@ function resolveMostConstrainedWindow(
 }
 
 function buildSnapshot(usage: CrsUsageSnapshot): {
-  summary: string;
-  details: string[];
-  modelDisplay?: BalanceModelDisplayData;
+  items: BalanceMetric[];
 } {
   const constrained = resolveMostConstrainedWindow(usage);
-  let summary = t('Balance: unavailable');
-  let modelDisplay: BalanceModelDisplayData | undefined;
+  const items: BalanceMetric[] = [];
+  let primaryId: string | undefined;
 
   if (constrained && constrained.total > 0) {
     const remainingAmount = constrained.total - constrained.used;
     const remainingPercent = clampPercent(
       (remainingAmount / constrained.total) * 100,
     );
-    const percentText = `${formatPercent(remainingPercent)}%`;
-    const usedText = formatCurrency(constrained.used);
-    const totalText = formatCurrency(constrained.total);
-    summary = t('{0}: {1}/{2}', constrained.summaryPrefix, usedText, totalText);
-    modelDisplay = {
-      remainingPercent,
-      badge: {
-        text: percentText,
-        kind: 'percent',
-      },
-      amount: {
-        text: formatSignedCurrency(remainingAmount),
-        value: Number.isFinite(remainingAmount) ? remainingAmount : undefined,
-        currencySymbol: '$',
-      },
-    };
+    primaryId = 'remaining-percent';
+    items.push({
+      id: primaryId,
+      type: 'percent',
+      period: constrained.period,
+      label: constrained.summaryPrefix,
+      value: remainingPercent,
+      basis: 'remaining',
+      primary: true,
+    });
+    items.push({
+      id: 'remaining-amount',
+      type: 'amount',
+      period: constrained.period,
+      label: constrained.summaryPrefix,
+      direction: 'remaining',
+      value: remainingAmount,
+      currencySymbol: '$',
+    });
+    items.push({
+      id: 'constrained-used',
+      type: 'amount',
+      period: constrained.period,
+      label: constrained.summaryPrefix,
+      direction: 'used',
+      value: constrained.used,
+      currencySymbol: '$',
+    });
+    items.push({
+      id: 'constrained-limit',
+      type: 'amount',
+      period: constrained.period,
+      label: constrained.summaryPrefix,
+      direction: 'limit',
+      value: constrained.total,
+      currencySymbol: '$',
+    });
   }
 
-  const dailyCostText =
-    usage.daily.cost.total > 0
-      ? `${formatCurrency(usage.daily.cost.used)} / ${formatCurrency(usage.daily.cost.total)}`
-      : formatCurrency(usage.daily.cost.used);
-  const monthlyCostText =
-    usage.monthly.cost.total > 0
-      ? `${formatCurrency(usage.monthly.cost.used)} / ${formatCurrency(usage.monthly.cost.total)}`
-      : formatCurrency(usage.monthly.cost.used);
-  const weeklyCostText =
-    usage.weekly.cost.total > 0
-      ? `${formatCurrency(usage.weekly.cost.used)} / ${formatCurrency(usage.weekly.cost.total)}`
-      : formatCurrency(usage.weekly.cost.used);
-  const totalCostText =
-    usage.total.cost.total > 0
-      ? `${formatCurrency(usage.total.cost.used)} / ${formatCurrency(usage.total.cost.total)}`
-      : formatCurrency(usage.total.cost.used);
-
-  const details = [
-    t(
-      'Today usage: {0}, Tokens: {1}',
-      dailyCostText,
-      formatTokenCountCompact(usage.daily.tokens),
-    ),
-    t(
-      'This week usage: {0}, Tokens: {1}',
-      weeklyCostText,
-      formatTokenCountCompact(usage.weekly.tokens),
-    ),
-    t(
-      'This month usage: {0}, Tokens: {1}',
-      monthlyCostText,
-      formatTokenCountCompact(usage.monthly.tokens),
-    ),
-    t(
-      'Total usage: {0}, Tokens: {1}',
-      totalCostText,
-      formatTokenCountCompact(usage.total.tokens),
-    ),
+  const windows = [
+    {
+      id: 'day',
+      period: 'day' as const,
+      label: t('Today usage'),
+      cost: usage.daily.cost,
+      tokens: usage.daily.tokens,
+    },
+    {
+      id: 'week',
+      period: 'week' as const,
+      label: t('This week usage'),
+      cost: usage.weekly.cost,
+      tokens: usage.weekly.tokens,
+    },
+    {
+      id: 'month',
+      period: 'month' as const,
+      label: t('This month usage'),
+      cost: usage.monthly.cost,
+      tokens: usage.monthly.tokens,
+    },
+    {
+      id: 'total',
+      period: 'total' as const,
+      label: t('Total usage'),
+      cost: usage.total.cost,
+      tokens: usage.total.tokens,
+    },
   ];
+
+  for (const window of windows) {
+    items.push({
+      id: `${window.id}-tokens`,
+      type: 'token',
+      period: window.period,
+      label: window.label,
+      used: window.tokens,
+    });
+
+    items.push({
+      id: `${window.id}-cost-used`,
+      type: 'amount',
+      period: window.period,
+      label: window.label,
+      direction: 'used',
+      value: window.cost.used,
+      currencySymbol: '$',
+    });
+
+    if (window.cost.total > 0) {
+      items.push({
+        id: `${window.id}-cost-limit`,
+        type: 'amount',
+        period: window.period,
+        label: window.label,
+        direction: 'limit',
+        value: window.cost.total,
+        currencySymbol: '$',
+      });
+    }
+  }
 
   const groupUsed = usage.groupWeekly?.cost.used;
   const groupTotal = usage.groupWeekly?.cost.total;
@@ -333,18 +357,39 @@ function buildSnapshot(usage: CrsUsageSnapshot): {
       groupTotal > 0
         ? groupTotal
         : undefined;
-    const groupLabel = t('Group weekly usage');
-    const groupCostText =
-      groupTotalValue !== undefined
-        ? `${formatCurrency(groupUsedValue)} / ${formatCurrency(groupTotalValue)}`
-        : formatCurrency(groupUsedValue);
-    details.push(t('{0}: {1}', groupLabel, groupCostText));
+    items.push({
+      id: 'group-weekly-used',
+      type: 'amount',
+      period: 'week',
+      scope: 'group',
+      label: t('Group weekly usage'),
+      direction: 'used',
+      value: groupUsedValue,
+      currencySymbol: '$',
+    });
+    if (groupTotalValue !== undefined) {
+      items.push({
+        id: 'group-weekly-limit',
+        type: 'amount',
+        period: 'week',
+        scope: 'group',
+        label: t('Group weekly usage'),
+        direction: 'limit',
+        value: groupTotalValue,
+        currencySymbol: '$',
+      });
+    }
+  }
+
+  if (!primaryId) {
+    primaryId = items[0]?.id;
   }
 
   return {
-    summary,
-    details,
-    modelDisplay,
+    items: items.map((item) => ({
+      ...item,
+      primary: item.id === primaryId,
+    })),
   };
 }
 
@@ -431,76 +476,6 @@ export class ClaudeRelayServiceBalanceProvider implements BalanceProvider {
 
   getConfig(): BalanceConfig | undefined {
     return this.config;
-  }
-
-  async getFieldDetail(
-    state: BalanceProviderState | undefined,
-  ): Promise<string | undefined> {
-    if (state?.snapshot?.summary) {
-      return state.snapshot.summary;
-    }
-    if (state?.lastError) {
-      return t('Error: {0}', state.lastError);
-    }
-    return t('Not refreshed yet');
-  }
-
-  async getStatusSnapshot(
-    state: BalanceProviderState | undefined,
-  ): Promise<BalanceUiStatusSnapshot> {
-    if (state?.isRefreshing) {
-      return { kind: 'loading' };
-    }
-    if (state?.lastError) {
-      return { kind: 'error', message: state.lastError };
-    }
-    if (state?.snapshot) {
-      return {
-        kind: 'valid',
-        updatedAt: state.snapshot.updatedAt,
-        summary: state.snapshot.summary,
-      };
-    }
-    return { kind: 'not-configured' };
-  }
-
-  async getStatusViewItems(options: {
-    state: BalanceProviderState | undefined;
-    refresh: () => Promise<void>;
-  }): Promise<BalanceStatusViewItem[]> {
-    const state = options.state;
-    const snapshot = state?.snapshot;
-
-    const description = state?.isRefreshing
-      ? t('Refreshing...')
-      : snapshot
-        ? t('Last updated: {0}', new Date(snapshot.updatedAt).toLocaleTimeString())
-        : state?.lastError
-          ? t('Error')
-          : t('No data');
-
-    const details =
-      snapshot?.details?.join(' | ') ||
-      state?.lastError ||
-      t('Not refreshed yet');
-
-    return [
-      {
-        label: `$(pulse) ${this.definition.label}`,
-        description,
-        detail: details,
-      },
-      {
-        label: `$(refresh) ${t('Refresh now')}`,
-        description: t('Fetch latest balance info'),
-        action: {
-          kind: 'inline',
-          run: async () => {
-            await options.refresh();
-          },
-        },
-      },
-    ];
   }
 
   async configure(): Promise<BalanceConfigureResult> {

@@ -18,7 +18,7 @@ import { createProviderDraft } from '../form-utils';
 import { getAllModelsForProvider } from '../../utils';
 import { deleteProviderApiKeySecretIfUnused } from '../../api-key-utils';
 import { resolveProvidersForExportOrShowError } from '../../auth/auth-transfer';
-import { balanceManager } from '../../balance';
+import { balanceManager, formatSummaryLine } from '../../balance';
 import { t } from '../../i18n';
 
 type ProviderListItem = vscode.QuickPickItem & {
@@ -227,9 +227,9 @@ async function buildProviderListItems(
     const modelDetail = modelList
       ? t('Models: {0}', modelList)
       : t('No models');
-    const rawBalanceSummary = balanceManager.getProviderState(provider.name)
-      ?.snapshot?.summary;
-    const balanceSummary = rawBalanceSummary?.replace(/[\r\n]+/g, ' ').trim();
+    const balanceSummary = formatSummaryLine(
+      balanceManager.getProviderState(provider.name)?.snapshot,
+    );
     const detailParts = [modelDetail];
     if (balanceSummary) {
       detailParts.unshift(balanceSummary);

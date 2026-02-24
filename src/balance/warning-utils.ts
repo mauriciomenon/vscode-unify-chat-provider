@@ -1,4 +1,9 @@
-import type { BalanceModelDisplayData } from './types';
+import type {
+  BalanceAmountMetric,
+  BalanceMetric,
+  BalanceTimeMetric,
+  BalanceTokenMetric,
+} from './types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MILLION = 1_000_000;
@@ -36,13 +41,7 @@ function resolveAmountThreshold(amountThreshold: number): number {
   return clampNonNegativeFiniteNumber(amountThreshold);
 }
 
-function resolveTimeTimestampMs(
-  time: BalanceModelDisplayData['time'],
-): number | undefined {
-  if (!time) {
-    return undefined;
-  }
-
+function resolveTimeTimestampMs(time: BalanceTimeMetric): number | undefined {
   const fromField = time.timestampMs;
   if (typeof fromField === 'number' && Number.isFinite(fromField)) {
     return fromField;
@@ -52,13 +51,7 @@ function resolveTimeTimestampMs(
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function resolveRemainingTokens(
-  tokens: BalanceModelDisplayData['tokens'],
-): number | undefined {
-  if (!tokens) {
-    return undefined;
-  }
-
+function resolveRemainingTokens(tokens: BalanceTokenMetric): number | undefined {
   const remaining = tokens.remaining;
   if (typeof remaining === 'number' && Number.isFinite(remaining)) {
     return remaining;
@@ -79,8 +72,34 @@ function resolveRemainingTokens(
   return undefined;
 }
 
+function findAmountMetric(
+  items: readonly BalanceMetric[],
+): BalanceAmountMetric | undefined {
+  return items.find(
+    (item): item is BalanceAmountMetric =>
+      item.type === 'amount' && item.direction === 'remaining',
+  );
+}
+
+function findTokenMetric(
+  items: readonly BalanceMetric[],
+): BalanceTokenMetric | undefined {
+  return items.find(
+    (item): item is BalanceTokenMetric => item.type === 'token',
+  );
+}
+
+function findExpiresMetric(
+  items: readonly BalanceMetric[],
+): BalanceTimeMetric | undefined {
+  return items.find(
+    (item): item is BalanceTimeMetric =>
+      item.type === 'time' && item.kind === 'expiresAt',
+  );
+}
+
 export function evaluateBalanceWarning(
-  modelDisplay: BalanceModelDisplayData | undefined,
+  items: readonly BalanceMetric[] | undefined,
   thresholds: BalanceWarningThresholds,
   nowMs: number = Date.now(),
 ): BalanceWarningEvaluation {
@@ -88,32 +107,41 @@ export function evaluateBalanceWarning(
     return { isNearThreshold: false, reasons: [] };
   }
 
-  const display = modelDisplay;
-  if (!display) {
+  if (!items || items.length === 0) {
     return { isNearThreshold: false, reasons: [] };
   }
 
   const reasons: BalanceWarningReason[] = [];
 
-  const amountValue = display.amount?.value;
-  if (typeof amountValue === 'number' && Number.isFinite(amountValue)) {
+  const amountMetric = findAmountMetric(items);
+  if (
+    amountMetric &&
+    typeof amountMetric.value === 'number' &&
+    Number.isFinite(amountMetric.value)
+  ) {
     const threshold = resolveAmountThreshold(thresholds.amountThreshold);
-    if (amountValue <= threshold) {
+    if (amountMetric.value <= threshold) {
       reasons.push('amount');
     }
   }
 
-  const remainingTokens = resolveRemainingTokens(display.tokens);
-  if (typeof remainingTokens === 'number' && Number.isFinite(remainingTokens)) {
+  const tokenMetric = findTokenMetric(items);
+  const remainingTokens = tokenMetric
+    ? resolveRemainingTokens(tokenMetric)
+    : undefined;
+  if (
+    typeof remainingTokens === 'number' &&
+    Number.isFinite(remainingTokens)
+  ) {
     const threshold = resolveTokenThreshold(thresholds.tokenThresholdMillions);
     if (remainingTokens <= threshold) {
       reasons.push('tokens');
     }
   }
 
-  const time = display.time;
-  if (time?.kind === 'expiresAt') {
-    const timestampMs = resolveTimeTimestampMs(time);
+  const expiresMetric = findExpiresMetric(items);
+  if (expiresMetric) {
+    const timestampMs = resolveTimeTimestampMs(expiresMetric);
     if (timestampMs !== undefined) {
       const thresholdMs = resolveTimeThresholdMs(thresholds.timeThresholdDays);
       if (timestampMs - nowMs <= thresholdMs) {

@@ -2,11 +2,8 @@ import type { SecretStore } from '../secret';
 import type { AuthManager } from '../auth';
 import type {
   BalanceConfig,
-  BalanceProviderState,
   BalanceRefreshInput,
   BalanceRefreshResult,
-  BalanceStatusViewItem,
-  BalanceUiStatusSnapshot,
 } from './types';
 
 export interface BalanceProviderDefinition {
@@ -34,17 +31,6 @@ export interface BalanceProvider {
   readonly definition: BalanceProviderDefinition;
 
   getConfig(): BalanceConfig | undefined;
-
-  getFieldDetail?(state: BalanceProviderState | undefined): Promise<string | undefined>;
-
-  getStatusSnapshot?(
-    state: BalanceProviderState | undefined,
-  ): Promise<BalanceUiStatusSnapshot>;
-
-  getStatusViewItems?(options: {
-    state: BalanceProviderState | undefined;
-    refresh: () => Promise<void>;
-  }): Promise<BalanceStatusViewItem[]>;
 
   configure(): Promise<BalanceConfigureResult>;
 

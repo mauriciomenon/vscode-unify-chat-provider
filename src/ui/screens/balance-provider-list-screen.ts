@@ -1,9 +1,13 @@
 import * as vscode from 'vscode';
 import type { ProviderConfig } from '../../types';
 import type { BalanceProviderState } from '../../balance/types';
-import { balanceManager } from '../../balance';
+import {
+  balanceManager,
+  formatDetailLines,
+  isUnlimited,
+  resolveProgressPercent,
+} from '../../balance';
 import { evaluateBalanceWarning } from '../../balance/warning-utils';
-import { formatTokenTextCompact } from '../../balance/token-display';
 import { stableStringify } from '../../config-ops';
 import { t } from '../../i18n';
 import { pickQuickItem } from '../component';
@@ -38,45 +42,8 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-function parseRemainingPercentFromText(value: string): number | undefined {
-  const match = value.match(/\((\d{1,3})%\)/);
-  if (!match) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(match[1] ?? '', 10);
-  if (!Number.isFinite(parsed)) {
-    return undefined;
-  }
-
-  const percent = clampPercent(parsed);
-  return percent;
-}
-
 function resolveRemainingPercent(state: BalanceProviderState | undefined): number | undefined {
-  const fromModelDisplay = state?.snapshot?.modelDisplay?.remainingPercent;
-  if (typeof fromModelDisplay === 'number' && Number.isFinite(fromModelDisplay)) {
-    return clampPercent(fromModelDisplay);
-  }
-
-  const snapshot = state?.snapshot;
-  if (!snapshot) {
-    return undefined;
-  }
-
-  const fromSummary = parseRemainingPercentFromText(snapshot.summary);
-  if (fromSummary !== undefined) {
-    return fromSummary;
-  }
-
-  for (const detail of snapshot.details) {
-    const fromDetail = parseRemainingPercentFromText(detail);
-    if (fromDetail !== undefined) {
-      return fromDetail;
-    }
-  }
-
-  return undefined;
+  return resolveProgressPercent(state?.snapshot);
 }
 
 function formatProgressBar(percent: number | undefined): string | undefined {
@@ -94,70 +61,12 @@ function formatProgressBar(percent: number | undefined): string | undefined {
   return `${bar} ${Math.round(clamped)}%`;
 }
 
-function isUnlimitedText(value: string): boolean {
-  const normalized = value.trim();
-  if (!normalized) {
-    return false;
-  }
-
-  const lower = normalized.toLowerCase();
-  return (
-    normalized.includes('∞') ||
-    normalized.includes('无限') ||
-    normalized.includes('不限') ||
-    lower.includes('unlimited') ||
-    lower.includes('no limit')
-  );
-}
-
 function isUnlimitedBalanceState(state: BalanceProviderState | undefined): boolean {
-  const snapshot = state?.snapshot;
-  if (!snapshot) {
-    return false;
-  }
-
-  const badgeText = snapshot.modelDisplay?.badge?.text;
-  if (typeof badgeText === 'string' && isUnlimitedText(badgeText)) {
-    return true;
-  }
-
-  if (isUnlimitedText(snapshot.summary)) {
-    return true;
-  }
-
-  return snapshot.details.some((line) => isUnlimitedText(line));
+  return isUnlimited(state?.snapshot);
 }
 
 function formatBalanceDetail(state: BalanceProviderState | undefined): string {
-  const parts: string[] = [];
-
-  if (state?.lastError) {
-    parts.push(formatTokenTextCompact(t('Error: {0}', state.lastError)));
-  }
-
-  const snapshot = state?.snapshot;
-  if (snapshot) {
-    const snapshotLines = snapshot.details
-      .map((line) => line.trim())
-      .filter((line) => !!line);
-
-    if (snapshotLines.length > 0) {
-      parts.push(...snapshotLines.map((line) => formatTokenTextCompact(line)));
-    } else {
-      const summary = snapshot.summary.trim();
-      if (summary) {
-        parts.push(formatTokenTextCompact(summary));
-      } else if (parts.length === 0) {
-        parts.push(t('No data'));
-      }
-    }
-  }
-
-  if (parts.length === 0) {
-    return t('Not refreshed yet');
-  }
-
-  return parts.join(' | ');
+  return formatDetailLines(state).join(' | ');
 }
 
 async function configureBalanceMonitor(options: {
@@ -245,7 +154,7 @@ export async function runBalanceProviderListScreen(
           (isUnlimitedBalanceState(state) ? t('Unlimited') : undefined);
         const detail = formatBalanceDetail(state);
         const warning = evaluateBalanceWarning(
-          state?.snapshot?.modelDisplay,
+          state?.snapshot?.items,
           warningThresholds,
         );
         const label = warning.isNearThreshold
